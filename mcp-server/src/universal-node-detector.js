@@ -23,7 +23,7 @@ class UniversalNodeDetector {
 
     log(...args) {
         if (this.debug) {
-            console.log('[UniversalNodeDetector]', ...args);
+            console.error('[UniversalNodeDetector]', ...args);
         }
     }
 

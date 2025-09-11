@@ -187,6 +187,51 @@ function createMcpServer() {
     }
   );
 
+  // Register export directory tool
+  server.tool(
+    'get_export_directory',
+    {
+      description: 'Get the path where exported videos from Remotion Studio are saved on the host system',
+      inputSchema: z.object({})
+    },
+    async () => {
+      const isDocker = process.env.DOCKER_CONTAINER === 'true';
+      let exportPath: string;
+      let instructions: string;
+
+      if (isDocker) {
+        // In Docker container - videos are mounted to host directory
+        exportPath = 'clean-cut-exports (in your project directory)';
+        instructions = `[EXPORT DIRECTORY] Videos exported from Remotion Studio appear in:\n\n` +
+                      `${exportPath}\n\n` +
+                      `[HOW IT WORKS]\n` +
+                      `- Container path: /workspace/out\n` +
+                      `- Host path: ./clean-cut-exports\n` +
+                      `- All exports automatically appear in your host directory\n` +
+                      `- Works cross-platform (Windows, macOS, Linux)\n\n` +
+                      `[USAGE]\n` +
+                      `1. Export video from Remotion Studio\n` +
+                      `2. Check the clean-cut-exports folder in your project directory\n` +
+                      `3. Your video will be there instantly!`;
+      } else {
+        // Running locally
+        exportPath = EXPORTS_DIR;
+        instructions = `[EXPORT DIRECTORY] Videos are saved to:\n\n${exportPath}\n\n` +
+                      `[USAGE]\n` +
+                      `Export videos from Remotion Studio and they will appear in the above directory.`;
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: instructions
+          }
+        ]
+      };
+    }
+  );
+
   return server;
 }
 

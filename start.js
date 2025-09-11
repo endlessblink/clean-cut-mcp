@@ -22,10 +22,14 @@ async function ensureWorkspaceInitialized() {
   await ensureDir(WORKSPACE);
   const pkgJsonPath = path.join(WORKSPACE, 'package.json');
   const srcDir = path.join(WORKSPACE, 'src');
+  const outDir = path.join(WORKSPACE, 'out');
   const rootTsx = path.join(srcDir, 'Root.tsx');
   const compTsx = path.join(srcDir, 'Composition.tsx');
   const indexTs = path.join(srcDir, 'index.ts');
 
+  // Ensure export directory exists with proper permissions
+  await ensureDir(outDir);
+  
   const needScaffold = !(await fileExists(pkgJsonPath)) || !(await fileExists(srcDir));
 
   if (needScaffold) {
@@ -120,7 +124,7 @@ function run(command, args, opts = {}) {
       }
     });
 
-    child.stdout.on('data', (d) => process.stdout.write(`[${command}] ${d}`));
+    child.stdout.on('data', (d) => process.stderr.write(`[${command}] ${d}`));
     child.stderr.on('data', (d) => process.stderr.write(`[${command} ERR] ${d}`));
 
     child.on('error', reject);
@@ -136,7 +140,7 @@ function spawnBackground(command, args, opts = {}) {
     stdio: ['ignore', 'pipe', 'pipe'],
     ...opts
   });
-  child.stdout.on('data', (d) => process.stdout.write(`[${command}] ${d}`));
+  child.stdout.on('data', (d) => process.stderr.write(`[${command}] ${d}`));
   child.stderr.on('data', (d) => process.stderr.write(`[${command} ERR] ${d}`));
   return child;
 }
@@ -157,6 +161,7 @@ async function main() {
 
   console.error(`[ENTRYPOINT] Launching MCP HTTP server on port ${MCP_PORT} ...`);
   const mcp = spawnBackground('node', ['/app/mcp-server/dist/http-mcp-server.js'], {
+    cwd: '/app/mcp-server',
     env: process.env
   });
 

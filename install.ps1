@@ -40,6 +40,9 @@ $BackupSuffix = "clean-cut-backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 $ContainerName = "clean-cut-mcp"
 $ImageName = "clean-cut-mcp"
 
+# VIDEO EXPORT CONFIGURATION - Cross-platform export directory
+$ExportDir = Join-Path $PWD "clean-cut-exports"
+
 # Logging function (safe stderr output with robust file handling)
 function Write-SafeLog {
     param([string]$Message, [string]$Level = "INFO")
@@ -89,6 +92,41 @@ function Convert-PSObjectToHashtable {
 }
 
 # Docker helper function with proper error handling
+# Export directory helper function
+function Ensure-ExportDirectory {
+    param([string]$ExportPath)
+    
+    Write-SafeLog "Ensuring video export directory exists: $ExportPath" "INFO"
+    
+    try {
+        if (-not (Test-Path $ExportPath)) {
+            New-Item -ItemType Directory -Path $ExportPath -Force | Out-Null
+            Write-SafeLog "Created export directory: $ExportPath" "INFO"
+        }
+        else {
+            Write-SafeLog "Export directory already exists: $ExportPath" "INFO"
+        }
+        
+        # Verify directory is writable
+        $testFile = Join-Path $ExportPath "test-write-$(Get-Random).txt"
+        try {
+            "test" | Out-File -FilePath $testFile -Force
+            Remove-Item $testFile -Force -ErrorAction SilentlyContinue
+            Write-SafeLog "Export directory write test passed" "INFO"
+        }
+        catch {
+            Write-SafeLog "Export directory is not writable: $($_.Exception.Message)" "ERROR"
+            return $false
+        }
+        
+        return $true
+    }
+    catch {
+        Write-SafeLog "Failed to create export directory: $($_.Exception.Message)" "ERROR"
+        return $false
+    }
+}
+
 function Stop-DockerContainer {
     param([string]$ContainerName, [switch]$Silent = $true)
     
@@ -566,11 +604,24 @@ function Test-DockerContainer {
         try {
             Write-SafeLog "Testing container startup..." "INFO"
             
+            # Ensure export directory for testing
+            if (-not (Ensure-ExportDirectory -ExportPath $ExportDir)) {
+                Write-SafeLog "Failed to create export directory for testing" "WARN"
+                return $false
+            }
+            
             # Stop existing container if running
             Stop-DockerContainer -ContainerName $ContainerName -Silent
             
-            # Start container for testing
-            $containerId = & $DockerPath run -d --name $ContainerName -p 6961:6961 -p 6960:6960 $ImageName
+            # Convert Windows paths for Docker volume mounting
+            $dockerExportPath = $ExportDir -replace '\\', '/'
+            if ($dockerExportPath -match '^[a-zA-Z]:') {
+                # Convert Windows drive letters (C: -> /c)
+                $dockerExportPath = $dockerExportPath -replace '^([a-zA-Z]):', '/$1'
+            }
+            
+            # Start container for testing with volume mount
+            $containerId = & $DockerPath run -d --name $ContainerName -p 6961:6961 -p 6960:6960 -v "${dockerExportPath}:/workspace/out" $ImageName
             
             if ($LASTEXITCODE -eq 0) {
                 Write-SafeLog "Container started successfully: $containerId" "INFO"
@@ -618,18 +669,34 @@ function Test-DockerContainer {
 function Start-CleanCutMcp {
     Write-SafeLog "Starting Clean-Cut-MCP container..." "INFO"
     
+    # Ensure export directory exists first
+    if (-not (Ensure-ExportDirectory -ExportPath $ExportDir)) {
+        Write-SafeLog "Failed to create export directory" "ERROR"
+        return $false
+    }
+    
     # Stop existing container if running
     Stop-DockerContainer -ContainerName $ContainerName
     
     try {
-        # Start the container
-        $containerId = & $DockerPath run -d --name $ContainerName -p 6961:6961 -p 6960:6960 --restart unless-stopped $ImageName
+        # Convert Windows paths for Docker volume mounting
+        $dockerExportPath = $ExportDir -replace '\\', '/'
+        if ($dockerExportPath -match '^[a-zA-Z]:') {
+            # Convert Windows drive letters (C: -> /c)
+            $dockerExportPath = $dockerExportPath -replace '^([a-zA-Z]):', '/$1'
+        }
+        
+        Write-SafeLog "Mounting export directory: $ExportDir -> /workspace/out" "INFO"
+        
+        # Start the container with volume mount for video exports
+        $containerId = & $DockerPath run -d --name $ContainerName -p 6961:6961 -p 6960:6960 -v "${dockerExportPath}:/workspace/out" --restart unless-stopped $ImageName
         
         if ($LASTEXITCODE -eq 0) {
             Write-SafeLog "Clean-Cut-MCP started successfully: $containerId" "INFO"
             Write-SafeLog "MCP Server: http://localhost:6961/mcp" "INFO"
             Write-SafeLog "Remotion Studio: http://localhost:6960" "INFO"
             Write-SafeLog "Health Check: http://localhost:6961/health" "INFO"
+            Write-SafeLog "Video Export Directory: $ExportDir" "INFO"
             return $true
         }
         else {
@@ -675,16 +742,24 @@ function Show-Summary {
     Write-SafeLog "1. Restart Claude Desktop to load new configuration" "INFO"
     Write-SafeLog "2. Ask Claude: 'Create a bouncing ball animation'" "INFO"
     Write-SafeLog "3. Expect response: 'Animation ready at http://localhost:6960'" "INFO"
+    Write-SafeLog "4. Export videos from Remotion Studio - they appear in: $ExportDir" "INFO"
     Write-SafeLog "" "INFO"
     Write-SafeLog "ENDPOINTS:" "INFO"
     Write-SafeLog "  MCP Server: http://localhost:6961/mcp" "INFO"
     Write-SafeLog "  Remotion Studio: http://localhost:6960" "INFO"
     Write-SafeLog "  Health Check: http://localhost:6961/health" "INFO"
     Write-SafeLog "" "INFO"
+    Write-SafeLog "VIDEO EXPORTS:" "INFO"
+    Write-SafeLog "  Export Directory: $ExportDir" "INFO"
+    Write-SafeLog "  - All video exports from Remotion Studio automatically appear here" "INFO"
+    Write-SafeLog "  - Works cross-platform (Windows, macOS, Linux)" "INFO"
+    Write-SafeLog "  - No additional configuration needed" "INFO"
+    Write-SafeLog "" "INFO"
     Write-SafeLog "TROUBLESHOOTING:" "INFO"
     Write-SafeLog "  - Configuration backup: $ClaudeConfigFile.$BackupSuffix" "INFO"
     Write-SafeLog "  - Log file: clean-cut-install.log" "INFO"
     Write-SafeLog "  - Container logs: docker logs $ContainerName" "INFO"
+    Write-SafeLog "  - Export directory: $ExportDir" "INFO"
     Write-SafeLog "" "INFO"
     Write-SafeLog "Need help? Run diagnostic commands:" "INFO"
     Write-SafeLog "  Show-DiagnosticCommands (in PowerShell)" "INFO"

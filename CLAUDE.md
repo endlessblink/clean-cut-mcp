@@ -27,15 +27,17 @@
 
 ## 🎯 PROJECT GOAL: "One-Script Magic"
 User asks: "Create a bouncing ball animation" → Claude responds: "Animation ready at http://localhost:6960"
+User exports video from Remotion Studio → Video automatically appears in `./clean-cut-exports` folder
 
 ## 🏗️ ARCHITECTURE: Cross-Platform Docker + MCP + Remotion
 - **Docker Container**: Cross-platform design - works on Windows Docker Desktop OR WSL2 Docker
 - **MCP Server**: HTTP transport in Docker container (NOT STDIO for Docker compatibility)
 - **Container Name**: `clean-cut-mcp` (unique, no conflicts)
 - **Ports**: 6960 (Remotion Studio), 6961 (MCP HTTP Server)
-- **Tools**: `create_animation`, `list_animations`, `get_studio_url`
+- **Tools**: `create_animation`, `list_animations`, `get_studio_url`, `get_export_directory`
 - **Animations**: bouncing-ball, sliding-text, rotating-object, fade-in-out
 - **Networking**: Container exposes localhost:6960-6961 to Windows for Claude Desktop connection
+- **Video Export**: Docker volume mount `/workspace/out` → `./clean-cut-exports` (cross-platform)
 
 ## 🔧 LOGGING REQUIREMENTS:
 - **NEVER** use `console.log()` in MCP server (pollutes JSON-RPC stdout)
@@ -47,10 +49,63 @@ User asks: "Create a bouncing ball animation" → Claude responds: "Animation re
 clean-cut-mcp/
 ├── src/                    # MCP server source
 ├── Dockerfile              # Container definition
+├── docker-compose.yml      # Cross-platform Docker Compose setup
 ├── package.json            # Dependencies
 ├── install.ps1             # Bulletproof installer
+├── clean-cut-exports/      # Video export directory (created automatically)
 └── CLAUDE.md               # This file
 ```
+
+## 🎬 VIDEO EXPORT SYSTEM: Cross-Platform External Access
+
+### How It Works
+Clean-Cut-MCP uses Docker volume mounting to provide seamless video export access across all platforms:
+
+```
+Container: /workspace/out ←→ Host: ./clean-cut-exports
+```
+
+### Export Workflow
+1. **Create Animation**: Ask Claude to create an animation (bouncing ball, sliding text, etc.)
+2. **Open Remotion Studio**: Navigate to http://localhost:6960
+3. **Export Video**: Use Remotion Studio's export functionality
+4. **Find Your Video**: Check the `clean-cut-exports` folder in your project directory
+5. **Done!**: Video is immediately accessible on your host system
+
+### Cross-Platform Compatibility
+
+**Windows (PowerShell Installer)**:
+```powershell
+.\install.ps1
+# Creates and mounts: .\clean-cut-exports
+```
+
+**macOS/Linux (Docker Compose)**:
+```bash
+docker-compose up -d
+# Creates and mounts: ./clean-cut-exports
+```
+
+**Manual Docker Run**:
+```bash
+# Windows
+docker run -d --name clean-cut-mcp -p 6960:6960 -p 6961:6961 -v "%cd%/clean-cut-exports:/workspace/out" clean-cut-mcp
+
+# macOS/Linux
+docker run -d --name clean-cut-mcp -p 6960:6960 -p 6961:6961 -v "$(pwd)/clean-cut-exports:/workspace/out" clean-cut-mcp
+```
+
+### MCP Tools Available
+- `get_export_directory` - Shows where exported videos are saved
+- `create_animation` - Creates animations ready for export
+- `list_animations` - Lists all available animations
+- `get_studio_url` - Gets Remotion Studio URL
+
+### Technical Implementation
+- **Volume Mount**: `/workspace/out` (container) ↔ `./clean-cut-exports` (host)
+- **Auto-Creation**: Export directory created automatically with proper permissions
+- **Path Conversion**: Windows paths automatically converted for Docker compatibility
+- **Write Testing**: Directory write permissions validated during setup
 
 ## 🛡️ INSTALLATION SAFETY:
 The PowerShell installer MUST:
@@ -110,5 +165,4 @@ These cause "Unexpected token" JSON parsing errors in Claude Desktop.
 - ANY OTHER EMOJI - Replace with appropriate text marker
 
 # CRITICAL: LET USER BUILD DOCKER THEMSELVES
-NEVER automatically run Docker builds. User wants to control when builds happen.
 When Docker changes are made, STOP and let user run: `docker build -t rough-cuts-test .`

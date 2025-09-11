@@ -42,6 +42,9 @@ COPY --from=builder /app/mcp-server/package.json ./mcp-server/package.json
 # Copy supervisor script that initializes workspace and launches both services
 COPY start.js ./start.js
 
+# Copy guidelines directory for MCP tools
+COPY claude-dev-guidelines ./claude-dev-guidelines
+
 # Environment variables
 ENV NODE_ENV=production \
     DOCKER_CONTAINER=true \
@@ -49,9 +52,15 @@ ENV NODE_ENV=production \
     REMOTION_STUDIO_PORT=6960 \
     REMOTION_NON_INTERACTIVE=1
 
+# Create export directory and volume mount point for Remotion renders
+RUN mkdir -p /workspace/out && chmod 755 /workspace/out
+
 # Document exposed ports
 EXPOSE 6960
 EXPOSE 6961
+
+# Volume mount point for cross-platform video exports
+VOLUME ["/workspace/out"]
 
 # Healthcheck for MCP server
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

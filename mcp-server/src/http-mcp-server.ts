@@ -4,6 +4,7 @@
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
@@ -37,10 +38,23 @@ const log = (level: string, message: string, data?: any) => {
   }
 };
 
-// Express app setup
+// Express app setup with proper CORS for MCP
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  exposedHeaders: ['Mcp-Session-Id'],
+  allowedHeaders: ['Content-Type', 'mcp-session-id'],
+  methods: ['GET', 'POST', 'DELETE']
+}));
 app.use(express.json({ limit: '50mb' }));
+
+// Session management for MCP server instances and transports
+interface McpSession {
+  server: McpServer;
+  transport: StreamableHTTPServerTransport;
+}
+
+const sessions: { [sessionId: string]: McpSession } = {};
 
 // MCP Server factory function
 function createMcpServer() {
@@ -177,6 +191,179 @@ function createMcpServer() {
           }
         ]
       };
+    }
+  );
+
+  // Guidelines file reader tool
+  server.tool(
+    'read_guidelines_file',
+    {
+      description: 'Read design guidelines and animation patterns from the claude-dev-guidelines folder',
+      inputSchema: z.object({
+        filename: z.string().describe('Guidelines file to read (e.g., "PROJECT_CONFIG.md", "ADVANCED/ANIMATION_PATTERNS.md")')
+      })
+    },
+    async ({ filename }) => {
+      try {
+        log('info', 'Reading guidelines file', { filename });
+
+        const GUIDELINES_DIR = path.join(APP_ROOT, 'claude-dev-guidelines');
+        const filePath = path.join(GUIDELINES_DIR, filename);
+        
+        // Check if guidelines directory exists
+        try {
+          await fs.access(GUIDELINES_DIR);
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `[ERROR] Guidelines directory not found at: ${GUIDELINES_DIR}\n\nMake sure the claude-dev-guidelines folder is properly mounted in the container.`
+            }]
+          };
+        }
+
+        // Check if specific file exists, otherwise list available files
+        try {
+          const content = await fs.readFile(filePath, 'utf8');
+          return {
+            content: [{
+              type: 'text',
+              text: `[GUIDELINES] ${filename}\n\n${content}`
+            }]
+          };
+        } catch (error) {
+          // List available files
+          try {
+            const files = await fs.readdir(GUIDELINES_DIR);
+            const mdFiles = files.filter(file => file.endsWith('.md'));
+            
+            // Also check ADVANCED subdirectory
+            let advancedFiles: string[] = [];
+            try {
+              const advancedPath = path.join(GUIDELINES_DIR, 'ADVANCED');
+              const advanced = await fs.readdir(advancedPath);
+              advancedFiles = advanced.filter(file => file.endsWith('.md')).map(file => `ADVANCED/${file}`);
+            } catch (e) {
+              // ADVANCED directory might not exist
+            }
+
+            const allFiles = [...mdFiles, ...advancedFiles];
+            
+            return {
+              content: [{
+                type: 'text',
+                text: `[ERROR] Guidelines file "${filename}" not found.\n\nAvailable files:\n${allFiles.map(file => `• ${file}`).join('\n')}\n\nDirectory: ${GUIDELINES_DIR}`
+              }]
+            };
+          } catch (listError) {
+            return {
+              content: [{
+                type: 'text',
+                text: `[ERROR] Failed to read guidelines directory: ${(listError as Error).message}`
+              }]
+            };
+          }
+        }
+      } catch (error) {
+        log('error', 'Guidelines file read error', { error: error.message });
+        return {
+          content: [{
+            type: 'text',
+            text: `[ERROR] Failed to read guidelines file: ${(error as Error).message}`
+          }]
+        };
+      }
+    }
+  );
+
+  // Animation guidelines tool - dynamically reads from guidelines files
+  server.tool(
+    'get_animation_guidelines',
+    {
+      description: 'Get comprehensive animation guidelines and patterns from the guidelines directory',
+      inputSchema: z.object({
+        category: z.enum(['project-config', 'advanced-patterns', 'animation-rules', 'all']).optional()
+          .describe('Category of guidelines to retrieve (defaults to all)')
+      })
+    },
+    async ({ category = 'all' }) => {
+      try {
+        log('info', 'Getting animation guidelines', { category });
+
+        const GUIDELINES_DIR = path.join(APP_ROOT, 'claude-dev-guidelines');
+
+        // Check if guidelines directory exists
+        try {
+          await fs.access(GUIDELINES_DIR);
+        } catch (error) {
+          return {
+            content: [{
+              type: 'text',
+              text: `[ERROR] Guidelines directory not found at: ${GUIDELINES_DIR}\n\nMake sure the claude-dev-guidelines folder is properly mounted in the container.`
+            }]
+          };
+        }
+
+        let content = '[ANIMATION GUIDELINES]\n\n';
+
+        // Read project config if requested
+        if (category === 'project-config' || category === 'all') {
+          try {
+            const projectConfigPath = path.join(GUIDELINES_DIR, 'PROJECT_CONFIG.md');
+            const projectConfig = await fs.readFile(projectConfigPath, 'utf8');
+            content += '## PROJECT CONFIGURATION\n\n';
+            content += projectConfig + '\n\n';
+          } catch (error) {
+            content += '## PROJECT CONFIGURATION\n[ERROR] Could not read PROJECT_CONFIG.md\n\n';
+          }
+        }
+
+        // Read advanced patterns and rules if requested
+        if (category === 'advanced-patterns' || category === 'animation-rules' || category === 'all') {
+          try {
+            const advancedPath = path.join(GUIDELINES_DIR, 'ADVANCED');
+            const advancedFiles = await fs.readdir(advancedPath);
+            
+            // Filter based on category
+            let filesToRead = advancedFiles.filter(file => file.endsWith('.md'));
+            if (category === 'advanced-patterns') {
+              filesToRead = filesToRead.filter(file => 
+                file.includes('PATTERN') || file.includes('TEMPLATE'));
+            } else if (category === 'animation-rules') {
+              filesToRead = filesToRead.filter(file => 
+                file.includes('RULE') || file.includes('ANIMATION'));
+            }
+
+            for (const file of filesToRead) {
+              try {
+                const filePath = path.join(advancedPath, file);
+                const fileContent = await fs.readFile(filePath, 'utf8');
+                content += `## ${file.replace('.md', '').replace(/_/g, ' ')}\n\n`;
+                content += fileContent + '\n\n';
+              } catch (error) {
+                content += `## ${file}\n[ERROR] Could not read file\n\n`;
+              }
+            }
+          } catch (error) {
+            content += '## ADVANCED GUIDELINES\n[ERROR] Could not read ADVANCED directory\n\n';
+          }
+        }
+
+        return {
+          content: [{
+            type: 'text',
+            text: content
+          }]
+        };
+      } catch (error) {
+        log('error', 'Animation guidelines error', { error: error.message });
+        return {
+          content: [{
+            type: 'text',
+            text: `[ERROR] Failed to get animation guidelines: ${error.message}`
+          }]
+        };
+      }
     }
   );
 
@@ -450,236 +637,157 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.get('/status', (req, res) => {
+
+// Utility function to check if request is MCP initialize
+function isInitializeRequest(body: any): boolean {
+  return body && body.method === 'initialize';
+}
+
+// Health check endpoint
+app.get('/health', (req, res) => {
   res.json({
-    name: 'clean-cut-mcp',
+    status: 'healthy',
+    service: 'clean-cut-mcp',
     version: '1.0.0',
-    mcp_server: 'running',
-    studio_url: `http://localhost:${STUDIO_PORT}`,
-    exports_dir: EXPORTS_DIR,
-    animation_types: ['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out']
+    timestamp: new Date().toISOString(),
+    ports: { mcp: MCP_PORT, studio: STUDIO_PORT }
   });
 });
 
-// CRITICAL: Simple JSON-RPC 2.0 handler for MCP (since SDK HTTP transport is complex)
+// Status endpoint
+app.get('/status', (req, res) => {
+  res.json({
+    service: 'clean-cut-mcp',
+    status: 'running',
+    sessions: Object.keys(sessions).length,
+    uptime: process.uptime()
+  });
+});
+
+// MCP POST endpoint - handles all MCP protocol requests
 app.post('/mcp', async (req, res) => {
   try {
-    const { method, params, id } = req.body;
+    log('info', 'Received MCP request', { method: req.body?.method, id: req.body?.id });
     
-    log('info', 'Received MCP request', { method, id });
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    let session: McpSession;
 
-    // Handle initialize request
-    if (method === 'initialize') {
-      return res.json({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          protocolVersion: '2024-11-05',
-          capabilities: {
-            tools: {}
-          },
-          serverInfo: {
-            name: 'clean-cut-mcp',
-            version: '1.0.0'
-          }
-        }
-      });
-    }
-
-    // Handle tools/list request
-    if (method === 'tools/list') {
-      return res.json({
-        jsonrpc: '2.0',
-        id,
-        result: {
-          tools: [
-            {
-              name: 'create_animation',
-              description: 'Create a video animation using Remotion',
-              inputSchema: {
-                type: 'object',
-                properties: {
-                  type: { type: 'string', enum: ['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out'] },
-                  title: { type: 'string' },
-                  duration: { type: 'number', default: 3 },
-                  fps: { type: 'number', default: 30 },
-                  width: { type: 'number', default: 1920 },
-                  height: { type: 'number', default: 1080 },
-                  backgroundColor: { type: 'string', default: '#000000' }
-                },
-                required: ['type']
-              }
-            },
-            {
-              name: 'list_animations',
-              description: 'List all created animations',
-              inputSchema: { type: 'object', properties: {} }
-            },
-            {
-              name: 'get_studio_url',
-              description: 'Get Remotion Studio URL',
-              inputSchema: { type: 'object', properties: {} }
-            }
-          ]
-        }
-      });
-    }
-
-    // Handle tools/call request
-    if (method === 'tools/call') {
-      const { name, arguments: args } = params;
+    if (sessionId && sessions[sessionId]) {
+      // Reuse existing session (server + transport)
+      session = sessions[sessionId];
+      log('info', `Reusing existing session: ${sessionId}`);
+    } else if (!sessionId && isInitializeRequest(req.body)) {
+      // New initialization request - create new session
+      log('info', 'Creating new MCP session');
       
-      if (name === 'create_animation') {
-        const result = await handleCreateAnimation(args);
-        return res.json({
-          jsonrpc: '2.0',
-          id,
-          result
-        });
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+      });
+      
+      // Create and connect new MCP server instance with all tools
+      const server = createMcpServer();
+      await server.connect(transport);
+      
+      // Handle the initialize request first to generate session ID
+      await transport.handleRequest(req, res, req.body);
+      
+      // Store complete session (server + transport) after handling request
+      const newSessionId = transport.sessionId;
+      if (newSessionId) {
+        session = { server, transport };
+        sessions[newSessionId] = session;
+        log('info', `Created new session: ${newSessionId} with all registered tools`);
+        return; // Request already handled
+      } else {
+        throw new Error('Failed to generate session ID');
       }
-
-      if (name === 'list_animations') {
-        const result = await handleListAnimations();
-        return res.json({
-          jsonrpc: '2.0',
-          id,
-          result
-        });
-      }
-
-      if (name === 'get_studio_url') {
-        const result = await handleGetStudioUrl();
-        return res.json({
-          jsonrpc: '2.0',
-          id,
-          result
-        });
-      }
+    } else {
+      // Invalid request
+      return res.status(400).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32600,
+          message: 'Invalid Request - missing session ID or not an initialize request'
+        },
+        id: req.body?.id
+      });
     }
 
-    // Method not found
-    return res.status(400).json({
-      jsonrpc: '2.0',
-      id,
-      error: {
-        code: -32601,
-        message: 'Method not found'
-      }
-    });
-
+    // Handle the request through the transport (connected to the server with all tools)
+    await session.transport.handleRequest(req, res, req.body);
+    
   } catch (error) {
-    log('error', 'MCP request handling failed', error);
-    return res.status(500).json({
-      jsonrpc: '2.0',
-      id: req.body?.id || null,
-      error: {
-        code: -32603,
-        message: 'Internal server error'
-      }
-    });
+    log('error', 'MCP request failed', { error: error.message, stack: error.stack });
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32603,
+          message: 'Internal error',
+          data: error instanceof Error ? error.message : String(error)
+        },
+        id: req.body?.id
+      });
+    }
   }
 });
 
-// Tool handlers
-async function handleCreateAnimation(args: any) {
-  const { type = 'bouncing-ball', title = 'Animation', duration = 3, fps = 30, width = 1920, height = 1080, backgroundColor = '#000000' } = args;
-
+// MCP GET endpoint - handles server-sent events for notifications
+app.get('/mcp', async (req, res) => {
   try {
-    log('info', 'Creating animation', { type, title, duration });
-
-    // Ensure directories exist
-    await fs.mkdir(EXPORTS_DIR, { recursive: true });
-    await fs.mkdir(SRC_DIR, { recursive: true });
-
-    // Generate animation component
-    const componentName = `${type}-${Date.now()}`;
-    const componentCode = generateAnimationComponent(type, title, backgroundColor);
-    const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+    const sessionId = req.headers['mcp-session-id'] as string;
     
-    await fs.writeFile(componentPath, componentCode);
-    log('info', `Created component file: ${componentPath}`);
-
-    // Render video
-    const outputPath = path.join(EXPORTS_DIR, `${componentName}.mp4`);
-    await renderVideo(componentName, outputPath, { duration, fps, width, height });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `[SUCCESS] Animation created successfully!\n\n` +
-                `[FILE] ${componentName}.mp4\n` +
-                `[TYPE] ${type}\n` +
-                `[DURATION] ${duration}s\n` +
-                `[RESOLUTION] ${width}x${height}\n` +
-                `[STUDIO] http://localhost:${STUDIO_PORT}\n\n` +
-                `Animation ready at http://localhost:${STUDIO_PORT}`
-        }
-      ]
-    };
-  } catch (error) {
-    log('error', 'Animation creation failed', error);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `[ERROR] Animation creation failed: ${error instanceof Error ? error.message : String(error)}`
-        }
-      ]
-    };
-  }
-}
-
-async function handleListAnimations() {
-  try {
-    const files = await fs.readdir(EXPORTS_DIR);
-    const videoFiles = files.filter(file => file.endsWith('.mp4'));
-    
-    if (videoFiles.length === 0) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: '[EMPTY] No animations found in exports directory.\n\nCreate your first animation by asking for a specific type like "bouncing ball" or "sliding text"!'
-          }
-        ]
-      };
+    if (!sessionId || !sessions[sessionId]) {
+      return res.status(400).json({
+        error: 'Invalid or missing session ID'
+      });
     }
 
-    const fileList = videoFiles.map(file => `[VIDEO] ${file}`).join('\n');
+    const session = sessions[sessionId];
+    await session.transport.handleRequest(req, res);
     
-    return {
-      content: [
-        {
-          type: 'text', 
-          text: `[ANIMATIONS] Found ${videoFiles.length} animation(s):\n\n${fileList}\n\n[STUDIO] http://localhost:${STUDIO_PORT}`
-        }
-      ]
-    };
   } catch (error) {
-    log('error', 'Failed to list animations', error);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `[ERROR] Failed to list animations: ${error instanceof Error ? error.message : String(error)}`
-        }
-      ]
-    };
+    log('error', 'MCP SSE request failed', { error: error.message });
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Internal error',
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
-}
+});
 
-async function handleGetStudioUrl() {
-  return {
-    content: [
-      {
-        type: 'text',
-        text: `[STUDIO] Remotion Studio is available at:\n\nhttp://localhost:${STUDIO_PORT}\n\n` +
-              `Open this URL in your browser to access the visual editor for your animations.`
-      }
-    ]
-  };
-}
+// MCP DELETE endpoint - handles session termination
+app.delete('/mcp', async (req, res) => {
+  try {
+    const sessionId = req.headers['mcp-session-id'] as string;
+    
+    if (!sessionId || !sessions[sessionId]) {
+      return res.status(400).json({
+        error: 'Invalid or missing session ID'
+      });
+    }
+
+    const session = sessions[sessionId];
+    await session.transport.handleRequest(req, res);
+    
+    // Clean up complete session (server + transport)
+    delete sessions[sessionId];
+    log('info', `Session terminated: ${sessionId}`);
+    
+  } catch (error) {
+    log('error', 'MCP session termination failed', { error: error.message });
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Internal error',
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+});
 
 // Start server
 async function startServer() {
