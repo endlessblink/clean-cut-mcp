@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "clean-cut-mcp": {
+      "url": "http://localhost:6961/mcp"
+    }
+  }
+}

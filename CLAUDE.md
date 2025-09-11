@@ -28,12 +28,14 @@
 ## 🎯 PROJECT GOAL: "One-Script Magic"
 User asks: "Create a bouncing ball animation" → Claude responds: "Animation ready at http://localhost:6960"
 
-## 🏗️ ARCHITECTURE: Docker + MCP + Remotion
-- **MCP Server**: STDIO transport in Docker container
+## 🏗️ ARCHITECTURE: Cross-Platform Docker + MCP + Remotion
+- **Docker Container**: Cross-platform design - works on Windows Docker Desktop OR WSL2 Docker
+- **MCP Server**: HTTP transport in Docker container (NOT STDIO for Docker compatibility)
 - **Container Name**: `clean-cut-mcp` (unique, no conflicts)
-- **Ports**: 6960 (Remotion Studio)  
+- **Ports**: 6960 (Remotion Studio), 6961 (MCP HTTP Server)
 - **Tools**: `create_animation`, `list_animations`, `get_studio_url`
 - **Animations**: bouncing-ball, sliding-text, rotating-object, fade-in-out
+- **Networking**: Container exposes localhost:6960-6961 to Windows for Claude Desktop connection
 
 ## 🔧 LOGGING REQUIREMENTS:
 - **NEVER** use `console.log()` in MCP server (pollutes JSON-RPC stdout)
@@ -66,6 +68,15 @@ The PowerShell installer MUST:
 4. Validate: Create animation end-to-end
 5. Deploy: Full installation
 
+## 🌐 NETWORKING TROUBLESHOOTING:
+**WSL2 to Windows Connection Issues:**
+- Container runs in WSL2 Docker but Windows Claude Desktop needs to connect
+- WSL2 should auto-forward localhost:6960-6961 to Windows, but sometimes fails
+- **Test from Windows PowerShell**: `Invoke-RestMethod http://localhost:6961/health`
+- **If connection fails**: Use WSL2 IP address (get with `hostname -I` in WSL2)
+- **Windows Firewall**: May block WSL2 port forwarding
+- **Alternative**: Run `netsh interface portproxy` commands to force port forwarding
+
 ## 🚨 NEVER FORGET:
 This project exists because the original `rough-cuts-mcp` had:
 - Container name conflicts
@@ -74,6 +85,7 @@ This project exists because the original `rough-cuts-mcp` had:
 - Complex installation failures
 
 **Clean-Cut-MCP must be bulletproof and never break anything.**
+**Docker containers are cross-platform by design - don't move them between platforms.**
 
 
 # CRITICAL: NO EMOJIS IN CODE - JSON PARSING ERRORS

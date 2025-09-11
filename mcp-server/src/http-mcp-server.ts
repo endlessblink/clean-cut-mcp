@@ -693,8 +693,8 @@ async function startServer() {
     await fs.mkdir(EXPORTS_DIR, { recursive: true });
     await fs.mkdir(SRC_DIR, { recursive: true });
     
-    // Start HTTP server
-    app.listen(MCP_PORT, () => {
+    // Start HTTP server - CRITICAL: Bind to 0.0.0.0 for Docker port forwarding
+    app.listen(MCP_PORT, '0.0.0.0', () => {
       log('info', `Clean-Cut-MCP HTTP server running on port ${MCP_PORT}`);
       log('info', `MCP endpoint: http://localhost:${MCP_PORT}/mcp`);
       log('info', `Health check: http://localhost:${MCP_PORT}/health`);

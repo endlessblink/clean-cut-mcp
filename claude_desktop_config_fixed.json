@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "desktop-commander": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\Users\\endle\\AppData\\Roaming\\Claude\\Claude Extensions\\desktop-commander-mcp\\dist\\index.js"
+      ],
+      "env": {}
+    }
+  }
+}

@@ -146,7 +146,7 @@ async function main() {
   await ensureWorkspaceInitialized();
 
   console.error(`[ENTRYPOINT] Launching Remotion Studio on port ${STUDIO_PORT} ...`);
-  const studio = spawnBackground('npx', ['remotion', 'studio', '--port', String(STUDIO_PORT), '--root', WORKSPACE, '--no-open'], {
+  const studio = spawnBackground('npx', ['remotion', 'studio', '--host', '0.0.0.0', '--port', String(STUDIO_PORT), '--root', WORKSPACE, '--no-open'], {
     cwd: WORKSPACE,
     env: {
       ...process.env,

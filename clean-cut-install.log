@@ -51,3 +51,62 @@
 [2025-09-11 14:05:14] [INFO] 
 [2025-09-11 14:05:14] [INFO] One-Script Magic is ready!
 [2025-09-11 14:05:14] [INFO] Installation completed successfully!
+[2025-09-11 14:15:36] [INFO] Clean-Cut-MCP Bulletproof Installer Starting...
+[2025-09-11 14:15:36] [INFO] Starting Clean-Cut-MCP installation...
+[2025-09-11 14:15:36] [INFO] Test Mode: False, Force: False
+[2025-09-11 14:15:36] [INFO] Checking prerequisites...
+[2025-09-11 14:15:36] [INFO] Docker is running and accessible
+[2025-09-11 14:15:36] [INFO] All prerequisites met
+[2025-09-11 14:15:36] [INFO] Creating backup of Claude Desktop configuration...
+[2025-09-11 14:15:36] [INFO] Configuration backed up to: C:\Users\endle\AppData\Roaming\\Claude\\claude_desktop_config.json.clean-cut-backup-20250911-141536
+[2025-09-11 14:15:36] [INFO] Claude configuration JSON parsed successfully
+[2025-09-11 14:15:36] [INFO] Merging Clean-Cut-MCP configuration with existing servers...
+[2025-09-11 14:15:36] [WARN] Clean-Cut-MCP already configured. Use -Force to overwrite
+[2025-09-11 14:15:36] [INFO] Testing Docker container functionality...
+[2025-09-11 14:15:36] [INFO] Verifying Docker image exists: clean-cut-mcp
+[2025-09-11 14:15:36] [INFO] Found Docker image: clean-cut-mcp:latest
+[2025-09-11 14:15:36] [INFO] Image verified successfully:
+[2025-09-11 14:15:36] [INFO]   ID: bcc827ac1259...
+[2025-09-11 14:15:36] [INFO]   Size: 0 MB
+[2025-09-11 14:15:36] [INFO]   Created: 2025-09-11T11:09:54.044973867Z
+[2025-09-11 14:15:37] [INFO] Image container creation test passed
+[2025-09-11 14:15:37] [INFO] Docker image 'clean-cut-mcp' verified and ready
+[2025-09-11 14:15:37] [INFO] Testing container startup...
+[2025-09-11 14:15:37] [INFO] Stopping existing container: clean-cut-mcp
+[2025-09-11 14:15:38] [INFO] Container clean-cut-mcp stopped and removed
+[2025-09-11 14:15:39] [INFO] Container started successfully: f96645418c2f90734f181bd46d1d849cb558b585d6fcaf377370d75376a3784a
+[2025-09-11 14:15:54] [WARN] Health check failed: The operation has timed out.
+[2025-09-11 14:15:54] [INFO] Stopping existing container: clean-cut-mcp
+[2025-09-11 14:16:05] [INFO] Container clean-cut-mcp stopped and removed
+[2025-09-11 14:16:05] [INFO] Container test completed
+[2025-09-11 14:16:05] [INFO] Saving Claude Desktop configuration...
+[2025-09-11 14:16:05] [INFO] Configuration saved to: C:\Users\endle\AppData\Roaming\\Claude\\claude_desktop_config.json
+[2025-09-11 14:16:05] [INFO] Configuration JSON validated successfully
+[2025-09-11 14:16:05] [INFO] Total MCP servers configured: 1 1
+[2025-09-11 14:16:05] [INFO] Starting Clean-Cut-MCP container...
+[2025-09-11 14:16:06] [INFO] Clean-Cut-MCP started successfully: dcc8bb5ac85eb3aec8ead0d194bc660c17adbe3c04cd2ebe50e23f2f32594414
+[2025-09-11 14:16:06] [INFO] MCP Server: http://localhost:6961/mcp
+[2025-09-11 14:16:06] [INFO] Remotion Studio: http://localhost:6960
+[2025-09-11 14:16:06] [INFO] Health Check: http://localhost:6961/health
+[2025-09-11 14:16:06] [INFO] === Clean-Cut-MCP Installation Complete ===
+[2025-09-11 14:16:06] [INFO] 
+[2025-09-11 14:16:06] [INFO] NEXT STEPS:
+[2025-09-11 14:16:06] [INFO] 1. Restart Claude Desktop to load new configuration
+[2025-09-11 14:16:06] [INFO] 2. Ask Claude: 'Create a bouncing ball animation'
+[2025-09-11 14:16:06] [INFO] 3. Expect response: 'Animation ready at http://localhost:6960'
+[2025-09-11 14:16:06] [INFO] 
+[2025-09-11 14:16:06] [INFO] ENDPOINTS:
+[2025-09-11 14:16:06] [INFO]   MCP Server: http://localhost:6961/mcp
+[2025-09-11 14:16:06] [INFO]   Remotion Studio: http://localhost:6960
+[2025-09-11 14:16:06] [INFO]   Health Check: http://localhost:6961/health
+[2025-09-11 14:16:06] [INFO] 
+[2025-09-11 14:16:06] [INFO] TROUBLESHOOTING:
+[2025-09-11 14:16:06] [INFO]   - Configuration backup: C:\Users\endle\AppData\Roaming\\Claude\\claude_desktop_config.json.clean-cut-backup-20250911-141536
+[2025-09-11 14:16:06] [INFO]   - Log file: clean-cut-install.log
+[2025-09-11 14:16:06] [INFO]   - Container logs: docker logs clean-cut-mcp
+[2025-09-11 14:16:06] [INFO] 
+[2025-09-11 14:16:06] [INFO] Need help? Run diagnostic commands:
+[2025-09-11 14:16:07] [INFO]   Show-DiagnosticCommands (in PowerShell)
+[2025-09-11 14:16:07] [INFO] 
+[2025-09-11 14:16:07] [INFO] One-Script Magic is ready!
+[2025-09-11 14:16:07] [INFO] Installation completed successfully!

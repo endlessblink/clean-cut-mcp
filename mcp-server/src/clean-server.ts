@@ -475,8 +475,8 @@ async function startServer() {
     await fs.mkdir(EXPORTS_DIR, { recursive: true });
     await fs.mkdir(SRC_DIR, { recursive: true });
     
-    // CRITICAL FIX: HTTP server instead of STDIO
-    app.listen(MCP_PORT, () => {
+    // CRITICAL FIX: HTTP server bound to 0.0.0.0 for Docker port forwarding
+    app.listen(MCP_PORT, '0.0.0.0', () => {
       log('info', `Clean-Cut-MCP HTTP server running on port ${MCP_PORT}`);
       log('info', `Health check available at http://localhost:${MCP_PORT}/health`);
       log('info', `Status endpoint at http://localhost:${MCP_PORT}/status`);
