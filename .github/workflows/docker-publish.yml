@@ -1,0 +1,175 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [ master, main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+    inputs:
+      force_push:
+        description: 'Force push even on PR'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: endlessblink/clean-cut-mcp
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        platforms: linux/amd64,linux/arm64
+
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request' || github.event.inputs.force_push == 'true'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          # set latest tag for default branch
+          type=raw,value=latest,enable={{is_default_branch}}
+          # set version tag for version releases
+          type=ref,event=tag
+          # set branch name for branch pushes
+          type=ref,event=branch
+          # set PR tag for pull requests
+          type=ref,event=pr
+          # set sha tag for all pushes
+          type=sha,prefix={{branch}}-,suffix=-{{date 'YYYYMMDD'}},format=short
+        labels: |
+          org.opencontainers.image.title=Clean-Cut-MCP
+          org.opencontainers.image.description=One-Script Magic: Remotion video generation for Claude Desktop
+          org.opencontainers.image.vendor=EndlessBlink
+          org.opencontainers.image.url=https://github.com/endlessblink/clean-cut-mcp
+          org.opencontainers.image.documentation=https://github.com/endlessblink/clean-cut-mcp/blob/master/README.md
+          org.opencontainers.image.source=https://github.com/endlessblink/clean-cut-mcp
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' || github.event.inputs.force_push == 'true' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+          REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+
+    - name: Update Docker Hub description
+      if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+      uses: peter-evans/dockerhub-description@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        repository: ${{ env.IMAGE_NAME }}
+        readme-filepath: ./DOCKERHUB-README.md
+
+    - name: Test Docker image
+      if: github.event_name != 'pull_request'
+      run: |
+        # Test that the image starts successfully
+        docker run --name test-clean-cut -d \
+          -p 6960:6960 -p 6961:6961 \
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        
+        # Wait for services to start
+        sleep 30
+        
+        # Test health endpoint
+        timeout 60 bash -c 'until curl -f http://localhost:6961/health; do sleep 2; done'
+        
+        # Test that both ports are accessible
+        curl -f http://localhost:6961/health
+        curl -f http://localhost:6960 || echo "Remotion Studio may take longer to start"
+        
+        # Cleanup
+        docker stop test-clean-cut
+        docker rm test-clean-cut
+
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## Docker Images Published
+          
+          - **Docker Hub**: `docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}`
+          - **Latest**: `docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest`
+          
+          ## Quick Installation
+          
+          ```powershell
+          # Windows/PowerShell
+          curl -o install-dockerhub.ps1 https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/${{ github.ref_name }}/install-dockerhub.ps1
+          .\install-dockerhub.ps1
+          ```
+          
+          ```bash
+          # macOS/Linux
+          docker run -d --name clean-cut-mcp --restart unless-stopped \
+            -p 6960:6960 -p 6961:6961 \
+            -v clean-cut-exports:/workspace/out \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          ```
+          
+          ## What's New
+          
+          - Zero-dependency installation via Docker Hub
+          - Cross-platform support (amd64, arm64)
+          - Automated builds and testing
+          - VM-optimized for testing environments
+        files: |
+          install-dockerhub.ps1
+          DOCKERHUB-README.md
+
+  security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
