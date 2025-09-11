@@ -19,8 +19,8 @@ const __dirname = path.dirname(__filename);
 const MCP_PORT = parseInt(process.env.MCP_PORT || '6961');
 const STUDIO_PORT = parseInt(process.env.REMOTION_STUDIO_PORT || '6960');
 const APP_ROOT = process.env.DOCKER_CONTAINER === 'true' ? '/app' : path.resolve(__dirname, '../..');
-const EXPORTS_DIR = path.join(APP_ROOT, 'exports');
-const SRC_DIR = path.join(APP_ROOT, 'src');
+const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'exports');
+const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'src');
 // CRITICAL FIX: Safe stderr-only logging (no stdout pollution)
 const logStream = createWriteStream('clean-cut-mcp.log', { flags: 'a' });
 const log = (level, message, data) => {
@@ -68,26 +68,26 @@ function createMcpServer() {
             await fs.mkdir(EXPORTS_DIR, { recursive: true });
             await fs.mkdir(SRC_DIR, { recursive: true });
             // Generate animation component
-            const componentName = `${type}-${Date.now()}`;
-            const componentCode = generateAnimationComponent(type, title, backgroundColor);
+            const componentName = `${type.charAt(0).toUpperCase() + type.slice(1).replace('-', '')}Animation`;
+            const componentCode = generateAnimationComponent(type, title, backgroundColor, componentName);
             const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
             await fs.writeFile(componentPath, componentCode);
             log('info', `Created component file: ${componentPath}`);
-            // Render video
-            const outputPath = path.join(EXPORTS_DIR, `${componentName}.mp4`);
-            await renderVideo(componentName, outputPath, { duration, fps, width, height });
-            // CRITICAL FIX: Emoji-free response
+            // Update Root.tsx to include the new animation
+            await updateRootTsx(componentName);
+            log('info', `Updated Root.tsx to include ${componentName}`);
+            // Note: No video rendering needed - user can export from Remotion Studio
+            const studioUrl = `http://localhost:${STUDIO_PORT}`;
             return {
                 content: [
                     {
                         type: 'text',
-                        text: `[SUCCESS] Animation created successfully!\n\n` +
-                            `[FILE] ${componentName}.mp4\n` +
-                            `[TYPE] ${type}\n` +
-                            `[DURATION] ${duration}s\n` +
-                            `[RESOLUTION] ${width}x${height}\n` +
-                            `[STUDIO] http://localhost:${STUDIO_PORT}\n\n` +
-                            `Animation ready at http://localhost:${STUDIO_PORT}`
+                        text: `[SUCCESS] ${type} animation created!\n\n` +
+                            `[COMPONENT] ${componentName}\n` +
+                            `[FILE] ${componentName}.tsx\n` +
+                            `[STUDIO] ${studioUrl}\n\n` +
+                            `Your animation is now available in Remotion Studio!\n` +
+                            `Open ${studioUrl} to preview and export your animation.`
                     }
                 ]
             };
@@ -468,15 +468,57 @@ function createMcpServer() {
     });
     return server;
 }
+// Update Root.tsx to include new animation component
+async function updateRootTsx(componentName) {
+    const rootTsxPath = path.join(SRC_DIR, 'Root.tsx');
+    try {
+        let rootContent = await fs.readFile(rootTsxPath, 'utf8');
+        // Add import statement if not already present
+        const importStatement = `import {${componentName}} from './${componentName}';`;
+        if (!rootContent.includes(importStatement)) {
+            // Insert after existing imports
+            const importRegex = /(import[^;]+;[\s\n]*)/g;
+            let lastImportEnd = 0;
+            let match;
+            while ((match = importRegex.exec(rootContent)) !== null) {
+                lastImportEnd = match.index + match[0].length;
+            }
+            rootContent = rootContent.slice(0, lastImportEnd) +
+                importStatement + '\n' +
+                rootContent.slice(lastImportEnd);
+        }
+        // Add composition if not already present
+        const compositionId = componentName.replace('Animation', '');
+        const compositionElement = `      <Composition
+        id="${compositionId}"
+        component={${componentName}}
+        durationInFrames={90}
+        fps={30}
+        width={1920}
+        height={1080}
+      />`;
+        if (!rootContent.includes(`id="${compositionId}"`)) {
+            // Insert before the closing <>
+            rootContent = rootContent.replace(/(\s+)<\/>/, `$1${compositionElement}
+$1</>`);
+        }
+        await fs.writeFile(rootTsxPath, rootContent);
+        log('info', `Updated Root.tsx with ${componentName}`);
+    }
+    catch (error) {
+        log('error', `Failed to update Root.tsx: ${error.message}`);
+        throw error;
+    }
+}
 // Animation component generators (preserved from original)
-function generateAnimationComponent(type, title, backgroundColor) {
+function generateAnimationComponent(type, title, backgroundColor, componentName) {
     switch (type) {
         case 'bouncing-ball':
             return `
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 
-export const BouncingBall: React.FC = () => {
+export const ${componentName}: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames, fps } = useVideoConfig();
   
@@ -522,14 +564,14 @@ export const BouncingBall: React.FC = () => {
   );
 };
 
-export default BouncingBall;
+export default ${componentName};
 `;
         case 'sliding-text':
             return `
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 
-export const SlidingText: React.FC = () => {
+export const ${componentName}: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   
@@ -563,14 +605,14 @@ export const SlidingText: React.FC = () => {
   );
 };
 
-export default SlidingText;
+export default ${componentName};
 `;
         case 'rotating-object':
             return `
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 
-export const RotatingObject: React.FC = () => {
+export const ${componentName}: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   
@@ -614,14 +656,14 @@ export const RotatingObject: React.FC = () => {
   );
 };
 
-export default RotatingObject;
+export default ${componentName};
 `;
         case 'fade-in-out':
             return `
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 
-export const FadeInOut: React.FC = () => {
+export const ${componentName}: React.FC = () => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   
@@ -657,57 +699,14 @@ export const FadeInOut: React.FC = () => {
   );
 };
 
-export default FadeInOut;
+export default ${componentName};
 `;
         default:
             throw new Error(`Unsupported animation type: ${type}`);
     }
 }
-// Video rendering function (preserved from original)
-async function renderVideo(componentName, outputPath, options) {
-    const { duration, fps, width, height } = options;
-    const durationInFrames = Math.floor(duration * fps);
-    return new Promise((resolve, reject) => {
-        log('info', 'Starting video render', { componentName, outputPath, options });
-        const renderProcess = spawn('npx', [
-            'remotion', 'render',
-            componentName,
-            outputPath,
-            '--frames', durationInFrames.toString(),
-            '--width', width.toString(),
-            '--height', height.toString(),
-            '--fps', fps.toString(),
-            '--codec', 'h264',
-            '--overwrite'
-        ], {
-            cwd: APP_ROOT,
-            stdio: ['pipe', 'pipe', 'pipe'],
-            shell: process.platform === 'win32' // Windows compatibility
-        });
-        let stdout = '';
-        let stderr = '';
-        renderProcess.stdout?.on('data', (data) => {
-            stdout += data.toString();
-        });
-        renderProcess.stderr?.on('data', (data) => {
-            stderr += data.toString();
-        });
-        renderProcess.on('close', (code) => {
-            if (code === 0) {
-                log('info', 'Video render completed successfully', { outputPath });
-                resolve();
-            }
-            else {
-                log('error', 'Video render failed', { code, stdout, stderr });
-                reject(new Error(`Render process failed with code ${code}: ${stderr}`));
-            }
-        });
-        renderProcess.on('error', (error) => {
-            log('error', 'Render process error', error);
-            reject(error);
-        });
-    });
-}
+// Note: Video rendering is now done through Remotion Studio interface
+// Users can export videos directly from the studio at http://localhost:6970
 // Health check endpoints
 app.get('/health', (req, res) => {
     res.json({
@@ -755,25 +754,21 @@ app.post('/mcp', async (req, res) => {
         else if (!sessionId && isInitializeRequest(req.body)) {
             // New initialization request - create new session
             log('info', 'Creating new MCP session');
+            // Generate session ID upfront
+            const newSessionId = randomUUID();
             const transport = new StreamableHTTPServerTransport({
-                sessionIdGenerator: () => randomUUID(),
+                sessionIdGenerator: () => newSessionId,
             });
             // Create and connect new MCP server instance with all tools
             const server = createMcpServer();
             await server.connect(transport);
-            // Handle the initialize request first to generate session ID
+            // Store complete session (server + transport) before handling request
+            session = { server, transport };
+            sessions[newSessionId] = session;
+            log('info', `Created new session: ${newSessionId} with all registered tools`);
+            // Handle the initialize request
             await transport.handleRequest(req, res, req.body);
-            // Store complete session (server + transport) after handling request
-            const newSessionId = transport.sessionId;
-            if (newSessionId) {
-                session = { server, transport };
-                sessions[newSessionId] = session;
-                log('info', `Created new session: ${newSessionId} with all registered tools`);
-                return; // Request already handled
-            }
-            else {
-                throw new Error('Failed to generate session ID');
-            }
+            return; // Request already handled
         }
         else {
             // Invalid request

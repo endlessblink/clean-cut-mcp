@@ -155,7 +155,9 @@ async function main() {
     env: {
       ...process.env,
       // Avoid trying to open a browser in the container
-      BROWSER: 'none'
+      BROWSER: 'none',
+      // Pass Chrome stability flags for video rendering
+      REMOTION_CHROME_FLAGS: process.env.CHROME_FLAGS
     }
   });
 

@@ -4,10 +4,9 @@
  * Direct stdio transport implementation - no HTTP bridge needed
  * This eliminates all external dependencies and potential corruption
  */
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { z } from 'zod';
-import { spawn } from 'child_process';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import path from 'path';
 import fs from 'fs/promises';
 // CRITICAL: stderr-only logging (never stdout - breaks JSON-RPC)
@@ -44,7 +43,7 @@ class CleanCutMcpServer {
     studioProcess = null;
     constructor() {
         this.transport = new StdioServerTransport();
-        this.server = new McpServer({
+        this.server = new Server({
             name: 'clean-cut-mcp',
             version: '1.0.0'
         }, {
@@ -55,543 +54,485 @@ class CleanCutMcpServer {
         this.setupTools();
     }
     setupTools() {
-        // Animation creation tool
-        this.server.tool('create_animation', {
-            description: 'Create a new animation component with specified type and properties',
-            inputSchema: {
-                type: z.enum(['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out'])
-                    .describe('Type of animation to create'),
-                title: z.string().optional().describe('Custom title for the animation'),
-                backgroundColor: z.string().optional().describe('Background color (CSS color)')
-            }
-        }, async (request) => {
-            try {
-                const { type, title, backgroundColor } = request;
-                log('Creating animation', { type, title, backgroundColor });
-                const animationTitle = title || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-                const validComponentName = createValidIdentifier(animationTitle);
-                const component = this.generateAnimationComponent(type, validComponentName, backgroundColor || '#000', animationTitle);
-                const filename = `${validComponentName}Animation.tsx`;
-                const filePath = path.join(WORKSPACE, 'src', filename);
-                await fs.writeFile(filePath, component);
-                await this.updateRootTsx(validComponentName, filename);
-                return {
-                    content: [{
-                            type: 'text',
-                            text: `[OK] Animation created successfully!\n\n` +
-                                `**Type:** ${type}\n` +
-                                `**Title:** ${animationTitle}\n` +
-                                `**File:** ${filename}\n\n` +
-                                `[STUDIO] Open Remotion Studio: http://localhost:${HOST_STUDIO_PORT}`
-                        }]
-                };
-            }
-            catch (error) {
-                log('Animation creation error', { error: error.message });
-                throw error;
-            }
-        });
-        // Studio URL tool
-        this.server.tool('get_studio_url', {
-            description: 'Get the URL for Remotion Studio interface',
-            inputSchema: {}
-        }, async () => {
+        // List tools handler using proper schema
+        this.server.setRequestHandler(ListToolsRequestSchema, async () => {
             return {
-                content: [{
-                        type: 'text',
-                        text: `[STUDIO] Remotion Studio is available at:\n\nhttp://localhost:${HOST_STUDIO_PORT}\n\n` +
-                            `Open this URL in your browser to access the visual editor for your animations.`
-                    }]
+                tools: [
+                    {
+                        name: 'create_animation',
+                        description: 'Create a new Remotion animation component',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                type: {
+                                    type: 'string',
+                                    enum: ['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out'],
+                                    description: 'Type of animation to create'
+                                },
+                                title: {
+                                    type: 'string',
+                                    description: 'Title for the animation (optional, defaults to type name)'
+                                },
+                                backgroundColor: {
+                                    type: 'string',
+                                    description: 'Background color (hex color code, defaults to #000)'
+                                }
+                            },
+                            required: ['type']
+                        }
+                    },
+                    {
+                        name: 'list_animations',
+                        description: 'List all available animation components',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {}
+                        }
+                    },
+                    {
+                        name: 'get_studio_url',
+                        description: 'Get the Remotion Studio URL for previewing animations',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {}
+                        }
+                    },
+                    {
+                        name: 'read_guidelines_file',
+                        description: 'Read design guidelines and animation patterns from the claude-dev-guidelines folder',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                filename: {
+                                    type: 'string',
+                                    description: 'Guidelines file to read (e.g., "PROJECT_CONFIG.md", "ADVANCED/ANIMATION_PATTERNS.md")'
+                                }
+                            },
+                            required: ['filename']
+                        }
+                    }
+                ]
             };
         });
-        // Guidelines file reader tool
-        this.server.tool('read_guidelines_file', {
-            description: 'Read design guidelines and animation patterns from the claude-dev-guidelines folder',
-            inputSchema: {
-                filename: z.string().describe('Guidelines file to read (e.g., "PROJECT_CONFIG.md", "ADVANCED/ANIMATION_PATTERNS.md")')
-            }
-        }, async (request) => {
-            try {
-                const { filename } = request;
-                log('Reading guidelines file', { filename });
-                const filePath = path.join(GUIDELINES_DIR, filename);
-                // Check if guidelines directory exists
+        // Tool call handler using proper schema
+        this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+            const { name, arguments: args } = request.params;
+            if (name === 'create_animation') {
                 try {
-                    await fs.access(GUIDELINES_DIR);
-                }
-                catch (error) {
-                    return {
-                        content: [{
-                                type: 'text',
-                                text: `[ERROR] Guidelines directory not found at: ${GUIDELINES_DIR}\n\nMake sure the claude-dev-guidelines folder is properly mounted in the container.`
-                            }]
-                    };
-                }
-                // Check if specific file exists, otherwise list available files
-                try {
-                    const content = await fs.readFile(filePath, 'utf8');
-                    return {
-                        content: [{
-                                type: 'text',
-                                text: `[GUIDELINES] ${filename}\n\n${content}`
-                            }]
-                    };
-                }
-                catch (error) {
-                    // List available files
-                    try {
-                        const files = await fs.readdir(GUIDELINES_DIR);
-                        const mdFiles = files.filter(file => file.endsWith('.md'));
-                        // Also check ADVANCED subdirectory
-                        let advancedFiles = [];
-                        try {
-                            const advancedPath = path.join(GUIDELINES_DIR, 'ADVANCED');
-                            const advanced = await fs.readdir(advancedPath);
-                            advancedFiles = advanced.filter(file => file.endsWith('.md')).map(file => `ADVANCED/${file}`);
-                        }
-                        catch (e) {
-                            // ADVANCED directory might not exist
-                        }
-                        const allFiles = [...mdFiles, ...advancedFiles];
+                    log('Creating animation - direct handler', { name, args });
+                    const { type, title, backgroundColor } = args || {};
+                    // Validate required type parameter
+                    if (!type) {
                         return {
-                            content: [{
-                                    type: 'text',
-                                    text: `[ERROR] Guidelines file "${filename}" not found.\n\nAvailable files:\n${allFiles.map(file => `• ${file}`).join('\n')}\n\nDirectory: ${GUIDELINES_DIR}`
-                                }]
+                            content: [{ type: 'text', text: '[ERROR] Animation type is required. Please specify one of: bouncing-ball, sliding-text, rotating-object, fade-in-out' }],
+                            isError: true
                         };
                     }
-                    catch (listError) {
+                    const animationTitle = title || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                    const validComponentName = createValidIdentifier(animationTitle);
+                    const component = this.generateAnimationComponent(type, validComponentName, backgroundColor || '#000', animationTitle);
+                    const filename = `${validComponentName}Animation.tsx`;
+                    await this.writeAnimationFile(filename, component);
+                    await this.updateRootFile(validComponentName);
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[SUCCESS] ${type} animation created!\n\n[COMPONENT] ${validComponentName}Animation\n[FILE] ${filename}\n[STUDIO] http://localhost:${HOST_STUDIO_PORT}\n\nYour animation is now available in Remotion Studio!`
+                            }]
+                    };
+                }
+                catch (error) {
+                    log('Animation creation error', { error: error.message });
+                    return {
+                        content: [{ type: 'text', text: `[ERROR] Animation creation failed: ${error.message}` }],
+                        isError: true
+                    };
+                }
+            }
+            if (name === 'list_animations') {
+                try {
+                    log('Listing animations - direct handler', { name });
+                    // List all animation files in workspace
+                    const srcDir = path.join(WORKSPACE, 'src');
+                    const files = await fs.readdir(srcDir).catch(() => []);
+                    const animationFiles = files.filter(f => f.endsWith('Animation.tsx'));
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[ANIMATIONS]\n${animationFiles.length > 0 ? animationFiles.map(f => `- ${f}`).join('\n') : 'No animations found'}\n\n[STUDIO] http://localhost:${HOST_STUDIO_PORT}`
+                            }]
+                    };
+                }
+                catch (error) {
+                    log('List animations error', { error: error.message });
+                    return {
+                        content: [{ type: 'text', text: `[ERROR] Failed to list animations: ${error.message}` }],
+                        isError: true
+                    };
+                }
+            }
+            if (name === 'get_studio_url') {
+                try {
+                    log('Getting studio URL - direct handler', { name });
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[STUDIO URL] http://localhost:${HOST_STUDIO_PORT}\n\nOpen this URL in your browser to access the visual editor for your animations.`
+                            }]
+                    };
+                }
+                catch (error) {
+                    log('Get studio URL error', { error: error.message });
+                    return {
+                        content: [{ type: 'text', text: `[ERROR] Failed to get studio URL: ${error.message}` }],
+                        isError: true
+                    };
+                }
+            }
+            if (name === 'read_guidelines_file') {
+                try {
+                    log('Reading guidelines file - direct handler', { name, args });
+                    const { filename } = args || {};
+                    // Validate filename parameter
+                    if (!filename) {
                         return {
-                            content: [{
-                                    type: 'text',
-                                    text: `[ERROR] Failed to read guidelines directory: ${listError.message}`
-                                }]
+                            content: [{ type: 'text', text: '[ERROR] Filename is required. Please specify a guidelines file like "PROJECT_CONFIG.md" or "ADVANCED/ANIMATION_PATTERNS.md"' }],
+                            isError: true
                         };
                     }
-                }
-            }
-            catch (error) {
-                log('Guidelines file read error', { error: error.message });
-                return {
-                    content: [{
-                            type: 'text',
-                            text: `[ERROR] Failed to read guidelines file: ${error.message}`
-                        }]
-                };
-            }
-        });
-        // Animation guidelines tool - dynamically reads from guidelines files
-        this.server.tool('get_animation_guidelines', {
-            description: 'Get comprehensive animation guidelines and patterns from the guidelines directory',
-            inputSchema: {
-                category: z.enum(['project-config', 'advanced-patterns', 'animation-rules', 'all']).optional().describe('Category of guidelines to retrieve (defaults to all)')
-            }
-        }, async (request) => {
-            try {
-                const { category = 'all' } = request;
-                log('Getting animation guidelines', { category });
-                // Check if guidelines directory exists
-                try {
-                    await fs.access(GUIDELINES_DIR);
+                    const guidelinesPath = path.join(GUIDELINES_DIR, filename);
+                    log('Reading guidelines file', { filename, path: guidelinesPath });
+                    const content = await fs.readFile(guidelinesPath, 'utf8');
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[GUIDELINES: ${filename}]\n\n${content}`
+                            }]
+                    };
                 }
                 catch (error) {
+                    log('Guidelines file error', { error: error.message });
                     return {
-                        content: [{
-                                type: 'text',
-                                text: `[ERROR] Guidelines directory not found at: ${GUIDELINES_DIR}\n\nMake sure the claude-dev-guidelines folder is properly mounted in the container.`
-                            }]
-                    };
-                }
-                let content = '[ANIMATION GUIDELINES]\n\n';
-                // Read project config if requested
-                if (category === 'project-config' || category === 'all') {
-                    try {
-                        const projectConfigPath = path.join(GUIDELINES_DIR, 'PROJECT_CONFIG.md');
-                        const projectConfig = await fs.readFile(projectConfigPath, 'utf8');
-                        content += '## PROJECT CONFIGURATION\n\n';
-                        content += projectConfig + '\n\n';
-                    }
-                    catch (error) {
-                        content += '## PROJECT CONFIGURATION\n[ERROR] Could not read PROJECT_CONFIG.md\n\n';
-                    }
-                }
-                // Read advanced patterns and rules if requested
-                if (category === 'advanced-patterns' || category === 'animation-rules' || category === 'all') {
-                    try {
-                        const advancedPath = path.join(GUIDELINES_DIR, 'ADVANCED');
-                        const advancedFiles = await fs.readdir(advancedPath);
-                        // Filter based on category
-                        let filesToRead = advancedFiles.filter(file => file.endsWith('.md'));
-                        if (category === 'advanced-patterns') {
-                            filesToRead = filesToRead.filter(file => file.includes('PATTERN') || file.includes('TEMPLATE'));
-                        }
-                        else if (category === 'animation-rules') {
-                            filesToRead = filesToRead.filter(file => file.includes('RULE') || file.includes('ANIMATION'));
-                        }
-                        for (const file of filesToRead) {
-                            try {
-                                const filePath = path.join(advancedPath, file);
-                                const fileContent = await fs.readFile(filePath, 'utf8');
-                                content += `## ${file.replace('.md', '').replace(/_/g, ' ')}\n\n`;
-                                content += fileContent + '\n\n';
-                            }
-                            catch (error) {
-                                content += `## ${file}\n[ERROR] Could not read file\n\n`;
-                            }
-                        }
-                    }
-                    catch (error) {
-                        content += '## ADVANCED GUIDELINES\n[ERROR] Could not read ADVANCED directory\n\n';
-                    }
-                }
-                return {
-                    content: [{
-                            type: 'text',
-                            text: content
-                        }]
-                };
-            }
-            catch (error) {
-                log('Animation guidelines error', { error: error.message });
-                return {
-                    content: [{
-                            type: 'text',
-                            text: `[ERROR] Failed to get animation guidelines: ${error.message}`
-                        }]
-                };
-            }
-        });
-        // List animations tool
-        this.server.tool('list_animations', {
-            description: 'List all available animation components in the workspace',
-            inputSchema: {}
-        }, async () => {
-            try {
-                const srcDir = path.join(WORKSPACE, 'src');
-                const files = await fs.readdir(srcDir);
-                const animationFiles = files.filter(file => file.endsWith('Animation.tsx'));
-                if (animationFiles.length === 0) {
-                    return {
-                        content: [{
-                                type: 'text',
-                                text: '[EMPTY] No animations found.\n\nCreate your first animation using the `create_animation` tool!'
-                            }]
-                    };
-                }
-                const animations = animationFiles.map(file => `• ${file.replace('.tsx', '')}`).join('\n');
-                return {
-                    content: [{
-                            type: 'text',
-                            text: `[LIST] Available animations:\n\n${animations}\n\n` +
-                                `[STUDIO] View them at: http://localhost:${HOST_STUDIO_PORT}`
-                        }]
-                };
-            }
-            catch (error) {
-                log('List animations error', { error: error.message });
-                return {
-                    content: [{
-                            type: 'text',
-                            text: '[ERROR] Error listing animations: ' + error.message
-                        }]
-                };
-            }
-        });
-        // Export directory tools
-        this.server.tool('get_export_directory', {
-            description: 'Get the path to the export directory where rendered videos are saved',
-            inputSchema: {}
-        }, async () => {
-            try {
-                const exportDir = path.join(WORKSPACE, 'out');
-                // Ensure the directory exists
-                try {
-                    await fs.access(exportDir);
-                }
-                catch (error) {
-                    await fs.mkdir(exportDir, { recursive: true });
-                    log('Created export directory', { exportDir });
-                }
-                return {
-                    content: [{
-                            type: 'text',
-                            text: `[EXPORT] Export directory: ${exportDir}\n\nRendered videos and images will be saved here when you export from Remotion Studio.`
-                        }]
-                };
-            }
-            catch (error) {
-                log('Get export directory error', { error: error.message });
-                return {
-                    content: [{
-                            type: 'text',
-                            text: `[ERROR] Failed to get export directory: ${error.message}`
-                        }]
-                };
-            }
-        });
-        this.server.tool('open_export_directory', {
-            description: 'Open the export directory in the file manager (platform-specific)',
-            inputSchema: {}
-        }, async () => {
-            try {
-                const exportDir = path.join(WORKSPACE, 'out');
-                // Ensure the directory exists
-                try {
-                    await fs.access(exportDir);
-                }
-                catch (error) {
-                    await fs.mkdir(exportDir, { recursive: true });
-                    log('Created export directory', { exportDir });
-                }
-                // Try to open the directory with platform-specific command
-                let command;
-                let args;
-                if (process.platform === 'darwin') {
-                    command = 'open';
-                    args = [exportDir];
-                }
-                else if (process.platform === 'win32') {
-                    command = 'explorer';
-                    args = [exportDir];
-                }
-                else {
-                    command = 'xdg-open';
-                    args = [exportDir];
-                }
-                try {
-                    spawn(command, args, { detached: true, stdio: 'ignore' });
-                    return {
-                        content: [{
-                                type: 'text',
-                                text: `[OPENED] Export directory opened in file manager.\n\nDirectory: ${exportDir}`
-                            }]
-                    };
-                }
-                catch (openError) {
-                    return {
-                        content: [{
-                                type: 'text',
-                                text: `[INFO] Export directory ready: ${exportDir}\n\nNote: Could not auto-open file manager. Please navigate to this path manually.`
-                            }]
+                        content: [{ type: 'text', text: `[ERROR] Failed to read guidelines file: ${error.message}` }],
+                        isError: true
                     };
                 }
             }
-            catch (error) {
-                log('Open export directory error', { error: error.message });
-                return {
-                    content: [{
-                            type: 'text',
-                            text: `[ERROR] Failed to open export directory: ${error.message}`
-                        }]
-                };
-            }
+            // Default response for unknown tools
+            return {
+                content: [{ type: 'text', text: `[ERROR] Unknown tool: ${name}` }],
+                isError: true
+            };
         });
     }
-    generateAnimationComponent(type, componentName, backgroundColor, displayTitle) {
-        const components = {
-            'bouncing-ball': `import React from 'react';
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, useVideoConfig } from 'remotion';
+    async writeAnimationFile(filename, content) {
+        const filePath = path.join(WORKSPACE, 'src', filename);
+        await fs.writeFile(filePath, content);
+        log('Created animation file', { filename, path: filePath });
+    }
+    async updateRootFile(componentName) {
+        const rootPath = path.join(WORKSPACE, 'src', 'Root.tsx');
+        try {
+            let rootContent = await fs.readFile(rootPath, 'utf8');
+            // Add import statement
+            const importStatement = `import {${componentName}Animation} from './${componentName}Animation';`;
+            if (!rootContent.includes(importStatement)) {
+                // Find the last import and insert after it
+                const importLines = rootContent.split('\n');
+                let insertIndex = 0;
+                for (let i = 0; i < importLines.length; i++) {
+                    if (importLines[i].startsWith('import ')) {
+                        insertIndex = i + 1;
+                    }
+                }
+                importLines.splice(insertIndex, 0, importStatement);
+                rootContent = importLines.join('\n');
+            }
+            // Add composition
+            const compositionId = componentName.replace('Animation', '');
+            const compositionElement = `      <Composition
+        id="${compositionId}"
+        component={${componentName}Animation}
+        durationInFrames={90}
+        fps={30}
+        width={1920}
+        height={1080}
+      />`;
+            if (!rootContent.includes(`id="${compositionId}"`)) {
+                // Insert before the closing </> 
+                rootContent = rootContent.replace(/(\s+)<\/>/, `$1${compositionElement}
+$1</>`);
+            }
+            await fs.writeFile(rootPath, rootContent);
+            log('Updated Root.tsx', { componentName });
+        }
+        catch (error) {
+            log('Failed to update Root.tsx', { error: error.message });
+            throw error;
+        }
+    }
+    generateAnimationComponent(type, componentName, backgroundColor, title) {
+        switch (type) {
+            case 'bouncing-ball':
+                return `import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 
 export const ${componentName}Animation: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-
-  const bounceHeight = spring({
+  const { durationInFrames, fps } = useVideoConfig();
+  
+  const bounceHeight = interpolate(
+    frame % (fps * 0.5),
+    [0, fps * 0.25, fps * 0.5],
+    [0, -200, 0],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  
+  const horizontalMovement = interpolate(
     frame,
-    fps,
-    config: { damping: 6 }
-  });
-
-  const ballY = interpolate(bounceHeight, [0, 1], [300, 50]);
+    [0, durationInFrames],
+    [100, 700],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
 
   return (
     <AbsoluteFill style={{ backgroundColor: '${backgroundColor}' }}>
       <div
         style={{
           position: 'absolute',
-          left: '50%',
-          top: ballY,
+          left: horizontalMovement,
+          top: 400 + bounceHeight,
           width: 100,
           height: 100,
-          backgroundColor: '#ff6b6b',
           borderRadius: '50%',
-          transform: 'translateX(-50%)',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+          backgroundColor: '#ff6b6b',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
         }}
       />
+      <h1 style={{
+        position: 'absolute',
+        top: 50,
+        left: 50,
+        color: 'white',
+        fontSize: '48px',
+        fontFamily: 'Arial, sans-serif'
+      }}>
+        ${title}
+      </h1>
     </AbsoluteFill>
   );
-};`,
-            'sliding-text': `import React from 'react';
-import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig } from 'remotion';
+};`;
+            case 'sliding-text':
+                return `import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 
 export const ${componentName}Animation: React.FC = () => {
   const frame = useCurrentFrame();
-  const { width } = useVideoConfig();
-
-  const textX = interpolate(frame, [0, 60], [-300, width / 2]);
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}', justifyContent: 'center', alignItems: 'center' }}>
-      <div
-        style={{
-          position: 'absolute',
-          left: textX,
-          fontSize: 80,
-          fontWeight: 'bold',
-          color: '#fff',
-          transform: 'translateX(-50%)',
-          textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
-        }}
-      >
-${displayTitle || componentName}
-      </div>
-    </AbsoluteFill>
-  );
-};`,
-            'rotating-object': `import React from 'react';
-import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
-
-export const ${componentName}Animation: React.FC = () => {
-  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
   
-  const rotation = interpolate(frame, [0, 120], [0, 360]);
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}', justifyContent: 'center', alignItems: 'center' }}>
-      <div
-        style={{
-          width: 200,
-          height: 200,
-          backgroundColor: '#4ecdc4',
-          transform: \`rotate(\${rotation}deg)\`,
-          borderRadius: 20,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
-        }}
-      />
-    </AbsoluteFill>
-  );
-};`,
-            'fade-in-out': `import React from 'react';
-import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
-
-export const ${componentName}Animation: React.FC = () => {
-  const frame = useCurrentFrame();
-  
-  const opacity = interpolate(
+  const slideIn = interpolate(
     frame,
-    [0, 30, 90, 120],
-    [0, 1, 1, 0],
+    [0, durationInFrames * 0.3],
+    [-500, 0],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  
+  const slideOut = interpolate(
+    frame,
+    [durationInFrames * 0.7, durationInFrames],
+    [0, 500],
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
   );
 
   return (
     <AbsoluteFill style={{ backgroundColor: '${backgroundColor}', justifyContent: 'center', alignItems: 'center' }}>
-      <div
-        style={{
-          fontSize: 100,
+      <h1 style={{
+        transform: \`translateX(\$\{slideIn + slideOut\}px)\`,
+        color: 'white',
+        fontSize: '72px',
+        fontFamily: 'Arial, sans-serif',
+        textAlign: 'center',
+        textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+      }}>
+        ${title}
+      </h1>
+    </AbsoluteFill>
+  );
+};`;
+            case 'rotating-object':
+                return `import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+
+export const ${componentName}Animation: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  
+  const rotation = interpolate(
+    frame,
+    [0, durationInFrames],
+    [0, 360],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  
+  const scale = interpolate(
+    frame,
+    [durationInFrames * 0.5, durationInFrames],
+    [1.5, 0.5],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{
+        transform: \`rotate(\$\{rotation\}deg) scale(\$\{scale\})\`,
+        width: 200,
+        height: 200,
+        backgroundColor: '#4ecdc4',
+        borderRadius: '20px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+      }}>
+        <span style={{
+          color: 'white',
+          fontSize: '24px',
           fontWeight: 'bold',
-          color: '#fff',
-          opacity,
-          textShadow: '3px 3px 6px rgba(0,0,0,0.5)'
-        }}
-      >
-${displayTitle || componentName}
+          fontFamily: 'Arial, sans-serif'
+        }}>
+          ${title}
+        </span>
       </div>
     </AbsoluteFill>
   );
-};`
-        };
-        return components[type] || components['bouncing-ball'];
-    }
-    async updateRootTsx(componentName, filename) {
-        const rootPath = path.join(WORKSPACE, 'src', 'Root.tsx');
-        const importName = `${componentName}Animation`;
-        try {
-            let rootContent = await fs.readFile(rootPath, 'utf8');
-            // Add import if not present
-            if (!rootContent.includes(`import { ${importName} }`)) {
-                const importLine = `import { ${importName} } from './${filename.replace('.tsx', '')}';`;
-                rootContent = importLine + '\n' + rootContent;
-            }
-            // Add composition if not present
-            if (!rootContent.includes(`id="${componentName}"`)) {
-                const compositionLine = `      <Composition
-        id="${componentName}"
-        component={${importName}}
-        durationInFrames={120}
-        fps={30}
-        width={1920}
-        height={1080}
-      />`;
-                // Insert before the closing fragment or closing tag
-                if (rootContent.includes('</Folder>')) {
-                    rootContent = rootContent.replace('</Folder>', `${compositionLine}\n    </Folder>`);
-                }
-                else if (rootContent.includes('    </>')) {
-                    rootContent = rootContent.replace('    </>', `${compositionLine}\n    </>`);
-                }
-            }
-            await fs.writeFile(rootPath, rootContent);
-            log('Root.tsx updated successfully', { componentName });
-        }
-        catch (error) {
-            log('Root.tsx update error', { error: error.message });
-            throw new Error(`Failed to update Root.tsx: ${error.message}`);
+};`;
+            case 'fade-in-out':
+                return `import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+
+export const ${componentName}Animation: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  
+  const fadeIn = interpolate(
+    frame,
+    [0, durationInFrames * 0.2],
+    [0, 1],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  
+  const fadeOut = interpolate(
+    frame,
+    [durationInFrames * 0.8, durationInFrames],
+    [1, 0],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  
+  const opacity = Math.min(fadeIn, fadeOut);
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}', justifyContent: 'center', alignItems: 'center' }}>
+      <h1 style={{
+        opacity,
+        color: 'white',
+        fontSize: '64px',
+        fontFamily: 'Arial, sans-serif',
+        textAlign: 'center',
+        textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+      }}>
+        ${title}
+      </h1>
+    </AbsoluteFill>
+  );
+};`;
+            default:
+                throw new Error(`Unsupported animation type: ${type}`);
         }
     }
     async start() {
-        log('Starting Clean-Cut-MCP stdio server');
-        // Add error handlers before connecting
+        log('Starting Clean-Cut-MCP stdio server with proper error handling');
+        // Proper transport error handlers (per MCP SDK best practices)
         this.transport.onclose = () => {
-            log('Transport closed - shutting down gracefully');
+            log('Transport closed - server will exit gracefully');
             process.exit(0);
         };
         this.transport.onerror = (error) => {
-            log('Transport error', { error: error.message });
+            log('Transport error - server will exit', { error: error.message });
             process.exit(1);
         };
         await this.server.connect(this.transport);
         log('Clean-Cut-MCP ready for Claude Desktop!');
         log(`Workspace: ${WORKSPACE}`);
         log(`Studio: http://localhost:${STUDIO_PORT}`);
-        // Keep the process alive to handle incoming requests
+        // Keep the process alive normally (per MCP SDK patterns)
         return new Promise((resolve, reject) => {
             log('MCP server listening for requests...');
-            // Add process error handlers
+            // Proper error handlers that allow graceful cleanup
             process.on('unhandledRejection', (reason) => {
                 log('Unhandled promise rejection', { reason });
+                // Don't exit immediately - let caller decide
                 reject(reason);
             });
             process.on('uncaughtException', (error) => {
                 log('Uncaught exception', { error: error.message, stack: error.stack });
+                // Don't exit immediately - let caller decide  
                 reject(error);
+            });
+            // Graceful shutdown handlers
+            process.on('SIGTERM', () => {
+                log('Received SIGTERM - shutting down gracefully');
+                this.cleanup();
+                resolve(undefined);
+                process.exit(0);
+            });
+            process.on('SIGINT', () => {
+                log('Received SIGINT - shutting down gracefully');
+                this.cleanup();
+                resolve(undefined);
+                process.exit(0);
             });
         });
     }
+    cleanup() {
+        log('Cleaning up server resources');
+        try {
+            // Close transport if possible
+            if (this.transport && typeof this.transport.close === 'function') {
+                this.transport.close();
+            }
+            // Stop studio process if running
+            if (this.studioProcess) {
+                this.studioProcess.kill('SIGTERM');
+            }
+        }
+        catch (error) {
+            log('Error during cleanup', { error: error.message });
+        }
+    }
 }
-// Start the server
+// Start the server with proper error handling per MCP best practices
 async function main() {
     try {
         const server = new CleanCutMcpServer();
         await server.start();
+        log('STDIO server completed normally');
     }
     catch (error) {
         log('Fatal error starting stdio server', { error: error.message, stack: error.stack });
+        // Exit with error code for process manager to restart
         process.exit(1);
     }
 }
-// Handle shutdown gracefully
-process.on('SIGINT', () => {
-    log('Received SIGINT, shutting down');
+// Graceful shutdown handling (per Node.js best practices)
+const shutdown = (signal) => {
+    log(`Received ${signal} - initiating graceful shutdown`);
     process.exit(0);
-});
-process.on('SIGTERM', () => {
-    log('Received SIGTERM, shutting down');
-    process.exit(0);
-});
-// Start the server immediately (more reliable than import.meta.url check)
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+// Start the server 
 main().catch((error) => {
     log('Unhandled error in main', { error: error.message, stack: error.stack });
     process.exit(1);
 });
+log('STDIO bridge initialized - ready for Claude Desktop connection');

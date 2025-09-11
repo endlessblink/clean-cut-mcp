@@ -5,7 +5,6 @@
 **NEVER** break Claude Desktop configuration again. These rules are based on validated research:
 
 # ALWAYS, AND I MEAN ALWAYSSSSSS CHECK EVERYTHING BEFORE SAYING IT IS WORKING!!!!!!
-# NEVER EVER BUILD THE CONTAINER / RUN THE SCRIPTS YOURSELF, GIVE THE USER CLEAR INSTRUCTIONS INSTEAD!!!!
 # We have to have ONE SCRIPT that installs everything flawlessly, E2E. Nothing else is acceptable!!!!!!
 # ALWAYS VALIDATE WHAT YOU ARE NOT SURE ABOUT OR NO KNOW WITH ONLINE RESEARCH
 

@@ -30,7 +30,8 @@ RUN apt-get update && \
       > /etc/apt/sources.list.d/google-chrome.list && \
     apt-get update && \
     apt-get install -y google-chrome-stable && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    ffmpeg -version && google-chrome --version
 
 WORKDIR /app
 
@@ -50,7 +51,8 @@ ENV NODE_ENV=production \
     DOCKER_CONTAINER=true \
     MCP_SERVER_PORT=6961 \
     REMOTION_STUDIO_PORT=6960 \
-    REMOTION_NON_INTERACTIVE=1
+    REMOTION_NON_INTERACTIVE=1 \
+    CHROME_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-extensions --disable-plugins --disable-background-networking --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows"
 
 # Create export directory and volume mount point for Remotion renders
 RUN mkdir -p /workspace/out && chmod 755 /workspace/out
