@@ -1,0 +1,29 @@
+{
+  "name": "clean-cut-mcp-server",
+  "version": "2.0.0",
+  "description": "MCP Server for Clean Cut - One-Script Magic video animation creation with Remotion",
+  "type": "module",
+  "main": "dist/http-mcp-server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/http-mcp-server.js",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "typescript": "^5.3.3",
+    "rimraf": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "name": "@endlessblink/clean-cut-mcp",
+  "version": "4.5.10",
+  "description": "One-Script Magic: Remotion video generation for Claude Desktop. Create animations with a single command.",
+  "scripts": {
+    "postinstall": "node setup-universal.js",
+    "prepare": "node setup-universal.js",
+    "install-mcp": "node setup-universal.js",
+    "dev": "remotion studio",
+    "build": "remotion render Main",
+    "preview": "remotion preview Main",
+    "upgrade": "remotion upgrade",
+    "build-mcp": "cd mcp-server && npm install && npm run build",
+    "test-mcp": "cd mcp-server && npm run dev",
+    "setup": "npm install && npm run build-mcp",
+    "setup-universal": "npm install && npm run build-mcp && node setup-universal.js",
+    "install-for-claude": "npm run setup-universal",
+    "start": "node mcp-server/dist/index.js",
+    "uninstall": "node setup-universal.js --uninstall"
+  },
+  "main": "mcp-server/dist/index.js",
+  "bin": {
+    "clean-cut-mcp": "./setup-universal.js",
+    "clean-cut-setup": "./setup-universal.js"
+  },
+  "preferGlobal": false,
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "dependencies": {
+    "@esbuild/win32-x64": "^0.25.9",
+    "@remotion/cli": "4.0.340",
+    "@remotion/player": "4.0.340",
+    "lucide-react": "^0.263.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "remotion": "4.0.340"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "remotion",
+    "video",
+    "animation",
+    "claude",
+    "mcp",
+    "ai",
+    "video-generation",
+    "motion-graphics",
+    "react",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/endlessblink/clean-cut-mcp.git"
+  },
+  "license": "MIT",
+  "files": [
+    "mcp-server/",
+    "claude-dev-guidelines/",
+    "setup-universal.js",
+    "remotion.config.ts",
+    "tsconfig.json",
+    "README.md",
+    "src/"
+  ]
+}
