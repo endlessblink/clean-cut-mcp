@@ -50,6 +50,35 @@ function Write-ColorOutput {
     Write-Host "$($colors[$Color])$Message$($colors.reset)"
 }
 
+function Test-WSL2Installation {
+    Write-ColorOutput "blue" "Checking WSL2 installation..."
+    
+    if ($IsWindows -or $PSVersionTable.PSVersion.Major -le 5) {
+        try {
+            $wslVersion = wsl --list --verbose 2>$null
+            if ($wslVersion -and $wslVersion -match "VERSION\s+2") {
+                Write-ColorOutput "green" "✅ WSL2 found and running"
+                return $true
+            } elseif ($wslVersion) {
+                Write-ColorOutput "yellow" "⚠️  WSL found but not version 2"
+                Write-ColorOutput "cyan" "   Run: wsl --set-default-version 2"
+                return "WSL1"
+            }
+        } catch {
+            # WSL not installed
+        }
+        
+        Write-ColorOutput "red" "❌ WSL2 not found"
+        Write-ColorOutput "yellow" "   REQUIRED: WSL2 is needed for Docker Desktop on Windows"
+        Write-ColorOutput "cyan" "   Quick install: wsl --install (as Administrator)"
+        Write-ColorOutput "cyan" "   Full guide: See WINDOWS-INSTALLATION-GUIDE.md"
+        return $false
+    }
+    
+    # Non-Windows systems don't need WSL2
+    return $true
+}
+
 function Test-DockerInstallation {
     Write-ColorOutput "blue" "Checking Docker installation..."
     
@@ -57,11 +86,35 @@ function Test-DockerInstallation {
         $dockerVersion = docker --version 2>$null
         if ($dockerVersion) {
             Write-ColorOutput "green" "✅ Docker found: $dockerVersion"
+            
+            # Additional Docker Desktop check on Windows
+            if ($IsWindows -or $PSVersionTable.PSVersion.Major -le 5) {
+                try {
+                    $dockerInfo = docker info 2>$null
+                    if ($dockerInfo -match "WSL2|linux") {
+                        Write-ColorOutput "green" "✅ Docker Desktop using WSL2 backend"
+                    } else {
+                        Write-ColorOutput "yellow" "⚠️  Docker Desktop may not be using WSL2 backend"
+                        Write-ColorOutput "cyan" "   Check: Docker Desktop → Settings → General → Use WSL2 based engine"
+                    }
+                } catch {
+                    Write-ColorOutput "yellow" "⚠️  Docker daemon may not be running"
+                }
+            }
+            
             return $true
         }
     } catch {
         Write-ColorOutput "red" "❌ Docker not found or not running"
-        Write-ColorOutput "yellow" "   Install Docker Desktop: https://docs.docker.com/desktop/"
+        
+        if ($IsWindows -or $PSVersionTable.PSVersion.Major -le 5) {
+            Write-ColorOutput "yellow" "   Install Docker Desktop: https://docs.docker.com/desktop/"
+            Write-ColorOutput "yellow" "   IMPORTANT: Ensure WSL2 is installed first"
+            Write-ColorOutput "cyan" "   Complete guide: See WINDOWS-INSTALLATION-GUIDE.md"
+        } else {
+            Write-ColorOutput "yellow" "   Install Docker: https://docs.docker.com/engine/install/"
+        }
+        
         return $false
     }
     
@@ -296,12 +349,35 @@ function Main {
     
     $success = $true
     
-    # Step 1: Check Docker
-    if (!$(Test-DockerInstallation)) {
-        $success = $false
+    # Step 1: Check WSL2 (Windows only)
+    if ($IsWindows -or $PSVersionTable.PSVersion.Major -le 5) {
+        Write-ColorOutput "cyan" "`nStep 1: Checking WSL2 Prerequisites"
+        $wslStatus = Test-WSL2Installation
+        if ($wslStatus -eq $false) {
+            $success = $false
+            Write-ColorOutput "red" "`n❌ WSL2 is required but not installed"
+            Write-ColorOutput "yellow" "📖 Please follow the Windows Installation Guide:"
+            Write-ColorOutput "cyan" "   1. Run PowerShell as Administrator"
+            Write-ColorOutput "cyan" "   2. Run: wsl --install"
+            Write-ColorOutput "cyan" "   3. Restart computer when prompted"
+            Write-ColorOutput "cyan" "   4. Re-run this installer"
+            Write-ColorOutput "cyan" "`nFull guide: WINDOWS-INSTALLATION-GUIDE.md"
+        } elseif ($wslStatus -eq "WSL1") {
+            Write-ColorOutput "yellow" "⚠️  WSL1 detected, Docker Desktop needs WSL2"
+            Write-ColorOutput "cyan" "   Run: wsl --set-default-version 2"
+            $success = $false
+        }
     }
     
-    # Step 2: Install from Docker Hub
+    # Step 2: Check Docker
+    if ($success) {
+        Write-ColorOutput "cyan" "`nStep $(if ($IsWindows -or $PSVersionTable.PSVersion.Major -le 5) {'2'} else {'1'}): Checking Docker Installation"
+        if (!(Test-DockerInstallation)) {
+            $success = $false
+        }
+    }
+    
+    # Step 3: Install from Docker Hub
     if ($success -and !$(Install-FromDockerHub $Version)) {
         $success = $false
     }

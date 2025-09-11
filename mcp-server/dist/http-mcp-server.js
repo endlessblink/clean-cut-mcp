@@ -3,6 +3,7 @@
  * Implements StreamableHTTPServerTransport with proper session management
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
@@ -11,6 +12,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { createWriteStream } from 'fs';
+import { randomUUID } from 'node:crypto';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Configuration
@@ -31,10 +33,16 @@ const log = (level, message, data) => {
         logStream.write(JSON.stringify(data, null, 2) + '\n');
     }
 };
-// Express app setup
+// Express app setup with proper CORS for MCP
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    exposedHeaders: ['Mcp-Session-Id'],
+    allowedHeaders: ['Content-Type', 'mcp-session-id'],
+    methods: ['GET', 'POST', 'DELETE']
+}));
 app.use(express.json({ limit: '50mb' }));
+const sessions = {};
 // MCP Server factory function
 function createMcpServer() {
     const server = new McpServer({
@@ -44,7 +52,7 @@ function createMcpServer() {
     // Register animation creation tool with emoji-free responses
     server.tool('create_animation', {
         description: 'Create a video animation using Remotion. Supports bouncing balls, sliding text, rotating objects, and fade effects.',
-        inputSchema: z.object({
+        inputSchema: {
             type: z.enum(['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out']).describe('Type of animation to create'),
             title: z.string().optional().describe('Title/text for the animation'),
             duration: z.number().default(3).describe('Duration in seconds'),
@@ -52,7 +60,7 @@ function createMcpServer() {
             width: z.number().default(1920).describe('Video width in pixels'),
             height: z.number().default(1080).describe('Video height in pixels'),
             backgroundColor: z.string().default('#000000').describe('Background color')
-        })
+        }
     }, async ({ type, title = 'Animation', duration = 3, fps = 30, width = 1920, height = 1080, backgroundColor = '#000000' }) => {
         try {
             log('info', 'Creating animation', { type, title, duration });
@@ -99,7 +107,7 @@ function createMcpServer() {
     // Register list animations tool
     server.tool('list_animations', {
         description: 'List all created animations in the exports directory',
-        inputSchema: z.object({})
+        inputSchema: {}
     }, async () => {
         try {
             const files = await fs.readdir(EXPORTS_DIR);
@@ -139,7 +147,7 @@ function createMcpServer() {
     // Register studio URL tool
     server.tool('get_studio_url', {
         description: 'Get the URL for Remotion Studio interface',
-        inputSchema: z.object({})
+        inputSchema: {}
     }, async () => {
         return {
             content: [
@@ -151,12 +159,161 @@ function createMcpServer() {
             ]
         };
     });
+    // Register export directory tool
+    server.tool('get_export_directory', {
+        description: 'Get the path where exported videos from Remotion Studio are saved on the host system',
+        inputSchema: {}
+    }, async () => {
+        const isDocker = process.env.DOCKER_CONTAINER === 'true';
+        let exportPath;
+        let hostPath;
+        let instructions;
+        if (isDocker) {
+            // In Docker container - videos are mounted to host directory
+            exportPath = '/workspace/out';
+            hostPath = './clean-cut-exports';
+            instructions = `[EXPORT DIRECTORY] Videos exported from Remotion Studio appear in:\n\n` +
+                `Host Path: ${hostPath}\n` +
+                `Container Path: ${exportPath}\n\n` +
+                `[HOW IT WORKS]\n` +
+                `- Container exports to: /workspace/out\n` +
+                `- Host receives files in: ./clean-cut-exports (relative to where you ran Docker)\n` +
+                `- All exports automatically appear in your host directory\n` +
+                `- Works cross-platform (Windows, macOS, Linux)\n\n` +
+                `[PLATFORM-SPECIFIC NAVIGATION]\n` +
+                `Windows: Use File Explorer to navigate to your clean-cut-mcp directory\n` +
+                `macOS: Use Finder to navigate to your clean-cut-mcp directory\n` +
+                `Linux: Use your file manager to navigate to your clean-cut-mcp directory\n\n` +
+                `[USAGE]\n` +
+                `1. Export video from Remotion Studio (http://localhost:${STUDIO_PORT})\n` +
+                `2. Check the clean-cut-exports folder in your project directory\n` +
+                `3. Your video will be there instantly!\n` +
+                `4. Use 'open_export_directory' tool to open the folder directly`;
+        }
+        else {
+            // Running locally
+            exportPath = EXPORTS_DIR;
+            hostPath = exportPath;
+            instructions = `[EXPORT DIRECTORY] Videos are saved to:\n\n${exportPath}\n\n` +
+                `[PLATFORM-SPECIFIC COMMANDS]\n` +
+                `Windows: explorer "${exportPath}"\n` +
+                `macOS: open "${exportPath}"\n` +
+                `Linux: xdg-open "${exportPath}"\n\n` +
+                `[USAGE]\n` +
+                `1. Export videos from Remotion Studio (http://localhost:${STUDIO_PORT})\n` +
+                `2. Files appear in the above directory\n` +
+                `3. Use 'open_export_directory' tool to open the folder directly`;
+        }
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: instructions
+                }
+            ]
+        };
+    });
+    // Register open export directory tool
+    server.tool('open_export_directory', {
+        description: 'Open the video export directory in the system file manager (Explorer, Finder, etc.)',
+        inputSchema: {}
+    }, async () => {
+        try {
+            const isDocker = process.env.DOCKER_CONTAINER === 'true';
+            let targetPath;
+            let resultMessage;
+            if (isDocker) {
+                // In Docker container - cannot directly open host file manager
+                // Provide instructions instead
+                resultMessage = `[DOCKER ENVIRONMENT] Cannot directly open host file manager from container.\n\n` +
+                    `[MANUAL NAVIGATION REQUIRED]\n` +
+                    `Please open your file manager and navigate to:\n` +
+                    `./clean-cut-exports (in your clean-cut-mcp directory)\n\n` +
+                    `[PLATFORM-SPECIFIC COMMANDS]\n` +
+                    `Windows: Open File Explorer, navigate to your clean-cut-mcp folder\n` +
+                    `macOS: Open Finder, navigate to your clean-cut-mcp folder\n` +
+                    `Linux: Open file manager, navigate to your clean-cut-mcp folder\n\n` +
+                    `The clean-cut-exports folder contains all your exported videos.`;
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: resultMessage
+                        }
+                    ]
+                };
+            }
+            // Running locally - can open file manager directly
+            targetPath = EXPORTS_DIR;
+            // Ensure export directory exists
+            await fs.mkdir(targetPath, { recursive: true });
+            // Determine command based on platform
+            let command;
+            let args;
+            switch (process.platform) {
+                case 'win32':
+                    command = 'explorer';
+                    args = [targetPath];
+                    break;
+                case 'darwin':
+                    command = 'open';
+                    args = [targetPath];
+                    break;
+                default: // Linux and others
+                    command = 'xdg-open';
+                    args = [targetPath];
+                    break;
+            }
+            log('info', `Opening file manager: ${command} ${args.join(' ')}`);
+            // Spawn the file manager process
+            const fileManagerProcess = spawn(command, args, {
+                detached: true,
+                stdio: 'ignore'
+            });
+            // Unref so the parent process can exit independently
+            fileManagerProcess.unref();
+            resultMessage = `[SUCCESS] Opening export directory in file manager\n\n` +
+                `Path: ${targetPath}\n` +
+                `Command: ${command} ${args.join(' ')}\n\n` +
+                `Your system file manager should now be opening the export directory.\n` +
+                `If it doesn't open automatically, you can navigate manually to:\n${targetPath}`;
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: resultMessage
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            log('error', 'Failed to open export directory', error);
+            // Fallback with manual instructions
+            const isDocker = process.env.DOCKER_CONTAINER === 'true';
+            const fallbackPath = isDocker ? './clean-cut-exports' : EXPORTS_DIR;
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `[ERROR] Could not automatically open file manager: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                            `[MANUAL NAVIGATION]\n` +
+                            `Please open your file manager and navigate to:\n${fallbackPath}\n\n` +
+                            `[PLATFORM-SPECIFIC COMMANDS]\n` +
+                            `Windows: explorer "${fallbackPath}"\n` +
+                            `macOS: open "${fallbackPath}"\n` +
+                            `Linux: xdg-open "${fallbackPath}"\n\n` +
+                            `This directory contains all your exported videos.`
+                    }
+                ]
+            };
+        }
+    });
     // Guidelines file reader tool
     server.tool('read_guidelines_file', {
         description: 'Read design guidelines and animation patterns from the claude-dev-guidelines folder',
-        inputSchema: z.object({
+        inputSchema: {
             filename: z.string().describe('Guidelines file to read (e.g., "PROJECT_CONFIG.md", "ADVANCED/ANIMATION_PATTERNS.md")')
-        })
+        }
     }, async ({ filename }) => {
         try {
             log('info', 'Reading guidelines file', { filename });
@@ -230,10 +387,10 @@ function createMcpServer() {
     // Animation guidelines tool - dynamically reads from guidelines files
     server.tool('get_animation_guidelines', {
         description: 'Get comprehensive animation guidelines and patterns from the guidelines directory',
-        inputSchema: z.object({
+        inputSchema: {
             category: z.enum(['project-config', 'advanced-patterns', 'animation-rules', 'all']).optional()
                 .describe('Category of guidelines to retrieve (defaults to all)')
-        })
+        }
     }, async ({ category = 'all' }) => {
         try {
             log('info', 'Getting animation guidelines', { category });
@@ -561,217 +718,139 @@ app.get('/health', (req, res) => {
         ports: { mcp: MCP_PORT, studio: STUDIO_PORT }
     });
 });
-app.get('/status', (req, res) => {
+// Utility function to check if request is MCP initialize
+function isInitializeRequest(body) {
+    return body && body.method === 'initialize';
+}
+// Health check endpoint
+app.get('/health', (req, res) => {
     res.json({
-        name: 'clean-cut-mcp',
+        status: 'healthy',
+        service: 'clean-cut-mcp',
         version: '1.0.0',
-        mcp_server: 'running',
-        studio_url: `http://localhost:${STUDIO_PORT}`,
-        exports_dir: EXPORTS_DIR,
-        animation_types: ['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out']
+        timestamp: new Date().toISOString(),
+        ports: { mcp: MCP_PORT, studio: STUDIO_PORT }
     });
 });
-// CRITICAL: Simple JSON-RPC 2.0 handler for MCP (since SDK HTTP transport is complex)
+// Status endpoint
+app.get('/status', (req, res) => {
+    res.json({
+        service: 'clean-cut-mcp',
+        status: 'running',
+        sessions: Object.keys(sessions).length,
+        uptime: process.uptime()
+    });
+});
+// MCP POST endpoint - handles all MCP protocol requests
 app.post('/mcp', async (req, res) => {
     try {
-        const { method, params, id } = req.body;
-        log('info', 'Received MCP request', { method, id });
-        // Handle initialize request
-        if (method === 'initialize') {
-            return res.json({
+        log('info', 'Received MCP request', { method: req.body?.method, id: req.body?.id });
+        const sessionId = req.headers['mcp-session-id'];
+        let session;
+        if (sessionId && sessions[sessionId]) {
+            // Reuse existing session (server + transport)
+            session = sessions[sessionId];
+            log('info', `Reusing existing session: ${sessionId}`);
+        }
+        else if (!sessionId && isInitializeRequest(req.body)) {
+            // New initialization request - create new session
+            log('info', 'Creating new MCP session');
+            const transport = new StreamableHTTPServerTransport({
+                sessionIdGenerator: () => randomUUID(),
+            });
+            // Create and connect new MCP server instance with all tools
+            const server = createMcpServer();
+            await server.connect(transport);
+            // Handle the initialize request first to generate session ID
+            await transport.handleRequest(req, res, req.body);
+            // Store complete session (server + transport) after handling request
+            const newSessionId = transport.sessionId;
+            if (newSessionId) {
+                session = { server, transport };
+                sessions[newSessionId] = session;
+                log('info', `Created new session: ${newSessionId} with all registered tools`);
+                return; // Request already handled
+            }
+            else {
+                throw new Error('Failed to generate session ID');
+            }
+        }
+        else {
+            // Invalid request
+            return res.status(400).json({
                 jsonrpc: '2.0',
-                id,
-                result: {
-                    protocolVersion: '2024-11-05',
-                    capabilities: {
-                        tools: {}
-                    },
-                    serverInfo: {
-                        name: 'clean-cut-mcp',
-                        version: '1.0.0'
-                    }
-                }
+                error: {
+                    code: -32600,
+                    message: 'Invalid Request - missing session ID or not an initialize request'
+                },
+                id: req.body?.id
             });
         }
-        // Handle tools/list request
-        if (method === 'tools/list') {
-            return res.json({
-                jsonrpc: '2.0',
-                id,
-                result: {
-                    tools: [
-                        {
-                            name: 'create_animation',
-                            description: 'Create a video animation using Remotion',
-                            inputSchema: {
-                                type: 'object',
-                                properties: {
-                                    type: { type: 'string', enum: ['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out'] },
-                                    title: { type: 'string' },
-                                    duration: { type: 'number', default: 3 },
-                                    fps: { type: 'number', default: 30 },
-                                    width: { type: 'number', default: 1920 },
-                                    height: { type: 'number', default: 1080 },
-                                    backgroundColor: { type: 'string', default: '#000000' }
-                                },
-                                required: ['type']
-                            }
-                        },
-                        {
-                            name: 'list_animations',
-                            description: 'List all created animations',
-                            inputSchema: { type: 'object', properties: {} }
-                        },
-                        {
-                            name: 'get_studio_url',
-                            description: 'Get Remotion Studio URL',
-                            inputSchema: { type: 'object', properties: {} }
-                        }
-                    ]
-                }
-            });
-        }
-        // Handle tools/call request
-        if (method === 'tools/call') {
-            const { name, arguments: args } = params;
-            if (name === 'create_animation') {
-                const result = await handleCreateAnimation(args);
-                return res.json({
-                    jsonrpc: '2.0',
-                    id,
-                    result
-                });
-            }
-            if (name === 'list_animations') {
-                const result = await handleListAnimations();
-                return res.json({
-                    jsonrpc: '2.0',
-                    id,
-                    result
-                });
-            }
-            if (name === 'get_studio_url') {
-                const result = await handleGetStudioUrl();
-                return res.json({
-                    jsonrpc: '2.0',
-                    id,
-                    result
-                });
-            }
-        }
-        // Method not found
-        return res.status(400).json({
-            jsonrpc: '2.0',
-            id,
-            error: {
-                code: -32601,
-                message: 'Method not found'
-            }
-        });
+        // Handle the request through the transport (connected to the server with all tools)
+        await session.transport.handleRequest(req, res, req.body);
     }
     catch (error) {
-        log('error', 'MCP request handling failed', error);
-        return res.status(500).json({
-            jsonrpc: '2.0',
-            id: req.body?.id || null,
-            error: {
-                code: -32603,
-                message: 'Internal server error'
-            }
-        });
+        log('error', 'MCP request failed', { error: error.message, stack: error.stack });
+        if (!res.headersSent) {
+            res.status(500).json({
+                jsonrpc: '2.0',
+                error: {
+                    code: -32603,
+                    message: 'Internal error',
+                    data: error instanceof Error ? error.message : String(error)
+                },
+                id: req.body?.id
+            });
+        }
     }
 });
-// Tool handlers
-async function handleCreateAnimation(args) {
-    const { type = 'bouncing-ball', title = 'Animation', duration = 3, fps = 30, width = 1920, height = 1080, backgroundColor = '#000000' } = args;
+// MCP GET endpoint - handles server-sent events for notifications
+app.get('/mcp', async (req, res) => {
     try {
-        log('info', 'Creating animation', { type, title, duration });
-        // Ensure directories exist
-        await fs.mkdir(EXPORTS_DIR, { recursive: true });
-        await fs.mkdir(SRC_DIR, { recursive: true });
-        // Generate animation component
-        const componentName = `${type}-${Date.now()}`;
-        const componentCode = generateAnimationComponent(type, title, backgroundColor);
-        const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
-        await fs.writeFile(componentPath, componentCode);
-        log('info', `Created component file: ${componentPath}`);
-        // Render video
-        const outputPath = path.join(EXPORTS_DIR, `${componentName}.mp4`);
-        await renderVideo(componentName, outputPath, { duration, fps, width, height });
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: `[SUCCESS] Animation created successfully!\n\n` +
-                        `[FILE] ${componentName}.mp4\n` +
-                        `[TYPE] ${type}\n` +
-                        `[DURATION] ${duration}s\n` +
-                        `[RESOLUTION] ${width}x${height}\n` +
-                        `[STUDIO] http://localhost:${STUDIO_PORT}\n\n` +
-                        `Animation ready at http://localhost:${STUDIO_PORT}`
-                }
-            ]
-        };
-    }
-    catch (error) {
-        log('error', 'Animation creation failed', error);
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: `[ERROR] Animation creation failed: ${error instanceof Error ? error.message : String(error)}`
-                }
-            ]
-        };
-    }
-}
-async function handleListAnimations() {
-    try {
-        const files = await fs.readdir(EXPORTS_DIR);
-        const videoFiles = files.filter(file => file.endsWith('.mp4'));
-        if (videoFiles.length === 0) {
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: '[EMPTY] No animations found in exports directory.\n\nCreate your first animation by asking for a specific type like "bouncing ball" or "sliding text"!'
-                    }
-                ]
-            };
+        const sessionId = req.headers['mcp-session-id'];
+        if (!sessionId || !sessions[sessionId]) {
+            return res.status(400).json({
+                error: 'Invalid or missing session ID'
+            });
         }
-        const fileList = videoFiles.map(file => `[VIDEO] ${file}`).join('\n');
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: `[ANIMATIONS] Found ${videoFiles.length} animation(s):\n\n${fileList}\n\n[STUDIO] http://localhost:${STUDIO_PORT}`
-                }
-            ]
-        };
+        const session = sessions[sessionId];
+        await session.transport.handleRequest(req, res);
     }
     catch (error) {
-        log('error', 'Failed to list animations', error);
-        return {
-            content: [
-                {
-                    type: 'text',
-                    text: `[ERROR] Failed to list animations: ${error instanceof Error ? error.message : String(error)}`
-                }
-            ]
-        };
+        log('error', 'MCP SSE request failed', { error: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Internal error',
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
     }
-}
-async function handleGetStudioUrl() {
-    return {
-        content: [
-            {
-                type: 'text',
-                text: `[STUDIO] Remotion Studio is available at:\n\nhttp://localhost:${STUDIO_PORT}\n\n` +
-                    `Open this URL in your browser to access the visual editor for your animations.`
-            }
-        ]
-    };
-}
+});
+// MCP DELETE endpoint - handles session termination
+app.delete('/mcp', async (req, res) => {
+    try {
+        const sessionId = req.headers['mcp-session-id'];
+        if (!sessionId || !sessions[sessionId]) {
+            return res.status(400).json({
+                error: 'Invalid or missing session ID'
+            });
+        }
+        const session = sessions[sessionId];
+        await session.transport.handleRequest(req, res);
+        // Clean up complete session (server + transport)
+        delete sessions[sessionId];
+        log('info', `Session terminated: ${sessionId}`);
+    }
+    catch (error) {
+        log('error', 'MCP session termination failed', { error: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Internal error',
+                message: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+});
 // Start server
 async function startServer() {
     try {

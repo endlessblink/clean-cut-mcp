@@ -197,28 +197,43 @@ function createMcpServer() {
     async () => {
       const isDocker = process.env.DOCKER_CONTAINER === 'true';
       let exportPath: string;
+      let hostPath: string;
       let instructions: string;
 
       if (isDocker) {
         // In Docker container - videos are mounted to host directory
-        exportPath = 'clean-cut-exports (in your project directory)';
+        exportPath = '/workspace/out';
+        hostPath = './clean-cut-exports';
         instructions = `[EXPORT DIRECTORY] Videos exported from Remotion Studio appear in:\n\n` +
-                      `${exportPath}\n\n` +
+                      `Host Path: ${hostPath}\n` +
+                      `Container Path: ${exportPath}\n\n` +
                       `[HOW IT WORKS]\n` +
-                      `- Container path: /workspace/out\n` +
-                      `- Host path: ./clean-cut-exports\n` +
+                      `- Container exports to: /workspace/out\n` +
+                      `- Host receives files in: ./clean-cut-exports (relative to where you ran Docker)\n` +
                       `- All exports automatically appear in your host directory\n` +
                       `- Works cross-platform (Windows, macOS, Linux)\n\n` +
+                      `[PLATFORM-SPECIFIC NAVIGATION]\n` +
+                      `Windows: Use File Explorer to navigate to your clean-cut-mcp directory\n` +
+                      `macOS: Use Finder to navigate to your clean-cut-mcp directory\n` +
+                      `Linux: Use your file manager to navigate to your clean-cut-mcp directory\n\n` +
                       `[USAGE]\n` +
-                      `1. Export video from Remotion Studio\n` +
+                      `1. Export video from Remotion Studio (http://localhost:${STUDIO_PORT})\n` +
                       `2. Check the clean-cut-exports folder in your project directory\n` +
-                      `3. Your video will be there instantly!`;
+                      `3. Your video will be there instantly!\n` +
+                      `4. Use 'open_export_directory' tool to open the folder directly`;
       } else {
         // Running locally
         exportPath = EXPORTS_DIR;
+        hostPath = exportPath;
         instructions = `[EXPORT DIRECTORY] Videos are saved to:\n\n${exportPath}\n\n` +
+                      `[PLATFORM-SPECIFIC COMMANDS]\n` +
+                      `Windows: explorer "${exportPath}"\n` +
+                      `macOS: open "${exportPath}"\n` +
+                      `Linux: xdg-open "${exportPath}"\n\n` +
                       `[USAGE]\n` +
-                      `Export videos from Remotion Studio and they will appear in the above directory.`;
+                      `1. Export videos from Remotion Studio (http://localhost:${STUDIO_PORT})\n` +
+                      `2. Files appear in the above directory\n` +
+                      `3. Use 'open_export_directory' tool to open the folder directly`;
       }
 
       return {
@@ -229,6 +244,119 @@ function createMcpServer() {
           }
         ]
       };
+    }
+  );
+
+  // Register open export directory tool
+  server.tool(
+    'open_export_directory',
+    {
+      description: 'Open the video export directory in the system file manager (Explorer, Finder, etc.)',
+      inputSchema: z.object({})
+    },
+    async () => {
+      try {
+        const isDocker = process.env.DOCKER_CONTAINER === 'true';
+        let targetPath: string;
+        let resultMessage: string;
+
+        if (isDocker) {
+          // In Docker container - cannot directly open host file manager
+          // Provide instructions instead
+          resultMessage = `[DOCKER ENVIRONMENT] Cannot directly open host file manager from container.\n\n` +
+                         `[MANUAL NAVIGATION REQUIRED]\n` +
+                         `Please open your file manager and navigate to:\n` +
+                         `./clean-cut-exports (in your clean-cut-mcp directory)\n\n` +
+                         `[PLATFORM-SPECIFIC COMMANDS]\n` +
+                         `Windows: Open File Explorer, navigate to your clean-cut-mcp folder\n` +
+                         `macOS: Open Finder, navigate to your clean-cut-mcp folder\n` +
+                         `Linux: Open file manager, navigate to your clean-cut-mcp folder\n\n` +
+                         `The clean-cut-exports folder contains all your exported videos.`;
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: resultMessage
+              }
+            ]
+          };
+        }
+
+        // Running locally - can open file manager directly
+        targetPath = EXPORTS_DIR;
+        
+        // Ensure export directory exists
+        await fs.mkdir(targetPath, { recursive: true });
+        
+        // Determine command based on platform
+        let command: string;
+        let args: string[];
+        
+        switch (process.platform) {
+          case 'win32':
+            command = 'explorer';
+            args = [targetPath];
+            break;
+          case 'darwin':
+            command = 'open';
+            args = [targetPath];
+            break;
+          default: // Linux and others
+            command = 'xdg-open';
+            args = [targetPath];
+            break;
+        }
+
+        log('info', `Opening file manager: ${command} ${args.join(' ')}`);
+        
+        // Spawn the file manager process
+        const fileManagerProcess = spawn(command, args, { 
+          detached: true,
+          stdio: 'ignore'
+        });
+        
+        // Unref so the parent process can exit independently
+        fileManagerProcess.unref();
+        
+        resultMessage = `[SUCCESS] Opening export directory in file manager\n\n` +
+                       `Path: ${targetPath}\n` +
+                       `Command: ${command} ${args.join(' ')}\n\n` +
+                       `Your system file manager should now be opening the export directory.\n` +
+                       `If it doesn't open automatically, you can navigate manually to:\n${targetPath}`;
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: resultMessage
+            }
+          ]
+        };
+        
+      } catch (error) {
+        log('error', 'Failed to open export directory', error);
+        
+        // Fallback with manual instructions
+        const isDocker = process.env.DOCKER_CONTAINER === 'true';
+        const fallbackPath = isDocker ? './clean-cut-exports' : EXPORTS_DIR;
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `[ERROR] Could not automatically open file manager: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                    `[MANUAL NAVIGATION]\n` +
+                    `Please open your file manager and navigate to:\n${fallbackPath}\n\n` +
+                    `[PLATFORM-SPECIFIC COMMANDS]\n` +
+                    `Windows: explorer "${fallbackPath}"\n` +
+                    `macOS: open "${fallbackPath}"\n` +
+                    `Linux: xdg-open "${fallbackPath}"\n\n` +
+                    `This directory contains all your exported videos.`
+            }
+          ]
+        };
+      }
     }
   );
 

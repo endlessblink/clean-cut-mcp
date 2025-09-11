@@ -69,8 +69,9 @@ Container: /workspace/out ←→ Host: ./clean-cut-exports
 1. **Create Animation**: Ask Claude to create an animation (bouncing ball, sliding text, etc.)
 2. **Open Remotion Studio**: Navigate to http://localhost:6960
 3. **Export Video**: Use Remotion Studio's export functionality
-4. **Find Your Video**: Check the `clean-cut-exports` folder in your project directory
-5. **Done!**: Video is immediately accessible on your host system
+4. **Find Your Video**: Ask Claude to use `open_export_directory` tool for instant access
+5. **Alternative**: Check the `clean-cut-exports` folder in your project directory manually
+6. **Done!**: Video is immediately accessible on your host system
 
 ### Cross-Platform Compatibility
 
@@ -96,9 +97,10 @@ docker run -d --name clean-cut-mcp -p 6960:6960 -p 6961:6961 -v "$(pwd)/clean-cu
 ```
 
 ### MCP Tools Available
-- `get_export_directory` - Shows where exported videos are saved
+- `get_export_directory` - Shows detailed export directory information and navigation instructions
+- `open_export_directory` - Opens export directory in native file manager (Explorer, Finder, etc.)
 - `create_animation` - Creates animations ready for export
-- `list_animations` - Lists all available animations
+- `list_animations` - Lists all available animations  
 - `get_studio_url` - Gets Remotion Studio URL
 
 ### Technical Implementation

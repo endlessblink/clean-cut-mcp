@@ -67,7 +67,7 @@ class CleanCutMcpServer {
 
   private setupTools() {
     // Animation creation tool
-    this.server.registerTool('create_animation', {
+    this.server.tool('create_animation', {
       description: 'Create a new animation component with specified type and properties',
       inputSchema: {
         type: z.enum(['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out'])
@@ -109,7 +109,7 @@ class CleanCutMcpServer {
     });
 
     // Studio URL tool
-    this.server.registerTool('get_studio_url', {
+    this.server.tool('get_studio_url', {
       description: 'Get the URL for Remotion Studio interface',
       inputSchema: {}
     }, async () => {
@@ -123,7 +123,7 @@ class CleanCutMcpServer {
     });
 
     // Guidelines file reader tool
-    this.server.registerTool('read_guidelines_file', {
+    this.server.tool('read_guidelines_file', {
       description: 'Read design guidelines and animation patterns from the claude-dev-guidelines folder',
       inputSchema: {
         filename: z.string().describe('Guidelines file to read (e.g., "PROJECT_CONFIG.md", "ADVANCED/ANIMATION_PATTERNS.md")')
@@ -201,11 +201,10 @@ class CleanCutMcpServer {
     });
 
     // Animation guidelines tool - dynamically reads from guidelines files
-    this.server.registerTool('get_animation_guidelines', {
+    this.server.tool('get_animation_guidelines', {
       description: 'Get comprehensive animation guidelines and patterns from the guidelines directory',
       inputSchema: {
-        category: z.enum(['project-config', 'advanced-patterns', 'animation-rules', 'all']).optional()
-          .describe('Category of guidelines to retrieve (defaults to all)')
+        category: z.enum(['project-config', 'advanced-patterns', 'animation-rules', 'all']).optional().describe('Category of guidelines to retrieve (defaults to all)')
       }
     }, async (request) => {
       try {
@@ -287,7 +286,7 @@ class CleanCutMcpServer {
     });
 
     // List animations tool
-    this.server.registerTool('list_animations', {
+    this.server.tool('list_animations', {
       description: 'List all available animation components in the workspace',
       inputSchema: {}
     }, async () => {
@@ -320,6 +319,96 @@ class CleanCutMcpServer {
           content: [{
             type: 'text',
             text: '[ERROR] Error listing animations: ' + error.message
+          }]
+        };
+      }
+    });
+
+    // Export directory tools
+    this.server.tool('get_export_directory', {
+      description: 'Get the path to the export directory where rendered videos are saved',
+      inputSchema: {}
+    }, async () => {
+      try {
+        const exportDir = path.join(WORKSPACE, 'out');
+        
+        // Ensure the directory exists
+        try {
+          await fs.access(exportDir);
+        } catch (error) {
+          await fs.mkdir(exportDir, { recursive: true });
+          log('Created export directory', { exportDir });
+        }
+
+        return {
+          content: [{
+            type: 'text',
+            text: `[EXPORT] Export directory: ${exportDir}\n\nRendered videos and images will be saved here when you export from Remotion Studio.`
+          }]
+        };
+      } catch (error) {
+        log('Get export directory error', { error: error.message });
+        return {
+          content: [{
+            type: 'text',
+            text: `[ERROR] Failed to get export directory: ${error.message}`
+          }]
+        };
+      }
+    });
+
+    this.server.tool('open_export_directory', {
+      description: 'Open the export directory in the file manager (platform-specific)',
+      inputSchema: {}
+    }, async () => {
+      try {
+        const exportDir = path.join(WORKSPACE, 'out');
+        
+        // Ensure the directory exists
+        try {
+          await fs.access(exportDir);
+        } catch (error) {
+          await fs.mkdir(exportDir, { recursive: true });
+          log('Created export directory', { exportDir });
+        }
+
+        // Try to open the directory with platform-specific command
+        let command: string;
+        let args: string[];
+
+        if (process.platform === 'darwin') {
+          command = 'open';
+          args = [exportDir];
+        } else if (process.platform === 'win32') {
+          command = 'explorer';
+          args = [exportDir];
+        } else {
+          command = 'xdg-open';
+          args = [exportDir];
+        }
+
+        try {
+          spawn(command, args, { detached: true, stdio: 'ignore' });
+          return {
+            content: [{
+              type: 'text',
+              text: `[OPENED] Export directory opened in file manager.\n\nDirectory: ${exportDir}`
+            }]
+          };
+        } catch (openError) {
+          return {
+            content: [{
+              type: 'text',
+              text: `[INFO] Export directory ready: ${exportDir}\n\nNote: Could not auto-open file manager. Please navigate to this path manually.`
+            }]
+          };
+        }
+      } catch (error) {
+        log('Open export directory error', { error: error.message });
+        return {
+          content: [{
+            type: 'text',
+            text: `[ERROR] Failed to open export directory: ${error.message}`
           }]
         };
       }

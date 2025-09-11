@@ -16,9 +16,44 @@ Clean-Cut-MCP is a bulletproof Remotion video animation system for Claude Deskto
 ## Quick Start
 
 ### Prerequisites
-- Windows with Docker Desktop installed
-- PowerShell 5.1 or higher
-- Claude Desktop installed
+- **Windows 10/11** with **WSL2 enabled** ⚠️
+- **Docker Desktop** installed with WSL2 backend
+- **PowerShell 5.1** or higher
+- **Claude Desktop** installed
+
+> **🚨 IMPORTANT**: WSL2 is **required** for Docker Desktop on Windows. Most fresh Windows installations need WSL2 setup first.
+
+### WSL2 Quick Setup
+```powershell
+# Run as Administrator in PowerShell
+wsl --install
+
+# Restart computer when prompted, then install Docker Desktop
+```
+
+📖 **Complete Setup Guide**: See [WINDOWS-INSTALLATION-GUIDE.md](WINDOWS-INSTALLATION-GUIDE.md) for detailed instructions.
+
+## 🚀 Installation Methods
+
+### Method 1: Docker Hub Installation (Recommended)
+**Zero build time - pre-built images from Docker Hub:**
+
+```powershell
+# Download installer
+curl -o install-dockerhub.ps1 https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install-dockerhub.ps1
+
+# Run installer (includes WSL2 detection)
+.\install-dockerhub.ps1
+```
+
+**Benefits**:
+- ⚡ **30 seconds** vs 5+ minutes (no build required)
+- 🎯 **Zero dependencies** except Docker Desktop
+- ✅ **VM-perfect** for testing environments
+- 🔒 **Version-locked** consistency
+
+### Method 2: Build from Source
+**Traditional build approach:**
 
 ### Step 1: Build the Container
 
