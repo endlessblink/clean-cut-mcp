@@ -1,5 +1,34 @@
 # CLEAN-CUT-MCP - Claude Desktop Instructions
 
+## 📋 PRIME BUILD DOCUMENTATION (v2.0.0 - TRUE AI SYSTEM)
+
+**Build Date**: September 12, 2025  
+**Status**: WORKING - TRUE AI Code Generation System  
+**Ports**: 6970 (Remotion Studio), 6971 (MCP HTTP - Reserved)  
+**Transport**: STDIO via Docker exec (Production-Ready)  
+
+### 🎯 VALIDATED COMPONENTS:
+- **Docker Container**: `clean-cut-mcp` - Cross-platform, working
+- **MCP Server**: `clean-stdio-server.ts` - Compiled successfully in container
+- **TRUE AI Tools**: `create_animation`, `update_composition`, `get_studio_url`, `get_export_directory`
+- **Remotion Studio**: Accessible at http://localhost:6970
+- **Video Export**: Persistent volume `/workspace/out` ↔ `./clean-cut-exports`
+- **Claude Desktop Integration**: STDIO transport via docker exec command
+
+### 🏗️ WORKING ARCHITECTURE:
+```
+Claude Desktop (Windows) → docker exec → clean-cut-mcp container → Remotion Studio (6970)
+                             ↓
+                        TRUE AI Tools Execute Claude's Generated React/Remotion Code
+                             ↓
+                        /workspace/out → ./clean-cut-exports (Persistent Videos)
+```
+
+### 🔧 CURRENT ISSUE TO RESOLVE:
+- **Remotion Component Error**: "A value of `undefined` was passed to the `component` prop"
+- **Root Cause**: Component registration failing in updateRootTsx function
+- **Status**: Ready for diagnosis after committing current working state
+
 ## 🚨 CRITICAL: Proven Claude Desktop Configuration Safety Rules
 
 **NEVER** break Claude Desktop configuration again. These rules are based on validated research:
@@ -25,17 +54,17 @@
 5. **Container Conflicts**: Using existing container names → Docker daemon conflicts
 
 ## 🎯 PROJECT GOAL: "One-Script Magic"
-User asks: "Create a bouncing ball animation" → Claude responds: "Animation ready at http://localhost:6960"
+User asks: "Create a bouncing ball animation" → Claude responds: "Animation ready at http://localhost:6970"
 User exports video from Remotion Studio → Video automatically appears in `./clean-cut-exports` folder
 
 ## 🏗️ ARCHITECTURE: Cross-Platform Docker + MCP + Remotion
 - **Docker Container**: Cross-platform design - works on Windows Docker Desktop OR WSL2 Docker
 - **MCP Server**: HTTP transport in Docker container (NOT STDIO for Docker compatibility)
 - **Container Name**: `clean-cut-mcp` (unique, no conflicts)
-- **Ports**: 6960 (Remotion Studio), 6961 (MCP HTTP Server)
+- **Ports**: 6970 (Remotion Studio), 6971 (MCP HTTP Server)
 - **Tools**: `create_animation`, `list_animations`, `get_studio_url`, `get_export_directory`
 - **Animations**: bouncing-ball, sliding-text, rotating-object, fade-in-out
-- **Networking**: Container exposes localhost:6960-6961 to Windows for Claude Desktop connection
+- **Networking**: Container exposes localhost:6970-6971 to Windows for Claude Desktop connection
 - **Video Export**: Docker volume mount `/workspace/out` → `./clean-cut-exports` (cross-platform)
 
 ## 🔧 LOGGING REQUIREMENTS:
@@ -66,7 +95,7 @@ Container: /workspace/out ←→ Host: ./clean-cut-exports
 
 ### Export Workflow
 1. **Create Animation**: Ask Claude to create an animation (bouncing ball, sliding text, etc.)
-2. **Open Remotion Studio**: Navigate to http://localhost:6960
+2. **Open Remotion Studio**: Navigate to http://localhost:6970
 3. **Export Video**: Use Remotion Studio's export functionality
 4. **Find Your Video**: Ask Claude to use `open_export_directory` tool for instant access
 5. **Alternative**: Check the `clean-cut-exports` folder in your project directory manually
@@ -89,10 +118,10 @@ docker-compose up -d
 **Manual Docker Run**:
 ```bash
 # Windows
-docker run -d --name clean-cut-mcp -p 6960:6960 -p 6961:6961 -v "%cd%/clean-cut-exports:/workspace/out" clean-cut-mcp
+docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "%cd%/clean-cut-exports:/workspace/out" clean-cut-mcp
 
 # macOS/Linux
-docker run -d --name clean-cut-mcp -p 6960:6960 -p 6961:6961 -v "$(pwd)/clean-cut-exports:/workspace/out" clean-cut-mcp
+docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$(pwd)/clean-cut-exports:/workspace/out" clean-cut-mcp
 ```
 
 ### MCP Tools Available
@@ -127,8 +156,8 @@ The PowerShell installer MUST:
 ## 🌐 NETWORKING TROUBLESHOOTING:
 **WSL2 to Windows Connection Issues:**
 - Container runs in WSL2 Docker but Windows Claude Desktop needs to connect
-- WSL2 should auto-forward localhost:6960-6961 to Windows, but sometimes fails
-- **Test from Windows PowerShell**: `Invoke-RestMethod http://localhost:6961/health`
+- WSL2 should auto-forward localhost:6970-6971 to Windows, but sometimes fails
+- **Test from Windows PowerShell**: `Invoke-RestMethod http://localhost:6971/health`
 - **If connection fails**: Use WSL2 IP address (get with `hostname -I` in WSL2)
 - **Windows Firewall**: May block WSL2 port forwarding
 - **Alternative**: Run `netsh interface portproxy` commands to force port forwarding

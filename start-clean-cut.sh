@@ -67,11 +67,16 @@ if ! docker images --format "table {{.Repository}}" | grep -q "^${IMAGE_NAME}$";
 fi
 echo -e "${GREEN}✅ Docker image found${NC}"
 
-# Step 4: Create exports directory
+# Step 4: Create exports directory and workspace volume
 echo -e "${YELLOW}📁 Setting up exports directory...${NC}"
 EXPORTS_DIR="$(pwd)/clean-cut-exports"
 mkdir -p "$EXPORTS_DIR"
 echo -e "${GREEN}✅ Exports directory ready: $EXPORTS_DIR${NC}"
+
+echo -e "${YELLOW}📦 Creating workspace persistence volume...${NC}"
+# Create named volume for workspace persistence (animations survive container restarts)
+docker volume create clean-cut-workspace >/dev/null 2>&1 || true
+echo -e "${GREEN}✅ Workspace volume ready: clean-cut-workspace${NC}"
 
 # Step 5: Start container
 echo -e "${YELLOW}🚀 Starting Clean-Cut-MCP container...${NC}"
@@ -80,6 +85,7 @@ CONTAINER_ID=$(docker run -d \
     -p "$REMOTION_PORT:6970" \
     -p "$MCP_PORT:6961" \
     -v "$EXPORTS_DIR:/workspace/out" \
+    -v "clean-cut-workspace:/workspace/src" \
     "$IMAGE_NAME")
 
 echo -e "${GREEN}✅ Container started: $CONTAINER_ID${NC}"

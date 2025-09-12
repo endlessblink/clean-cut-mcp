@@ -7,7 +7,6 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/http-mcp-server.js",
-    "start:stdio": "node dist/stdio-bridge.js",
     "dev": "tsc --watch",
     "clean": "rimraf dist"
   },

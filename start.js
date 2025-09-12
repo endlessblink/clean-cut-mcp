@@ -161,25 +161,21 @@ async function main() {
     }
   });
 
-  console.error(`[ENTRYPOINT] Launching MCP HTTP server on port ${MCP_PORT} ...`);
-  const mcp = spawnBackground('node', ['/app/mcp-server/dist/http-mcp-server.js'], {
-    cwd: '/app/mcp-server',
-    env: process.env
-  });
+  console.error(`[ENTRYPOINT] Launching Remotion Studio on port ${STUDIO_PORT} ...`);
+  // Note: STDIO MCP server starts on demand via Docker exec, not as background process
 
   const shutdown = () => {
     console.error('[ENTRYPOINT] Shutting down ...');
     try { studio.kill('SIGTERM'); } catch {}
-    try { mcp.kill('SIGTERM'); } catch {}
     process.exit(0);
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  // Keep process alive as long as both children are running
+  // Keep process alive as long as studio is running
   const wait = (child) => new Promise((res) => child.on('exit', res));
-  await Promise.race([wait(studio), wait(mcp)]);
-  console.error('[ENTRYPOINT] One of the child processes exited. Exiting container.');
+  await wait(studio);
+  console.error('[ENTRYPOINT] Remotion Studio exited. Exiting container.');
   shutdown();
 }
 
