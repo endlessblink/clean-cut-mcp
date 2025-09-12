@@ -24,10 +24,28 @@ Claude Desktop (Windows) → docker exec → clean-cut-mcp container → Remotio
                         /workspace/out → ./clean-cut-exports (Persistent Videos)
 ```
 
-### 🔧 CURRENT ISSUE TO RESOLVE:
-- **Remotion Component Error**: "A value of `undefined` was passed to the `component` prop"
-- **Root Cause**: Component registration failing in updateRootTsx function
-- **Status**: Ready for diagnosis after committing current working state
+### ✅ RESOLVED ISSUES:
+- **Remotion Component Error**: "A value of `undefined` was passed to the `component` prop" - FIXED ✅
+- **Root Cause**: Import/Export mismatch + filter logic bug in updateRootTsx function
+- **Resolution**: Updated component export pattern + fixed filter logic for any component names
+- **Status**: Fully operational - Component registration working correctly
+
+### 🛠️ TROUBLESHOOTING GUIDE:
+
+**Component Registration Errors**:
+- **Symptom**: "A value of `undefined` was passed to the `component` prop"
+- **Cause**: Component export/import mismatch or filter logic excluding component names
+- **Solution**: Ensure components use named exports: `export { ComponentName };`
+
+**MCP Server Not Responding**:
+- **Test**: `curl -I http://localhost:6970` (should return 200 OK for Remotion Studio)
+- **Container Check**: `docker ps | grep clean-cut-mcp` (should show "Up" status)
+- **Logs**: `docker logs clean-cut-mcp` (check for startup errors)
+
+**Claude Desktop Connection Issues**:
+- **Config Path**: Verify docker exec command path in claude_desktop_config.json
+- **Container Name**: Must be exactly "clean-cut-mcp" (unique, no conflicts)
+- **STDIO Transport**: Use docker exec, not direct HTTP connection
 
 ## 🚨 CRITICAL: Proven Claude Desktop Configuration Safety Rules
 

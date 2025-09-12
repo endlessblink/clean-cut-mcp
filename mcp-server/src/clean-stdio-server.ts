@@ -191,8 +191,13 @@ class TrueAiStdioMcpServer {
     const validComponentName = componentName.charAt(0).toUpperCase() + componentName.slice(1);
     const componentPath = path.join(SRC_DIR, `${validComponentName}.tsx`);
     
-    // Write Claude's generated code directly to file - NO MODIFICATION
-    await fs.writeFile(componentPath, code);
+    // Write Claude's generated code with export pattern fix for Remotion compatibility
+    // CRITICAL FIX: Convert 'export default ComponentName' to 'export { ComponentName }' 
+    const fixedCode = code.replace(
+      new RegExp(`export\\s+default\\s+${validComponentName}\\s*;?`, 'g'),
+      `export { ${validComponentName} };`
+    );
+    await fs.writeFile(componentPath, fixedCode);
     log('info', `Created animation file with Claude's code: ${componentPath}`);
 
     return {
