@@ -361,13 +361,26 @@ class TrueAiStdioMcpServer {
 
   private async handleGetProjectGuidelines() {
     try {
-      const guidelinesPath = path.join(APP_ROOT, 'claude-dev-guidelines', 'PROJECT_CONFIG.md');
-      const guidelinesContent = await fs.readFile(guidelinesPath, 'utf8');
+      const guidelinesDir = path.join(APP_ROOT, 'claude-dev-guidelines');
+      const advancedDir = path.join(guidelinesDir, 'ADVANCED');
+      
+      // Read all guideline files
+      const configContent = await fs.readFile(path.join(guidelinesDir, 'PROJECT_CONFIG.md'), 'utf8');
+      const readmeContent = await fs.readFile(path.join(guidelinesDir, 'README.md'), 'utf8');
+      const animationPatternsContent = await fs.readFile(path.join(advancedDir, 'ANIMATION_PATTERNS.md'), 'utf8');
+      const remotionRulesContent = await fs.readFile(path.join(advancedDir, 'REMOTION_ANIMATION_RULES.md'), 'utf8');
+      const quickRefContent = await fs.readFile(path.join(advancedDir, 'QUICK_REFERENCE.md'), 'utf8');
       
       return {
         content: [{
           type: 'text',
-          text: `[PROJECT GUIDELINES]\\n\\n${guidelinesContent}\\n\\n[NAMING CONVENTION]\\n` +
+          text: `[PROJECT GUIDELINES - COMPLETE]\\n\\n` +
+                `=== PROJECT CONFIGURATION ===\\n${configContent}\\n\\n` +
+                `=== PROJECT OVERVIEW ===\\n${readmeContent}\\n\\n` +
+                `=== ANIMATION PATTERNS ===\\n${animationPatternsContent}\\n\\n` +
+                `=== REMOTION RULES ===\\n${remotionRulesContent}\\n\\n` +
+                `=== QUICK REFERENCE ===\\n${quickRefContent}\\n\\n` +
+                `[NAMING CONVENTION]\\n` +
                 `Use descriptive, unique component names like:\\n` +
                 `- FloatingOrbs, ParticleExplosion, WaveMotion\\n` +
                 `- SeedreamShowcase, ProductDemo, BrandIntro\\n` +
