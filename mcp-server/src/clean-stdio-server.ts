@@ -331,13 +331,13 @@ export const RemotionRoot: React.FC = () => {
         const lines = existingContent.split('\n');
         for (const line of lines) {
           const trimmed = line.trim();
-          if (trimmed.startsWith('import { ') && trimmed.includes("} from './") && trimmed.includes('Animation')) {
-            // Extract component name from import
+          if (trimmed.startsWith('import { ') && trimmed.includes("} from './") && !trimmed.includes('./Composition')) {
+            // Extract component name from import (exclude the base Composition)
             const match = trimmed.match(/import { (\\w+) } from/);
             if (match) {
               importLines.push(trimmed);
             }
-          } else if (trimmed.includes('id="') && trimmed.includes('Animation"')) {
+          } else if (trimmed.includes('id="') && !trimmed.includes('id="Main"')) {
             // Extract composition info
             const idMatch = trimmed.match(/id="(\\w+)"/);
             const componentMatch = trimmed.match(/component={(\\w+)}/);
