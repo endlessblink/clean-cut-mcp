@@ -191,6 +191,12 @@ class TrueAiStdioMcpServer {
     const validComponentName = componentName.charAt(0).toUpperCase() + componentName.slice(1);
     const componentPath = path.join(SRC_DIR, `${validComponentName}.tsx`);
     
+    // COLLISION DETECTION: Check if component already exists
+    const componentExists = await fs.access(componentPath).then(() => true).catch(() => false);
+    if (componentExists) {
+      log('warn', `Component ${validComponentName} already exists - overwriting`, { componentPath });
+    }
+    
     // Write Claude's generated code with export pattern fix for Remotion compatibility
     // CRITICAL FIX: Convert 'export default ComponentName' to 'export { ComponentName }' 
     const fixedCode = code.replace(
@@ -200,13 +206,15 @@ class TrueAiStdioMcpServer {
     await fs.writeFile(componentPath, fixedCode);
     log('info', `Created animation file with Claude's code: ${componentPath}`);
 
+    const overwriteWarning = componentExists ? `\\n[WARNING] Overwrote existing ${validComponentName} component` : '';
+    
     return {
       content: [{
         type: 'text',
         text: `[ANIMATION CREATED] ${validComponentName}\\n\\n` +
               `[FILE] ${validComponentName}.tsx\\n` +
               `[DURATION] ${duration} seconds\\n` +
-              `[STUDIO] Ready at http://localhost:${STUDIO_PORT}\\n\\n` +
+              `[STUDIO] Ready at http://localhost:${STUDIO_PORT}${overwriteWarning}\\n\\n` +
               `[SUCCESS] Claude's animation code executed successfully!`
       }]
     };
