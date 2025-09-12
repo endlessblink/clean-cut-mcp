@@ -124,6 +124,24 @@ class TrueAiStdioMcpServer {
               properties: {},
               additionalProperties: false
             }
+          },
+          {
+            name: 'list_existing_components',
+            description: 'List all existing animation components to avoid naming conflicts',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'get_project_guidelines', 
+            description: 'Get project configuration and naming guidelines for animations',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+              additionalProperties: false
+            }
           }
         ]
       };
@@ -141,6 +159,10 @@ class TrueAiStdioMcpServer {
           return await this.handleGetStudioUrl();
         } else if (name === 'get_export_directory') {
           return await this.handleGetExportDirectory();
+        } else if (name === 'list_existing_components') {
+          return await this.handleListExistingComponents();
+        } else if (name === 'get_project_guidelines') {
+          return await this.handleGetProjectGuidelines();  
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -303,6 +325,66 @@ class TrueAiStdioMcpServer {
 
   // REMOVED: All template fraud code - Claude Desktop generates ALL animation code using TRUE AI
 
+  private async handleListExistingComponents() {
+    try {
+      const files = await fs.readdir(SRC_DIR);
+      const componentFiles = files.filter(file => 
+        file.endsWith('.tsx') && 
+        file !== 'Composition.tsx' && 
+        file !== 'Root.tsx' && 
+        file !== 'index.ts'
+      );
+      
+      const components = componentFiles.map(file => {
+        const componentName = file.replace('.tsx', '');
+        return { name: componentName, file: file };
+      });
+      
+      return {
+        content: [{
+          type: 'text',
+          text: `[EXISTING COMPONENTS] Found ${components.length} components:\\n\\n` +
+                components.map(comp => `- ${comp.name} (${comp.file})`).join('\\n') + 
+                '\\n\\n[TIP] Use unique names to avoid overwriting existing components!'
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Could not list components: ${error instanceof Error ? error.message : String(error)}`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private async handleGetProjectGuidelines() {
+    try {
+      const guidelinesPath = path.join(APP_ROOT, 'claude-dev-guidelines', 'PROJECT_CONFIG.md');
+      const guidelinesContent = await fs.readFile(guidelinesPath, 'utf8');
+      
+      return {
+        content: [{
+          type: 'text',
+          text: `[PROJECT GUIDELINES]\\n\\n${guidelinesContent}\\n\\n[NAMING CONVENTION]\\n` +
+                `Use descriptive, unique component names like:\\n` +
+                `- FloatingOrbs, ParticleExplosion, WaveMotion\\n` +
+                `- SeedreamShowcase, ProductDemo, BrandIntro\\n` +
+                `- Avoid generic names like Animation, Component, Video`
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Could not read guidelines: ${error instanceof Error ? error.message : String(error)}`
+        }],
+        isError: true
+      };
+    }
+  }
+
   // Update Root.tsx to register the new animation
   private async updateRootTsx(componentName: string, duration: number): Promise<void> {
     const rootPath = path.join(SRC_DIR, 'Root.tsx');
@@ -432,7 +514,7 @@ ${compositions.map(comp => `      <Composition
     await this.server.connect(transport);
     
     log('info', 'TRUE AI STDIO MCP Server connected and ready!');
-    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory');
+    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines');
     log('info', 'Claude Desktop can now generate ANY animation using TRUE AI!');
   }
 }
