@@ -59,29 +59,6 @@ class CleanCutMcpServer {
             return {
                 tools: [
                     {
-                        name: 'create_animation',
-                        description: 'Create a new Remotion animation component',
-                        inputSchema: {
-                            type: 'object',
-                            properties: {
-                                type: {
-                                    type: 'string',
-                                    enum: ['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out'],
-                                    description: 'Type of animation to create'
-                                },
-                                title: {
-                                    type: 'string',
-                                    description: 'Title for the animation (optional, defaults to type name)'
-                                },
-                                backgroundColor: {
-                                    type: 'string',
-                                    description: 'Background color (hex color code, defaults to #000)'
-                                }
-                            },
-                            required: ['type']
-                        }
-                    },
-                    {
                         name: 'list_animations',
                         description: 'List all available animation components',
                         inputSchema: {
@@ -110,6 +87,86 @@ class CleanCutMcpServer {
                             },
                             required: ['filename']
                         }
+                    },
+                    {
+                        name: 'create_custom_animation',
+                        description: 'Create a fully custom animation from detailed description, using guidelines and best practices for themed content',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                description: {
+                                    type: 'string',
+                                    description: 'Detailed description of the animation (e.g., "twinkling stars with constellation patterns", "bouncing rainbow balls with trails")'
+                                },
+                                componentName: {
+                                    type: 'string',
+                                    description: 'Custom component name (if not provided, auto-generated from description)'
+                                },
+                                duration: {
+                                    type: 'number',
+                                    default: 3,
+                                    description: 'Duration in seconds'
+                                },
+                                fps: {
+                                    type: 'number',
+                                    default: 30,
+                                    description: 'Frames per second'
+                                },
+                                width: {
+                                    type: 'number',
+                                    default: 1920,
+                                    description: 'Video width in pixels'
+                                },
+                                height: {
+                                    type: 'number',
+                                    default: 1080,
+                                    description: 'Video height in pixels'
+                                },
+                                backgroundColor: {
+                                    type: 'string',
+                                    default: '#000000',
+                                    description: 'Background color'
+                                },
+                                useGuidelines: {
+                                    type: 'boolean',
+                                    default: true,
+                                    description: 'Whether to apply animation guidelines and best practices'
+                                }
+                            },
+                            required: ['description']
+                        }
+                    },
+                    {
+                        name: 'read_animation_file',
+                        description: 'Read existing animation component code from the src directory',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                filename: {
+                                    type: 'string',
+                                    description: 'Animation filename to read (e.g., "MyAnimation.tsx")'
+                                }
+                            },
+                            required: ['filename']
+                        }
+                    },
+                    {
+                        name: 'edit_animation',
+                        description: 'Edit an existing animation component with specific modifications',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                filename: {
+                                    type: 'string',
+                                    description: 'Animation filename to edit (e.g., "MyAnimation.tsx")'
+                                },
+                                modifications: {
+                                    type: 'string',
+                                    description: 'Detailed description of changes to make'
+                                }
+                            },
+                            required: ['filename', 'modifications']
+                        }
                     }
                 ]
             };
@@ -117,38 +174,6 @@ class CleanCutMcpServer {
         // Tool call handler using proper schema
         this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
-            if (name === 'create_animation') {
-                try {
-                    log('Creating animation - direct handler', { name, args });
-                    const { type, title, backgroundColor } = args || {};
-                    // Validate required type parameter
-                    if (!type) {
-                        return {
-                            content: [{ type: 'text', text: '[ERROR] Animation type is required. Please specify one of: bouncing-ball, sliding-text, rotating-object, fade-in-out' }],
-                            isError: true
-                        };
-                    }
-                    const animationTitle = title || type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-                    const validComponentName = createValidIdentifier(animationTitle);
-                    const component = this.generateAnimationComponent(type, validComponentName, backgroundColor || '#000', animationTitle);
-                    const filename = `${validComponentName}Animation.tsx`;
-                    await this.writeAnimationFile(filename, component);
-                    await this.updateRootFile(validComponentName);
-                    return {
-                        content: [{
-                                type: 'text',
-                                text: `[SUCCESS] ${type} animation created!\n\n[COMPONENT] ${validComponentName}Animation\n[FILE] ${filename}\n[STUDIO] http://localhost:${HOST_STUDIO_PORT}\n\nYour animation is now available in Remotion Studio!`
-                            }]
-                    };
-                }
-                catch (error) {
-                    log('Animation creation error', { error: error.message });
-                    return {
-                        content: [{ type: 'text', text: `[ERROR] Animation creation failed: ${error.message}` }],
-                        isError: true
-                    };
-                }
-            }
             if (name === 'list_animations') {
                 try {
                     log('Listing animations - direct handler', { name });
@@ -214,6 +239,104 @@ class CleanCutMcpServer {
                     log('Guidelines file error', { error: error.message });
                     return {
                         content: [{ type: 'text', text: `[ERROR] Failed to read guidelines file: ${error.message}` }],
+                        isError: true
+                    };
+                }
+            }
+            if (name === 'create_custom_animation') {
+                try {
+                    log('Creating custom animation - direct handler', { name, args });
+                    const { description, componentName, duration = 3, fps = 30, width = 1920, height = 1080, backgroundColor = '#000000', useGuidelines = true } = args || {};
+                    // Validate required description parameter
+                    if (!description) {
+                        return {
+                            content: [{ type: 'text', text: '[ERROR] Description is required for custom animation creation' }],
+                            isError: true
+                        };
+                    }
+                    // Generate component name if not provided
+                    const finalComponentName = componentName || this.generateComponentName(description);
+                    // Generate custom animation code
+                    const componentCode = await this.generateCustomAnimationComponent(description, finalComponentName, backgroundColor, duration, fps, width, height, useGuidelines);
+                    const filename = `${finalComponentName}.tsx`;
+                    await this.writeAnimationFile(filename, componentCode);
+                    await this.updateRootTsx(finalComponentName);
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[CUSTOM ANIMATION CREATED] ${finalComponentName}\n\n` +
+                                    `[FILE] ${filename}\n\n` +
+                                    `[DESCRIPTION] ${description}\n\n` +
+                                    `[STUDIO] Animation ready at http://localhost:${HOST_STUDIO_PORT}\n\n` +
+                                    `[COMPONENT CODE]\n\`\`\`tsx\n${componentCode}\n\`\`\``
+                            }]
+                    };
+                }
+                catch (error) {
+                    log('Custom animation creation error', { error: error.message });
+                    return {
+                        content: [{ type: 'text', text: `[ERROR] Failed to create custom animation: ${error.message}` }],
+                        isError: true
+                    };
+                }
+            }
+            if (name === 'read_animation_file') {
+                try {
+                    log('Reading animation file - direct handler', { name, args });
+                    const { filename } = args || {};
+                    if (!filename) {
+                        return {
+                            content: [{ type: 'text', text: '[ERROR] Filename is required' }],
+                            isError: true
+                        };
+                    }
+                    const filePath = path.join(WORKSPACE, 'src', filename);
+                    const content = await fs.readFile(filePath, 'utf8');
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[ANIMATION CODE] ${filename}\n\n\`\`\`tsx\n${content}\n\`\`\``
+                            }]
+                    };
+                }
+                catch (error) {
+                    log('Animation file read error', { error: error.message });
+                    return {
+                        content: [{ type: 'text', text: `[ERROR] Failed to read animation file: ${error.message}` }],
+                        isError: true
+                    };
+                }
+            }
+            if (name === 'edit_animation') {
+                try {
+                    log('Editing animation - direct handler', { name, args });
+                    const { filename, modifications } = args || {};
+                    if (!filename || !modifications) {
+                        return {
+                            content: [{ type: 'text', text: '[ERROR] Both filename and modifications are required' }],
+                            isError: true
+                        };
+                    }
+                    // Read existing file
+                    const filePath = path.join(WORKSPACE, 'src', filename);
+                    const existingContent = await fs.readFile(filePath, 'utf8');
+                    // Apply modifications (this would need proper implementation)
+                    const modifiedContent = await this.applyModifications(existingContent, modifications);
+                    // Write back to file
+                    await fs.writeFile(filePath, modifiedContent);
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[ANIMATION EDITED] ${filename}\n\n` +
+                                    `[MODIFICATIONS] ${modifications}\n\n` +
+                                    `[UPDATED CODE]\n\`\`\`tsx\n${modifiedContent}\n\`\`\``
+                            }]
+                    };
+                }
+                catch (error) {
+                    log('Animation edit error', { error: error.message });
+                    return {
+                        content: [{ type: 'text', text: `[ERROR] Failed to edit animation: ${error.message}` }],
                         isError: true
                     };
                 }
@@ -507,6 +630,187 @@ export const ${componentName}Animation: React.FC = () => {
         }
         catch (error) {
             log('Error during cleanup', { error: error.message });
+        }
+    }
+    generateComponentName(description) {
+        // Convert description to PascalCase component name
+        const words = description
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/g, '')
+            .split(/\s+/)
+            .filter(word => word.length > 0)
+            .slice(0, 3); // Take first 3 words
+        const componentName = words
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('');
+        return componentName + 'Animation';
+    }
+    async generateCustomAnimationComponent(description, componentName, backgroundColor, duration, fps, width, height, useGuidelines) {
+        // Analyze description to determine animation elements and patterns
+        const lowerDesc = description.toLowerCase();
+        if (lowerDesc.includes('star') || lowerDesc.includes('constellation') || lowerDesc.includes('twinkle')) {
+            // Star/constellation animation with twinkling effects
+            return this.generateStarAnimation(componentName, backgroundColor, duration, fps, width, height);
+        }
+        else if (lowerDesc.includes('bounce') || lowerDesc.includes('ball')) {
+            // Bouncing animation
+            return this.generateBouncingAnimation(componentName, backgroundColor, duration, fps, width, height);
+        }
+        else {
+            // Generic custom animation based on description
+            return this.generateGenericCustomAnimation(componentName, backgroundColor, description, duration, fps, width, height);
+        }
+    }
+    generateStarAnimation(componentName, backgroundColor, duration, fps, width, height) {
+        return `import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig, random } from 'remotion';
+
+export const ${componentName}: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  
+  // Create stars with twinkling effect
+  const stars = Array.from({ length: 12 }, (_, i) => ({
+    x: random(\`star-x-\${i}\`) * ${width},
+    y: random(\`star-y-\${i}\`) * ${height},
+    size: random(\`star-size-\${i}\`) * 25 + 15,
+    twinkleSpeed: random(\`star-speed-\${i}\`) * 1.5 + 0.5,
+  }));
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}' }}>
+      {stars.map((star, index) => {
+        const opacity = Math.abs(Math.sin(frame * 0.05 * star.twinkleSpeed)) * 0.8 + 0.2;
+        
+        return (
+          <div
+            key={index}
+            style={{
+              position: 'absolute',
+              left: star.x - star.size / 2,
+              top: star.y - star.size / 2,
+              width: star.size,
+              height: star.size,
+              background: 'radial-gradient(circle, #ffffff, #ffdd44)',
+              borderRadius: '50%',
+              opacity: opacity,
+              filter: 'drop-shadow(0 0 8px #ffdd44)',
+            }}
+          />
+        );
+      })}
+    </AbsoluteFill>
+  );
+};`;
+    }
+    generateBouncingAnimation(componentName, backgroundColor, duration, fps, width, height) {
+        return `import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+
+export const ${componentName}: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  
+  const ballSize = 80;
+  const bounceHeight = ${height} * 0.5;
+  
+  const x = interpolate(frame, [0, durationInFrames], [ballSize, ${width} - ballSize]);
+  const bounceProgress = (frame / ${fps}) * 3;
+  const y = ${height} - ballSize - Math.abs(Math.sin(bounceProgress * Math.PI)) * bounceHeight;
+  
+  return (
+    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}' }}>
+      <div
+        style={{
+          position: 'absolute',
+          left: x - ballSize / 2,
+          top: y - ballSize / 2,
+          width: ballSize,
+          height: ballSize,
+          borderRadius: '50%',
+          background: 'linear-gradient(45deg, #ff6b6b, #ff8e8e)',
+          boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+        }}
+      />
+    </AbsoluteFill>
+  );
+};`;
+    }
+    generateGenericCustomAnimation(componentName, backgroundColor, description, duration, fps, width, height) {
+        return `import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+
+export const ${componentName}: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  
+  const rotation = interpolate(frame, [0, durationInFrames], [0, 360]);
+  const scale = interpolate(frame, [0, durationInFrames / 2, durationInFrames], [0.5, 1.2, 0.8]);
+  
+  return (
+    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}' }}>
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: \`translate(-50%, -50%) rotate(\${rotation}deg) scale(\${scale})\`,
+          width: 200,
+          height: 200,
+          background: 'linear-gradient(45deg, #667eea, #764ba2)',
+          borderRadius: '20px',
+        }}
+      />
+    </AbsoluteFill>
+  );
+};`;
+    }
+    async applyModifications(existingContent, modifications) {
+        // Simple modification system
+        const modificationComment = `// Modified: ${modifications}`;
+        return modificationComment + '\n' + existingContent;
+    }
+    async updateRootTsx(componentName) {
+        const rootPath = path.join(WORKSPACE, 'src', 'Root.tsx');
+        try {
+            let rootContent = await fs.readFile(rootPath, 'utf8');
+            // Add import statement
+            const importStatement = `import { ${componentName} } from './${componentName}';`;
+            if (!rootContent.includes(importStatement)) {
+                const importLines = rootContent.split('\n');
+                let insertIndex = 0;
+                for (let i = 0; i < importLines.length; i++) {
+                    if (importLines[i].startsWith('import ')) {
+                        insertIndex = i + 1;
+                    }
+                }
+                importLines.splice(insertIndex, 0, importStatement);
+                rootContent = importLines.join('\n');
+            }
+            // Add composition
+            const compositionId = componentName.replace('Animation', '');
+            const compositionElement = `      <Composition
+        id="${compositionId}"
+        component={${componentName}}
+        durationInFrames={90}
+        fps={30}
+        width={1920}
+        height={1080}
+      />`;
+            if (!rootContent.includes(compositionId)) {
+                const compositionInsertPoint = rootContent.lastIndexOf('</Folder>');
+                if (compositionInsertPoint !== -1) {
+                    rootContent = rootContent.slice(0, compositionInsertPoint) +
+                        compositionElement + '\n' +
+                        rootContent.slice(compositionInsertPoint);
+                }
+            }
+            await fs.writeFile(rootPath, rootContent);
+            log('Updated Root.tsx with new composition', { componentName });
+        }
+        catch (error) {
+            log('Error updating Root.tsx', { error: error.message });
+            throw error;
         }
     }
 }

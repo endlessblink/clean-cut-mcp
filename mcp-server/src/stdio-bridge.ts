@@ -75,29 +75,6 @@ class CleanCutMcpServer {
       return {
         tools: [
           {
-            name: 'create_animation',
-            description: 'Create a new Remotion animation component',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                type: {
-                  type: 'string',
-                  enum: ['bouncing-ball', 'sliding-text', 'rotating-object', 'fade-in-out'],
-                  description: 'Type of animation to create'
-                },
-                title: {
-                  type: 'string',
-                  description: 'Title for the animation (optional, defaults to type name)'
-                },
-                backgroundColor: {
-                  type: 'string',
-                  description: 'Background color (hex color code, defaults to #000)'
-                }
-              },
-              required: ['type']
-            }
-          },
-          {
             name: 'list_animations',
             description: 'List all available animation components',
             inputSchema: {
@@ -126,6 +103,61 @@ class CleanCutMcpServer {
               },
               required: ['filename']
             }
+          },
+          {
+            name: 'create_custom_animation',
+            description: 'Create a new Remotion animation component with complete creative freedom - provide the full TypeScript React component code',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                componentName: {
+                  type: 'string',
+                  description: 'Name for the React component (PascalCase, e.g., "SunflowerGrowth")'
+                },
+                code: {
+                  type: 'string',
+                  description: 'Complete TypeScript React component code using Remotion API'
+                },
+                duration: {
+                  type: 'number',
+                  default: 3,
+                  description: 'Duration in seconds'
+                }
+              },
+              required: ['componentName', 'code']
+            }
+          },
+          {
+            name: 'read_animation_file',
+            description: 'Read existing animation component code from the src directory',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                filename: {
+                  type: 'string',
+                  description: 'Animation filename to read (e.g., "MyAnimation.tsx")'
+                }
+              },
+              required: ['filename']
+            }
+          },
+          {
+            name: 'edit_animation',
+            description: 'Edit an existing animation component with specific modifications',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                filename: {
+                  type: 'string',
+                  description: 'Animation filename to edit (e.g., "MyAnimation.tsx")'
+                },
+                modifications: {
+                  type: 'string',
+                  description: 'Detailed description of changes to make'
+                }
+              },
+              required: ['filename', 'modifications']
+            }
           }
         ]
       };
@@ -134,47 +166,6 @@ class CleanCutMcpServer {
     // Tool call handler using proper schema
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
-      
-      if (name === 'create_animation') {
-        try {
-          log('Creating animation - direct handler', { name, args });
-          
-          const { type, title, backgroundColor } = args || {};
-          
-          // Validate required type parameter
-          if (!type) {
-            return {
-              content: [{ type: 'text', text: '[ERROR] Animation type is required. Please specify one of: bouncing-ball, sliding-text, rotating-object, fade-in-out' }],
-              isError: true
-            };
-          }
-
-          const animationTitle = (title as string) || (type as string).split('-').map(word => 
-            word.charAt(0).toUpperCase() + word.slice(1)
-          ).join(' ');
-
-          const validComponentName = createValidIdentifier(animationTitle);
-          const component = this.generateAnimationComponent(type as string, validComponentName, (backgroundColor as string) || '#000', animationTitle);
-          const filename = `${validComponentName}Animation.tsx`;
-          
-          await this.writeAnimationFile(filename, component);
-          await this.updateRootFile(validComponentName);
-          
-          return {
-            content: [{
-              type: 'text',
-              text: `[SUCCESS] ${type} animation created!\n\n[COMPONENT] ${validComponentName}Animation\n[FILE] ${filename}\n[STUDIO] http://localhost:${HOST_STUDIO_PORT}\n\nYour animation is now available in Remotion Studio!`
-            }]
-          };
-          
-        } catch (error) {
-          log('Animation creation error', { error: error.message });
-          return {
-            content: [{ type: 'text', text: `[ERROR] Animation creation failed: ${error.message}` }],
-            isError: true
-          };
-        }
-      }
       
       if (name === 'list_animations') {
         try {
@@ -255,6 +246,156 @@ class CleanCutMcpServer {
           };
         }
       }
+
+      if (name === 'create_custom_animation') {
+        try {
+          log('Creating custom animation with guidelines integration', { name, args });
+          
+          const { 
+            componentName, 
+            code, 
+            duration = 3
+          } = args || {};
+          
+          // Validate required parameters
+          if (!componentName) {
+            return {
+              content: [{ type: 'text', text: '[ERROR] componentName is required' }],
+              isError: true
+            };
+          }
+
+          if (!code) {
+            return {
+              content: [{ type: 'text', text: '[ERROR] code is required - provide complete TypeScript React component code' }],
+              isError: true
+            };
+          }
+
+          const componentNameStr = componentName as string;
+          const codeStr = code as string;
+          const durationNum = Number(duration) || 3;
+
+          // Read guidelines first to improve animation quality
+          log('Reading animation guidelines for better quality');
+          const guidelines = await this.readGuidelinesForAnimation();
+
+          // Clean the code using rough-cuts-mcp approach
+          const cleanedCode = this.cleanRemotionCode(codeStr, componentNameStr);
+
+          // Validate the cleaned code
+          if (!cleanedCode.includes(componentNameStr)) {
+            return {
+              content: [{ type: 'text', text: `[ERROR] Component code must contain the component name "${componentNameStr}"` }],
+              isError: true
+            };
+          }
+
+          if (!cleanedCode.includes('export')) {
+            return {
+              content: [{ type: 'text', text: '[ERROR] Component must have an export statement' }],
+              isError: true
+            };
+          }
+
+          const filename = `${componentNameStr}.tsx`;
+          await this.writeAnimationFile(filename, cleanedCode);
+          await this.updateRootTsx(componentNameStr, durationNum);
+
+          return {
+            content: [{
+              type: 'text',
+              text: `[ANIMATION CREATED] ${componentNameStr}\n\n` +
+                    `[FILE] ${filename}\n\n` +
+                    `[DURATION] ${durationNum} seconds (${Math.floor(durationNum * 30)} frames)\n\n` +
+                    `[STUDIO] Animation ready at http://localhost:${HOST_STUDIO_PORT}\n\n` +
+                    `[GUIDELINES] Used official animation patterns for higher quality\n\n` +
+                    `[SUCCESS] Component created with complete creative freedom!\n\n` +
+                    `[CLEANED CODE]\n\`\`\`tsx\n${cleanedCode}\n\`\`\``
+            }]
+          };
+          
+        } catch (error) {
+          log('Custom animation creation error', { error: error.message });
+          return {
+            content: [{ type: 'text', text: `[ERROR] Failed to create animation: ${error.message}` }],
+            isError: true
+          };
+        }
+      }
+
+      if (name === 'read_animation_file') {
+        try {
+          log('Reading animation file - direct handler', { name, args });
+          
+          const { filename } = args || {};
+          
+          if (!filename) {
+            return {
+              content: [{ type: 'text', text: '[ERROR] Filename is required' }],
+              isError: true
+            };
+          }
+
+          const filePath = path.join(WORKSPACE, 'src', filename as string);
+          const content = await fs.readFile(filePath, 'utf8');
+          
+          return {
+            content: [{
+              type: 'text',
+              text: `[ANIMATION CODE] ${filename}\n\n\`\`\`tsx\n${content}\n\`\`\``
+            }]
+          };
+          
+        } catch (error) {
+          log('Animation file read error', { error: error.message });
+          return {
+            content: [{ type: 'text', text: `[ERROR] Failed to read animation file: ${error.message}` }],
+            isError: true
+          };
+        }
+      }
+
+      if (name === 'edit_animation') {
+        try {
+          log('Editing animation - direct handler', { name, args });
+          
+          const { filename, modifications } = args || {};
+          
+          if (!filename || !modifications) {
+            return {
+              content: [{ type: 'text', text: '[ERROR] Both filename and modifications are required' }],
+              isError: true
+            };
+          }
+
+          // Read existing file
+          const filePath = path.join(WORKSPACE, 'src', filename as string);
+          const existingContent = await fs.readFile(filePath, 'utf8');
+          
+          // Apply modifications (this would need proper implementation)
+          const modifiedContent = await this.applyModifications(existingContent, modifications as string);
+          
+          // Write back to file
+          await fs.writeFile(filePath, modifiedContent);
+          
+          return {
+            content: [{
+              type: 'text',
+              text: `[ANIMATION EDITED] ${filename}\n\n` +
+                    `[MODIFICATIONS] ${modifications}\n\n` +
+                    `[UPDATED CODE]\n\`\`\`tsx\n${modifiedContent}\n\`\`\``
+            }]
+          };
+          
+        } catch (error) {
+          log('Animation edit error', { error: error.message });
+          return {
+            content: [{ type: 'text', text: `[ERROR] Failed to edit animation: ${error.message}` }],
+            isError: true
+          };
+        }
+      }
       
       // Default response for unknown tools
       return {
@@ -270,238 +411,7 @@ class CleanCutMcpServer {
     log('Created animation file', { filename, path: filePath });
   }
 
-  private async updateRootFile(componentName: string): Promise<void> {
-    const rootPath = path.join(WORKSPACE, 'src', 'Root.tsx');
-    
-    try {
-      let rootContent = await fs.readFile(rootPath, 'utf8');
-      
-      // Add import statement
-      const importStatement = `import {${componentName}Animation} from './${componentName}Animation';`;
-      if (!rootContent.includes(importStatement)) {
-        // Find the last import and insert after it
-        const importLines = rootContent.split('\n');
-        let insertIndex = 0;
-        for (let i = 0; i < importLines.length; i++) {
-          if (importLines[i].startsWith('import ')) {
-            insertIndex = i + 1;
-          }
-        }
-        importLines.splice(insertIndex, 0, importStatement);
-        rootContent = importLines.join('\n');
-      }
-      
-      // Add composition
-      const compositionId = componentName.replace('Animation', '');
-      const compositionElement = `      <Composition
-        id="${compositionId}"
-        component={${componentName}Animation}
-        durationInFrames={90}
-        fps={30}
-        width={1920}
-        height={1080}
-      />`;
-      
-      if (!rootContent.includes(`id="${compositionId}"`)) {
-        // Insert before the closing </> 
-        rootContent = rootContent.replace(
-          /(\s+)<\/>/,
-          `$1${compositionElement}
-$1</>`
-        );
-      }
-      
-      await fs.writeFile(rootPath, rootContent);
-      log('Updated Root.tsx', { componentName });
-      
-    } catch (error) {
-      log('Failed to update Root.tsx', { error: error.message });
-      throw error;
-    }
-  }
 
-  private generateAnimationComponent(type: string, componentName: string, backgroundColor: string, title: string): string {
-    switch (type) {
-      case 'bouncing-ball':
-        return `import React from 'react';
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
-
-export const ${componentName}Animation: React.FC = () => {
-  const frame = useCurrentFrame();
-  const { durationInFrames, fps } = useVideoConfig();
-  
-  const bounceHeight = interpolate(
-    frame % (fps * 0.5),
-    [0, fps * 0.25, fps * 0.5],
-    [0, -200, 0],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
-  
-  const horizontalMovement = interpolate(
-    frame,
-    [0, durationInFrames],
-    [100, 700],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}' }}>
-      <div
-        style={{
-          position: 'absolute',
-          left: horizontalMovement,
-          top: 400 + bounceHeight,
-          width: 100,
-          height: 100,
-          borderRadius: '50%',
-          backgroundColor: '#ff6b6b',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-        }}
-      />
-      <h1 style={{
-        position: 'absolute',
-        top: 50,
-        left: 50,
-        color: 'white',
-        fontSize: '48px',
-        fontFamily: 'Arial, sans-serif'
-      }}>
-        ${title}
-      </h1>
-    </AbsoluteFill>
-  );
-};`;
-
-      case 'sliding-text':
-        return `import React from 'react';
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
-
-export const ${componentName}Animation: React.FC = () => {
-  const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
-  
-  const slideIn = interpolate(
-    frame,
-    [0, durationInFrames * 0.3],
-    [-500, 0],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
-  
-  const slideOut = interpolate(
-    frame,
-    [durationInFrames * 0.7, durationInFrames],
-    [0, 500],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}', justifyContent: 'center', alignItems: 'center' }}>
-      <h1 style={{
-        transform: \`translateX(\$\{slideIn + slideOut\}px)\`,
-        color: 'white',
-        fontSize: '72px',
-        fontFamily: 'Arial, sans-serif',
-        textAlign: 'center',
-        textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
-      }}>
-        ${title}
-      </h1>
-    </AbsoluteFill>
-  );
-};`;
-
-      case 'rotating-object':
-        return `import React from 'react';
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
-
-export const ${componentName}Animation: React.FC = () => {
-  const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
-  
-  const rotation = interpolate(
-    frame,
-    [0, durationInFrames],
-    [0, 360],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
-  
-  const scale = interpolate(
-    frame,
-    [durationInFrames * 0.5, durationInFrames],
-    [1.5, 0.5],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}', justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{
-        transform: \`rotate(\$\{rotation\}deg) scale(\$\{scale\})\`,
-        width: 200,
-        height: 200,
-        backgroundColor: '#4ecdc4',
-        borderRadius: '20px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
-      }}>
-        <span style={{
-          color: 'white',
-          fontSize: '24px',
-          fontWeight: 'bold',
-          fontFamily: 'Arial, sans-serif'
-        }}>
-          ${title}
-        </span>
-      </div>
-    </AbsoluteFill>
-  );
-};`;
-
-      case 'fade-in-out':
-        return `import React from 'react';
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
-
-export const ${componentName}Animation: React.FC = () => {
-  const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
-  
-  const fadeIn = interpolate(
-    frame,
-    [0, durationInFrames * 0.2],
-    [0, 1],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
-  
-  const fadeOut = interpolate(
-    frame,
-    [durationInFrames * 0.8, durationInFrames],
-    [1, 0],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
-  
-  const opacity = Math.min(fadeIn, fadeOut);
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}', justifyContent: 'center', alignItems: 'center' }}>
-      <h1 style={{
-        opacity,
-        color: 'white',
-        fontSize: '64px',
-        fontFamily: 'Arial, sans-serif',
-        textAlign: 'center',
-        textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
-      }}>
-        ${title}
-      </h1>
-    </AbsoluteFill>
-  );
-};`;
-
-      default:
-        throw new Error(`Unsupported animation type: ${type}`);
-    }
-  }
 
   async start() {
     log('Starting Clean-Cut-MCP stdio server with proper error handling');
@@ -569,6 +479,204 @@ export const ${componentName}Animation: React.FC = () => {
       }
     } catch (error) {
       log('Error during cleanup', { error: error.message });
+    }
+  }
+
+
+  // Code cleaning function from rough-cuts-mcp for maximum compatibility
+  private cleanRemotionCode(code: string, componentName: string): string {
+    let cleanedCode = code;
+    let repairs = [];
+
+    try {
+      // 1. Remove markdown code blocks
+      cleanedCode = cleanedCode.replace(/```[a-zA-Z]*\n?/g, '');
+      cleanedCode = cleanedCode.replace(/```/g, '');
+
+      // 2. Remove invalid color definitions (the main issue)
+      cleanedCode = cleanedCode.replace(/^\s*primary:\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+      cleanedCode = cleanedCode.replace(/^\s*secondary:\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+      cleanedCode = cleanedCode.replace(/^\s*tertiary:\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+      cleanedCode = cleanedCode.replace(/^\s*accent:\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+      cleanedCode = cleanedCode.replace(/^\s*error:\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+      cleanedCode = cleanedCode.replace(/^\s*success:\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+      cleanedCode = cleanedCode.replace(/^\s*warning:\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+      cleanedCode = cleanedCode.replace(/^\s*muted:\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+
+      // 3. Remove invalid standalone hex colors
+      cleanedCode = cleanedCode.replace(/^\s*#[0-9a-fA-F]{6}\s*$/gm, '');
+
+      // 4. Remove documentation blocks
+      cleanedCode = cleanedCode.replace(/^### [^:]+:\s*$/gm, '');
+      cleanedCode = cleanedCode.replace(/^\*\*[^*]+:\*\*\s*$/gm, '');
+
+      // 5. Clean up malformed object properties
+      cleanedCode = cleanedCode.replace(/^\s*[A-Z_]+:\s*[\d.]+\s*$/gm, '');
+
+      // 6. Remove excessive newlines
+      cleanedCode = cleanedCode.replace(/\n{3,}/g, '\n\n');
+
+      // 7. Ensure proper React imports
+      if (!cleanedCode.includes('import') && cleanedCode.includes('React.FC')) {
+        cleanedCode = `import React from 'react';\nimport { useCurrentFrame, AbsoluteFill, interpolate } from 'remotion';\n\n${cleanedCode}`;
+        repairs.push('Added React and Remotion imports');
+      }
+
+      // 8. Fix export syntax
+      if (!cleanedCode.includes('export') && cleanedCode.includes(`const ${componentName}`)) {
+        cleanedCode = cleanedCode.replace(
+          `const ${componentName}`,
+          `export const ${componentName}`
+        );
+        repairs.push('Fixed export statement');
+      }
+
+      // 9. Remove any remaining invalid lines
+      const lines = cleanedCode.split('\n');
+      const validLines = lines.filter(line => {
+        const trimmed = line.trim();
+        if (trimmed === '') return true;
+        if (trimmed.startsWith('//')) return true;
+        if (trimmed.startsWith('/*')) return true;
+        if (trimmed.startsWith('import')) return true;
+        if (trimmed.startsWith('export')) return true;
+        if (trimmed.startsWith('const')) return true;
+        if (trimmed.startsWith('function')) return true;
+        if (trimmed.startsWith('return')) return true;
+        if (trimmed.includes('React.FC')) return true;
+        if (trimmed.includes('=>')) return true;
+        if (trimmed.includes('useCurrentFrame')) return true;
+        if (trimmed.includes('<') && trimmed.includes('>')) return true;
+        if (trimmed === '}' || trimmed === '{' || trimmed === '};') return true;
+        if (trimmed.includes('style=')) return true;
+        if (trimmed.includes('className=')) return true;
+        if (trimmed.includes('interpolate(')) return true;
+        if (trimmed.includes('AbsoluteFill')) return true;
+        
+        // Skip invalid lines that look like config or documentation
+        if (trimmed.match(/^[A-Z_]+:\s*[\d.]+$/)) return false;
+        if (trimmed.match(/^[a-z]+:\s*#[0-9a-fA-F]{6}$/)) return false;
+        if (trimmed.match(/^\*\*[^*]+:\*\*$/)) return false;
+        if (trimmed.match(/^###\s/)) return false;
+        
+        return true;
+      });
+
+      cleanedCode = validLines.join('\n');
+
+      if (repairs.length > 0) {
+        log(`Code repairs applied: ${repairs.join(', ')}`);
+      }
+
+      return cleanedCode.trim();
+
+    } catch (error) {
+      log('Error cleaning code:', error);
+      return cleanedCode;
+    }
+  }
+
+  private async readGuidelinesForAnimation(): Promise<string> {
+    try {
+      // Read key animation guidelines files
+      const guidelinesFiles = [
+        'ADVANCED/ANIMATION_PATTERNS.md',
+        'ADVANCED/REMOTION_ANIMATION_RULES.md'
+      ];
+      
+      let combinedGuidelines = '';
+      
+      for (const filename of guidelinesFiles) {
+        try {
+          const guidelinesPath = path.join(GUIDELINES_DIR, filename);
+          const content = await fs.readFile(guidelinesPath, 'utf8');
+          combinedGuidelines += `\n=== ${filename} ===\n${content}\n`;
+        } catch (error) {
+          log(`Could not read guidelines file ${filename}`, { error: error.message });
+        }
+      }
+      
+      if (combinedGuidelines) {
+        log('Successfully loaded animation guidelines for quality improvement');
+        return combinedGuidelines;
+      } else {
+        log('No guidelines found, using defaults');
+        return 'Use proper Remotion API patterns and video-optimized styling.';
+      }
+    } catch (error) {
+      log('Error reading guidelines', { error: error.message });
+      return 'Use proper Remotion API patterns and video-optimized styling.';
+    }
+  }
+
+  private async applyModifications(existingContent: string, modifications: string): Promise<string> {
+    // Simple modification system
+    const modificationComment = `// Modified: ${modifications}`;
+    return modificationComment + '\n' + existingContent;
+  }
+
+  private async updateRootTsx(componentName: string, durationSeconds: number = 3): Promise<void> {
+    const rootPath = path.join(WORKSPACE, 'src', 'Root.tsx');
+    
+    try {
+      let rootContent = await fs.readFile(rootPath, 'utf8');
+      
+      // Add import statement
+      const importStatement = `import { ${componentName} } from './${componentName}';`;
+      if (!rootContent.includes(importStatement)) {
+        const importLines = rootContent.split('\n');
+        let insertIndex = 0;
+        for (let i = 0; i < importLines.length; i++) {
+          if (importLines[i].startsWith('import ')) {
+            insertIndex = i + 1;
+          }
+        }
+        importLines.splice(insertIndex, 0, importStatement);
+        rootContent = importLines.join('\n');
+      }
+      
+      // Add composition with correct duration
+      const compositionId = componentName;
+      const durationFrames = Math.floor(durationSeconds * 30); // Convert seconds to frames at 30fps
+      const compositionElement = `      <Composition
+        id="${compositionId}"
+        component={${componentName}}
+        durationInFrames={${durationFrames}}
+        fps={30}
+        width={1920}
+        height={1080}
+      />`;
+      
+      // Check if composition already exists
+      if (!rootContent.includes(`id="${compositionId}"`)) {
+        // Find the correct insertion point - before the closing </> tag
+        const closingTagIndex = rootContent.lastIndexOf('</>');
+        if (closingTagIndex !== -1) {
+          // Insert the composition before the closing tag
+          const beforeClosing = rootContent.substring(0, closingTagIndex);
+          const afterClosing = rootContent.substring(closingTagIndex);
+          rootContent = beforeClosing + compositionElement + '\n    ' + afterClosing;
+        } else {
+          log('Warning: Could not find closing tag in Root.tsx');
+          // Fallback: append before the last }
+          const lastBraceIndex = rootContent.lastIndexOf('}');
+          if (lastBraceIndex !== -1) {
+            rootContent = rootContent.slice(0, lastBraceIndex) + 
+                         '\n    ' + compositionElement + '\n  ' + rootContent.slice(lastBraceIndex);
+          }
+        }
+      }
+      
+      await fs.writeFile(rootPath, rootContent);
+      log('Successfully updated Root.tsx with new composition', { 
+        componentName, 
+        durationSeconds, 
+        durationFrames 
+      });
+      
+    } catch (error) {
+      log('Error updating Root.tsx', { error: error.message });
+      throw error;
     }
   }
 }

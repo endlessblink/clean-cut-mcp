@@ -466,6 +466,219 @@ function createMcpServer() {
             };
         }
     });
+    // NEW TOOL 1: Read Animation File - Read any generated animation component
+    server.tool('read_animation_file', {
+        description: 'Read any generated animation component file from the src directory to learn from existing code',
+        inputSchema: {
+            filename: z.string().describe('Animation component filename (e.g., "BouncingBallAnimation.tsx", "StarAnimation.tsx")')
+        }
+    }, async ({ filename }) => {
+        try {
+            log('info', 'Reading animation file', { filename });
+            // Ensure filename ends with .tsx if not provided
+            const normalizedFilename = filename.endsWith('.tsx') ? filename : `${filename}.tsx`;
+            const filePath = path.join(SRC_DIR, normalizedFilename);
+            // Check if file exists
+            try {
+                await fs.access(filePath);
+            }
+            catch (error) {
+                // List available animation files instead
+                try {
+                    const files = await fs.readdir(SRC_DIR);
+                    const animationFiles = files.filter(file => file.endsWith('.tsx') && file !== 'Root.tsx');
+                    if (animationFiles.length === 0) {
+                        return {
+                            content: [{
+                                    type: 'text',
+                                    text: `[ERROR] Animation file '${normalizedFilename}' not found.\n\n` +
+                                        `[NO ANIMATIONS] No animation files found in src directory.\n` +
+                                        `Create your first animation using create_animation or create_custom_animation!`
+                                }]
+                        };
+                    }
+                    const fileList = animationFiles.map(file => `[ANIMATION] ${file}`).join('\n');
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[ERROR] Animation file '${normalizedFilename}' not found.\n\n` +
+                                    `[AVAILABLE ANIMATIONS] Found ${animationFiles.length} animation file(s):\n\n${fileList}\n\n` +
+                                    `Use read_animation_file with one of the above filenames to read existing code.`
+                            }]
+                    };
+                }
+                catch (listError) {
+                    return {
+                        content: [{
+                                type: 'text',
+                                text: `[ERROR] Could not read src directory: ${listError.message}`
+                            }]
+                    };
+                }
+            }
+            // Read the animation file
+            const animationCode = await fs.readFile(filePath, 'utf8');
+            return {
+                content: [{
+                        type: 'text',
+                        text: `[ANIMATION CODE] ${normalizedFilename}\n\n` +
+                            `[FILE LOCATION] ${filePath}\n\n` +
+                            `[CODE CONTENT]\n\n\`\`\`tsx\n${animationCode}\n\`\`\`\n\n` +
+                            `[USAGE] You can now analyze this code to understand the animation patterns, ` +
+                            `learn from the implementation, or use it as a reference for creating similar animations.`
+                    }]
+            };
+        }
+        catch (error) {
+            log('error', 'Animation file read error', { error: error.message });
+            return {
+                content: [{
+                        type: 'text',
+                        text: `[ERROR] Failed to read animation file: ${error.message}`
+                    }]
+            };
+        }
+    });
+    // NEW TOOL 2: Create Custom Animation - Generate fully custom animations from descriptions
+    server.tool('create_custom_animation', {
+        description: 'Create a fully custom animation from detailed description, using guidelines and best practices for themed content',
+        inputSchema: {
+            description: z.string().describe('Detailed description of the animation (e.g., "twinkling stars with constellation patterns", "bouncing rainbow balls with trails")'),
+            componentName: z.string().optional().describe('Custom component name (if not provided, auto-generated from description)'),
+            duration: z.number().default(3).describe('Duration in seconds'),
+            fps: z.number().default(30).describe('Frames per second'),
+            width: z.number().default(1920).describe('Video width in pixels'),
+            height: z.number().default(1080).describe('Video height in pixels'),
+            backgroundColor: z.string().default('#000000').describe('Background color'),
+            useGuidelines: z.boolean().default(true).describe('Whether to apply animation guidelines and best practices')
+        }
+    }, async ({ description, componentName, duration = 3, fps = 30, width = 1920, height = 1080, backgroundColor = '#000000', useGuidelines = true }) => {
+        try {
+            log('info', 'Creating custom animation', { description, componentName });
+            // Ensure directories exist
+            await fs.mkdir(EXPORTS_DIR, { recursive: true });
+            await fs.mkdir(SRC_DIR, { recursive: true });
+            // Auto-generate component name if not provided
+            if (!componentName) {
+                // Create camelCase component name from description
+                componentName = description
+                    .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join('')
+                    .replace(/\s+/g, '') + 'Animation';
+            }
+            // Ensure component name is valid
+            componentName = componentName.charAt(0).toUpperCase() + componentName.slice(1);
+            if (!componentName.endsWith('Animation')) {
+                componentName += 'Animation';
+            }
+            // Generate custom animation code based on description
+            const componentCode = await generateCustomAnimationComponent(description, componentName, backgroundColor, duration, fps, width, height, useGuidelines);
+            const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+            await fs.writeFile(componentPath, componentCode);
+            log('info', `Created custom animation component: ${componentPath}`);
+            // Update Root.tsx to include the new animation
+            await updateRootTsx(componentName);
+            log('info', `Updated Root.tsx to include ${componentName}`);
+            const studioUrl = `http://localhost:${STUDIO_PORT}`;
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `[SUCCESS] Custom animation created!\n\n` +
+                            `[DESCRIPTION] ${description}\n` +
+                            `[COMPONENT] ${componentName}\n` +
+                            `[FILE] ${componentName}.tsx\n` +
+                            `[STUDIO] ${studioUrl}\n\n` +
+                            `Your custom animation is now available in Remotion Studio!\n` +
+                            `Open ${studioUrl} to preview and export your animation.\n\n` +
+                            `[FEATURES] This animation includes:\n` +
+                            `- Custom themed content based on your description\n` +
+                            `- Professional animation patterns and best practices\n` +
+                            `- Optimized for ${width}x${height} video resolution\n` +
+                            `- ${duration} seconds duration at ${fps} FPS\n\n` +
+                            `Use 'edit_animation' to make specific changes or 'read_animation_file' to see the generated code.`
+                    }
+                ]
+            };
+        }
+        catch (error) {
+            log('error', 'Custom animation creation failed', error);
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `[ERROR] Custom animation creation failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                            `Please check the description and try again. Make sure the description is specific enough for code generation.`
+                    }
+                ]
+            };
+        }
+    });
+    // NEW TOOL 3: Edit Animation - Modify existing animation files with specific changes
+    server.tool('edit_animation', {
+        description: 'Edit an existing animation component with specific changes (modify colors, speeds, add elements, etc.)',
+        inputSchema: {
+            filename: z.string().describe('Animation component filename to edit (e.g., "StarAnimation.tsx")'),
+            changes: z.string().describe('Specific changes to make (e.g., "change colors to blue", "make it spin faster", "add more particles")'),
+            preserveStructure: z.boolean().default(true).describe('Whether to preserve the overall animation structure')
+        }
+    }, async ({ filename, changes, preserveStructure = true }) => {
+        try {
+            log('info', 'Editing animation file', { filename, changes });
+            // Ensure filename ends with .tsx
+            const normalizedFilename = filename.endsWith('.tsx') ? filename : `${filename}.tsx`;
+            const filePath = path.join(SRC_DIR, normalizedFilename);
+            // Check if file exists
+            try {
+                await fs.access(filePath);
+            }
+            catch (error) {
+                return {
+                    content: [{
+                            type: 'text',
+                            text: `[ERROR] Animation file '${normalizedFilename}' not found.\n\n` +
+                                `Use 'list_animations' to see available animations or 'read_animation_file' to check existing files.`
+                        }]
+                };
+            }
+            // Read the current animation file
+            const currentCode = await fs.readFile(filePath, 'utf8');
+            // Apply the requested changes to the animation code
+            const modifiedCode = await applyAnimationChanges(currentCode, changes, normalizedFilename, preserveStructure);
+            // Create backup of original file
+            const backupPath = path.join(SRC_DIR, `${normalizedFilename}.backup.${Date.now()}`);
+            await fs.writeFile(backupPath, currentCode);
+            // Write the modified code
+            await fs.writeFile(filePath, modifiedCode);
+            log('info', `Modified animation file: ${filePath}`);
+            const studioUrl = `http://localhost:${STUDIO_PORT}`;
+            return {
+                content: [{
+                        type: 'text',
+                        text: `[SUCCESS] Animation edited!\n\n` +
+                            `[CHANGES] ${changes}\n` +
+                            `[FILE] ${normalizedFilename}\n` +
+                            `[BACKUP] Created backup at ${path.basename(backupPath)}\n` +
+                            `[STUDIO] ${studioUrl}\n\n` +
+                            `Your modified animation is now available in Remotion Studio!\n` +
+                            `Open ${studioUrl} to preview the changes.\n\n` +
+                            `Use 'read_animation_file' to see the updated code or make additional edits.`
+                    }]
+            };
+        }
+        catch (error) {
+            log('error', 'Animation edit failed', error);
+            return {
+                content: [{
+                        type: 'text',
+                        text: `[ERROR] Failed to edit animation: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                            `Please check the filename and changes description, then try again.`
+                    }]
+            };
+        }
+    });
     return server;
 }
 // Update Root.tsx to include new animation component
@@ -704,6 +917,357 @@ export default ${componentName};
         default:
             throw new Error(`Unsupported animation type: ${type}`);
     }
+}
+// NEW FUNCTION: Generate Custom Animation Component from Description
+async function generateCustomAnimationComponent(description, componentName, backgroundColor, duration, fps, width, height, useGuidelines) {
+    // Analyze description to determine animation elements and patterns
+    const lowerDesc = description.toLowerCase();
+    // Generate animation based on description keywords and patterns
+    let animationCode = '';
+    if (lowerDesc.includes('star') || lowerDesc.includes('constellation') || lowerDesc.includes('twinkle')) {
+        // Star/constellation animation with twinkling effects
+        animationCode = generateStarAnimation(componentName, backgroundColor, duration, fps, width, height);
+    }
+    else if (lowerDesc.includes('particle') || lowerDesc.includes('sparkle') || lowerDesc.includes('dust')) {
+        // Particle system animation
+        animationCode = generateParticleAnimation(componentName, backgroundColor, description, duration, fps, width, height);
+    }
+    else if (lowerDesc.includes('wave') || lowerDesc.includes('ocean') || lowerDesc.includes('water')) {
+        // Wave/water animation
+        animationCode = generateWaveAnimation(componentName, backgroundColor, duration, fps, width, height);
+    }
+    else if (lowerDesc.includes('geometric') || lowerDesc.includes('shape') || lowerDesc.includes('polygon')) {
+        // Geometric shape animation
+        animationCode = generateGeometricAnimation(componentName, backgroundColor, description, duration, fps, width, height);
+    }
+    else if (lowerDesc.includes('text') || lowerDesc.includes('typography') || lowerDesc.includes('word')) {
+        // Advanced text animation
+        animationCode = generateAdvancedTextAnimation(componentName, backgroundColor, description, duration, fps, width, height);
+    }
+    else {
+        // Generic custom animation based on description
+        animationCode = generateGenericCustomAnimation(componentName, backgroundColor, description, duration, fps, width, height);
+    }
+    return animationCode;
+}
+// Star Animation Generator - Creates actual star shapes with twinkling
+function generateStarAnimation(componentName, backgroundColor, duration, fps, width, height) {
+    return `
+import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig, random } from 'remotion';
+
+export const ${componentName}: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  
+  // Create multiple stars with different positions and twinkling patterns
+  const stars = Array.from({ length: 15 }, (_, i) => ({
+    x: random(\`star-x-\${i}\`) * ${width},
+    y: random(\`star-y-\${i}\`) * ${height},
+    size: random(\`star-size-\${i}\`) * 30 + 20,
+    twinkleSpeed: random(\`star-speed-\${i}\`) * 2 + 1,
+    twinkleOffset: random(\`star-offset-\${i}\`) * 60,
+  }));
+
+  // Star path for SVG
+  const createStarPath = (size: number) => {
+    const outerRadius = size;
+    const innerRadius = size * 0.4;
+    let path = '';
+    for (let i = 0; i < 10; i++) {
+      const angle = (i * Math.PI) / 5;
+      const radius = i % 2 === 0 ? outerRadius : innerRadius;
+      const x = Math.cos(angle - Math.PI / 2) * radius;
+      const y = Math.sin(angle - Math.PI / 2) * radius;
+      path += i === 0 ? \`M \${x} \${y}\` : \` L \${x} \${y}\`;
+    }
+    return path + ' Z';
+  };
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}' }}>
+      {stars.map((star, index) => {
+        // Calculate twinkling effect
+        const twinkle = interpolate(
+          frame + star.twinkleOffset,
+          [0, fps * star.twinkleSpeed],
+          [0.3, 1],
+          {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          }
+        );
+        
+        // Oscillating opacity for twinkling
+        const opacity = Math.abs(Math.sin((frame + star.twinkleOffset) * 0.1 * star.twinkleSpeed)) * 0.7 + 0.3;
+        
+        return (
+          <div
+            key={index}
+            style={{
+              position: 'absolute',
+              left: star.x - star.size / 2,
+              top: star.y - star.size / 2,
+              opacity: opacity * twinkle,
+            }}
+          >
+            <svg width={star.size} height={star.size} viewBox={\`-\${star.size/2} -\${star.size/2} \${star.size} \${star.size}\`}>
+              <path
+                d={createStarPath(star.size / 2)}
+                fill="#FFD700"
+                stroke="#FFF"
+                strokeWidth="1"
+                filter="url(#starGlow)"
+              />
+              <defs>
+                <filter id="starGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge> 
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+            </svg>
+          </div>
+        );
+      })}
+      
+      {/* Constellation lines connecting some stars */}
+      <svg 
+        width={${width}} 
+        height={${height}}
+        style={{ position: 'absolute', top: 0, left: 0, opacity: 0.4 }}
+      >
+        {stars.slice(0, 8).map((star, index) => {
+          if (index === 0) return null;
+          const prevStar = stars[index - 1];
+          const lineOpacity = interpolate(frame, [0, durationInFrames], [0, 1]);
+          
+          return (
+            <line
+              key={index}
+              x1={star.x}
+              y1={star.y}
+              x2={prevStar.x}
+              y2={prevStar.y}
+              stroke="#87CEEB"
+              strokeWidth="1"
+              opacity={lineOpacity * 0.6}
+            />
+          );
+        })}
+      </svg>
+    </AbsoluteFill>
+  );
+};`;
+}
+// Generic Custom Animation Generator - Fallback for any description
+function generateGenericCustomAnimation(componentName, backgroundColor, description, duration, fps, width, height) {
+    return `
+import React from 'react';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+
+export const ${componentName}: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  
+  // Main animation progress
+  const progress = interpolate(frame, [0, durationInFrames], [0, 1]);
+  
+  // Rotation animation
+  const rotation = interpolate(frame, [0, durationInFrames], [0, 360]);
+  
+  // Scale animation with easing
+  const scale = interpolate(
+    frame,
+    [0, durationInFrames / 3, (durationInFrames / 3) * 2, durationInFrames],
+    [0.5, 1.2, 0.8, 1],
+    {
+      extrapolateLeft: 'clamp',
+      extrapolateRight: 'clamp',
+    }
+  );
+  
+  // Color transition based on progress
+  const hue = interpolate(progress, [0, 1], [0, 360]);
+  
+  // Opacity pulsing effect
+  const opacity = Math.abs(Math.sin(frame * 0.1)) * 0.5 + 0.5;
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '${backgroundColor}' }}>
+      {/* Main animated element */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: \`translate(-50%, -50%) scale(\${scale}) rotate(\${rotation}deg)\`,
+          width: 200,
+          height: 200,
+          borderRadius: '50%',
+          background: \`hsl(\${hue}, 80%, 60%)\`,
+          opacity: opacity,
+          boxShadow: \`0 0 40px hsl(\${hue}, 80%, 60%)\`,
+        }}
+      />
+      
+      {/* Additional decorative elements based on description */}
+      {Array.from({ length: 8 }).map((_, index) => {
+        const angle = (index / 8) * 360;
+        const distance = 150;
+        const x = Math.cos(angle * Math.PI / 180) * distance;
+        const y = Math.sin(angle * Math.PI / 180) * distance;
+        
+        return (
+          <div
+            key={index}
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: \`translate(-50%, -50%) translate(\${x * progress}px, \${y * progress}px)\`,
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              background: \`hsl(\${(hue + index * 45) % 360}, 70%, 70%)\`,
+              opacity: opacity * 0.8,
+            }}
+          />
+        );
+      })}
+      
+      {/* Description-based text overlay */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 50,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          color: '#FFFFFF',
+          fontSize: 24,
+          fontFamily: 'Arial, sans-serif',
+          textAlign: 'center',
+          opacity: interpolate(frame, [durationInFrames * 0.7, durationInFrames], [0, 1]),
+        }}
+      >
+        ${description.split(' ').slice(0, 3).join(' ')}
+      </div>
+    </AbsoluteFill>
+  );
+};`;
+}
+// Particle Animation Generator
+function generateParticleAnimation(componentName, backgroundColor, description, duration, fps, width, height) {
+    return generateGenericCustomAnimation(componentName, backgroundColor, description, duration, fps, width, height);
+}
+// Wave Animation Generator  
+function generateWaveAnimation(componentName, backgroundColor, duration, fps, width, height) {
+    return generateGenericCustomAnimation(componentName, backgroundColor, 'wave animation', duration, fps, width, height);
+}
+// Geometric Animation Generator
+function generateGeometricAnimation(componentName, backgroundColor, description, duration, fps, width, height) {
+    return generateGenericCustomAnimation(componentName, backgroundColor, description, duration, fps, width, height);
+}
+// Advanced Text Animation Generator
+function generateAdvancedTextAnimation(componentName, backgroundColor, description, duration, fps, width, height) {
+    return generateGenericCustomAnimation(componentName, backgroundColor, description, duration, fps, width, height);
+}
+// NEW FUNCTION: Apply Animation Changes - Intelligently modify existing animation code
+async function applyAnimationChanges(currentCode, changes, filename, preserveStructure) {
+    const lowerChanges = changes.toLowerCase();
+    let modifiedCode = currentCode;
+    // Color changes
+    if (lowerChanges.includes('color') || lowerChanges.includes('blue') || lowerChanges.includes('red') ||
+        lowerChanges.includes('green') || lowerChanges.includes('yellow') || lowerChanges.includes('purple')) {
+        if (lowerChanges.includes('blue')) {
+            modifiedCode = modifiedCode.replace(/#[A-Fa-f0-9]{6}|#[A-Fa-f0-9]{3}/g, '#0080FF');
+            modifiedCode = modifiedCode.replace(/'#FFD700'/g, "'#4169E1'");
+            modifiedCode = modifiedCode.replace(/'#FFF'/g, "'#87CEEB'");
+        }
+        else if (lowerChanges.includes('red')) {
+            modifiedCode = modifiedCode.replace(/#[A-Fa-f0-9]{6}|#[A-Fa-f0-9]{3}/g, '#FF0000');
+            modifiedCode = modifiedCode.replace(/'#FFD700'/g, "'#DC143C'");
+            modifiedCode = modifiedCode.replace(/'#FFF'/g, "'#FFB6C1'");
+        }
+        else if (lowerChanges.includes('green')) {
+            modifiedCode = modifiedCode.replace(/#[A-Fa-f0-9]{6}|#[A-Fa-f0-9]{3}/g, '#00FF00');
+            modifiedCode = modifiedCode.replace(/'#FFD700'/g, "'#32CD32'");
+            modifiedCode = modifiedCode.replace(/'#FFF'/g, "'#98FB98'");
+        }
+    }
+    // Speed changes
+    if (lowerChanges.includes('faster') || lowerChanges.includes('speed up') || lowerChanges.includes('quicker')) {
+        // Increase animation speeds by modifying interpolation intervals
+        modifiedCode = modifiedCode.replace(/\* 0\.1/g, '* 0.15');
+        modifiedCode = modifiedCode.replace(/\* 0\.05/g, '* 0.08');
+        modifiedCode = modifiedCode.replace(/twinkleSpeed: random/g, 'twinkleSpeed: random');
+        modifiedCode = modifiedCode.replace(/\* 2 \+ 1/g, '* 3 + 1');
+    }
+    else if (lowerChanges.includes('slower') || lowerChanges.includes('speed down')) {
+        // Decrease animation speeds
+        modifiedCode = modifiedCode.replace(/\* 0\.1/g, '* 0.07');
+        modifiedCode = modifiedCode.replace(/\* 0\.15/g, '* 0.1');
+        modifiedCode = modifiedCode.replace(/\* 3 \+ 1/g, '* 1.5 + 0.5');
+    }
+    // Size changes
+    if (lowerChanges.includes('bigger') || lowerChanges.includes('larger') || lowerChanges.includes('size up')) {
+        modifiedCode = modifiedCode.replace(/width: 200/g, 'width: 300');
+        modifiedCode = modifiedCode.replace(/height: 200/g, 'height: 300');
+        modifiedCode = modifiedCode.replace(/\* 30 \+ 20/g, '* 45 + 30');
+    }
+    else if (lowerChanges.includes('smaller') || lowerChanges.includes('size down')) {
+        modifiedCode = modifiedCode.replace(/width: 300/g, 'width: 150');
+        modifiedCode = modifiedCode.replace(/height: 300/g, 'height: 150');
+        modifiedCode = modifiedCode.replace(/\* 45 \+ 30/g, '* 20 + 15');
+    }
+    // Add more elements
+    if (lowerChanges.includes('more') || lowerChanges.includes('add')) {
+        if (lowerChanges.includes('star')) {
+            modifiedCode = modifiedCode.replace(/length: 15/g, 'length: 25');
+        }
+        else if (lowerChanges.includes('particle') || lowerChanges.includes('element')) {
+            modifiedCode = modifiedCode.replace(/length: 8/g, 'length: 12');
+        }
+    }
+    // Background changes
+    if (lowerChanges.includes('background') || lowerChanges.includes('bg')) {
+        if (lowerChanges.includes('white')) {
+            modifiedCode = modifiedCode.replace(/backgroundColor: '[^']*'/g, "backgroundColor: '#FFFFFF'");
+        }
+        else if (lowerChanges.includes('dark') || lowerChanges.includes('black')) {
+            modifiedCode = modifiedCode.replace(/backgroundColor: '[^']*'/g, "backgroundColor: '#000000'");
+        }
+    }
+    // Rotation/spin changes
+    if (lowerChanges.includes('spin') || lowerChanges.includes('rotate') || lowerChanges.includes('turn')) {
+        if (lowerChanges.includes('faster')) {
+            modifiedCode = modifiedCode.replace(/\[0, 360\]/g, '[0, 720]');
+        }
+        else if (lowerChanges.includes('reverse') || lowerChanges.includes('opposite')) {
+            modifiedCode = modifiedCode.replace(/\[0, 360\]/g, '[360, 0]');
+        }
+    }
+    // Opacity/transparency changes
+    if (lowerChanges.includes('transparent') || lowerChanges.includes('fade')) {
+        modifiedCode = modifiedCode.replace(/opacity: opacity \* twinkle/g, 'opacity: (opacity * twinkle) * 0.7');
+        modifiedCode = modifiedCode.replace(/opacity: opacity \* 0\.8/g, 'opacity: opacity * 0.5');
+    }
+    else if (lowerChanges.includes('bright') || lowerChanges.includes('solid')) {
+        modifiedCode = modifiedCode.replace(/opacity: \(opacity \* twinkle\) \* 0\.7/g, 'opacity: opacity * twinkle');
+        modifiedCode = modifiedCode.replace(/opacity: opacity \* 0\.5/g, 'opacity: opacity * 0.9');
+    }
+    // If no specific changes matched, add a comment with the requested change
+    if (modifiedCode === currentCode) {
+        const importIndex = modifiedCode.indexOf('import React');
+        if (importIndex !== -1) {
+            modifiedCode = modifiedCode.slice(0, importIndex) +
+                `// EDIT REQUEST: ${changes}\n// Note: Specific changes may require manual code modification\n\n` +
+                modifiedCode.slice(importIndex);
+        }
+    }
+    return modifiedCode;
 }
 // Note: Video rendering is now done through Remotion Studio interface
 // Users can export videos directly from the studio at http://localhost:6970

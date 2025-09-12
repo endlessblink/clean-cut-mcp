@@ -49,8 +49,8 @@ COPY claude-dev-guidelines ./claude-dev-guidelines
 # Environment variables
 ENV NODE_ENV=production \
     DOCKER_CONTAINER=true \
-    MCP_SERVER_PORT=6961 \
-    REMOTION_STUDIO_PORT=6960 \
+    MCP_SERVER_PORT=6971 \
+    REMOTION_STUDIO_PORT=6970 \
     REMOTION_NON_INTERACTIVE=1 \
     CHROME_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-extensions --disable-plugins --disable-background-networking --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows"
 
@@ -58,15 +58,15 @@ ENV NODE_ENV=production \
 RUN mkdir -p /workspace/out && chmod 755 /workspace/out
 
 # Document exposed ports
-EXPOSE 6960
-EXPOSE 6961
+EXPOSE 6970
+EXPOSE 6971
 
 # Volume mount point for cross-platform video exports
 VOLUME ["/workspace/out"]
 
 # Healthcheck for MCP server
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -fsS http://localhost:6961/health || exit 1
+  CMD curl -fsS http://localhost:6971/health || exit 1
 
 # Start both services
 CMD ["node", "/app/start.js"]
