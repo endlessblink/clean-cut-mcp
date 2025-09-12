@@ -1,35 +1,28 @@
-version: '3.8'
-
 services:
   clean-cut-mcp:
     build: .
     container_name: clean-cut-mcp
     ports:
-      - "6970:6970"  # Remotion Studio
-      - "6971:6971"  # MCP HTTP Server
+      - "6970:6970"  # Remotion Studio (WORKING)
+      - "6971:6971"  # Reserved for future HTTP MCP server
     volumes:
-      # Cross-platform export directory mounting
-      # Videos exported from Remotion Studio will appear in ./clean-cut-exports on your host
+      # Cross-platform export directory mounting (WORKING - tested)
+      # Videos exported from Remotion Studio appear in ./clean-cut-exports on your host
       - ./clean-cut-exports:/workspace/out
-      # Workspace persistence - animations survive container restarts
-      - clean-cut-workspace:/workspace/src
+      # Persistent workspace - animations survive container rebuilds (NEW - host-mounted for transparency)
+      - ./clean-cut-workspace:/workspace/src
     environment:
       - NODE_ENV=production
       - DOCKER_CONTAINER=true
-      - MCP_SERVER_PORT=6971
       - REMOTION_STUDIO_PORT=6970
       - REMOTION_NON_INTERACTIVE=1
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6971/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:6970/"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 60s
-
-volumes:
-  clean-cut-workspace:
-    driver: local
 
 networks:
   default:

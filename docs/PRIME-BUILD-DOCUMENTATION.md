@@ -1,8 +1,8 @@
-# CLEAN-CUT-MCP PRIME BUILD v2.1.0 - FINAL STABLE
+# CLEAN-CUT-MCP PRIME BUILD v2.2.0 - PERSISTENT STORAGE
 
 **Date:** September 12, 2025  
-**Status:** PRODUCTION READY - All Critical Issues Resolved ✅  
-**Architecture:** TRUE AI Code Generation System  
+**Status:** PRODUCTION READY - Full Persistent Storage + Naming Guidance ✅  
+**Architecture:** TRUE AI Code Generation System with Complete Persistence  
 
 ## 🎯 SYSTEM OVERVIEW
 
@@ -12,9 +12,12 @@ Clean-Cut-MCP is a **TRUE AI video animation system** where Claude Desktop gener
 - **Docker Container**: `clean-cut-mcp` - Cross-platform, production-ready
 - **MCP Server**: `clean-stdio-server.ts` - STDIO transport via docker exec  
 - **Remotion Studio**: Accessible at http://localhost:6970
-- **TRUE AI Tools**: `create_animation`, `update_composition`, `get_studio_url`, `get_export_directory`
+- **TRUE AI Tools**: `create_animation`, `update_composition`, `get_studio_url`, `get_export_directory`, `list_existing_components`, `get_project_guidelines`
 - **Video Export**: Persistent storage `/workspace/out` ↔ `./clean-cut-exports`
+- **Animation Persistence**: Full workspace persistence `/workspace/src` ↔ `./clean-cut-workspace`
 - **Component System**: Automatic export pattern fixing for Remotion compatibility
+- **Naming Guidance**: Claude can read guidelines and avoid component name conflicts
+- **Collision Detection**: Transparent overwrite warnings for existing components
 
 ### 🏗️ WORKING ARCHITECTURE:
 ```
@@ -24,10 +27,18 @@ clean-cut-mcp container
     ↓ (executes Claude's generated React/Remotion code)
 Remotion Studio (localhost:6970)
     ↓ (video export)
-./clean-cut-exports (persistent host directory)
+Host Persistence:
+    ./clean-cut-workspace ↔ /workspace/src (animations - SURVIVES REBUILDS!)
+    ./clean-cut-exports ↔ /workspace/out (videos - SURVIVES REBUILDS!)
 ```
 
-## 🔧 CRITICAL FIXES APPLIED (v2.1.0):
+## 🔧 CRITICAL FIXES APPLIED (v2.2.0):
+
+### NEW: Full Persistent Storage - IMPLEMENTED ✅
+- **Issue**: Generated animations disappeared on container rebuild
+- **Root Cause**: Workspace was ephemeral, not persisted to host
+- **Solution**: Host directory mounting via docker-compose
+- **Result**: All animations survive container rebuilds and updates!
 
 ### 1. Component Registration Error - RESOLVED ✅
 - **Issue**: "A value of `undefined` was passed to the `component` prop"
@@ -48,17 +59,18 @@ Remotion Studio (localhost:6970)
 
 ## 🚀 DEPLOYMENT INSTRUCTIONS:
 
-### Quick Start:
+### Quick Start (UPDATED - Docker Compose):
 ```bash
-# 1. Build container
-docker build -t clean-cut-mcp .
+# 1. Build and start with persistent storage
+docker-compose up -d
 
-# 2. Run container  
-docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$(pwd)/clean-cut-exports:/workspace/out" clean-cut-mcp
-
-# 3. Verify running
+# 2. Verify running
 docker ps | grep clean-cut-mcp
 curl -I http://localhost:6970
+
+# 3. Check persistent directories created
+ls -la clean-cut-workspace/  # Animations persist here
+ls -la clean-cut-exports/    # Videos persist here
 
 # 4. Configure Claude Desktop
 # Add to claude_desktop_config.json:
@@ -75,6 +87,15 @@ curl -I http://localhost:6970
 }
 ```
 
+### Alternative Manual Start (NOT RECOMMENDED):
+```bash
+# Manual docker run (loses animations on rebuild)
+docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 \
+  -v "$(pwd)/clean-cut-exports:/workspace/out" \
+  -v "$(pwd)/clean-cut-workspace:/workspace/src" \
+  clean-cut-mcp
+```
+
 ## 📋 SYSTEM SPECIFICATIONS:
 
 ### Ports:
@@ -88,10 +109,12 @@ curl -I http://localhost:6970
 - **Volume Mount**: `./clean-cut-exports:/workspace/out`
 
 ### MCP Tools Available:
-- **create_animation**: Executes Claude-generated React/Remotion code
+- **create_animation**: Executes Claude-generated React/Remotion code with collision detection
 - **update_composition**: Registers components in Root.tsx automatically  
 - **get_studio_url**: Returns Remotion Studio URL (http://localhost:6970)
 - **get_export_directory**: Shows export directory information
+- **list_existing_components**: Lists all existing animation components (avoid naming conflicts)
+- **get_project_guidelines**: Exposes project configuration and animation design guidelines
 
 ## 🛠️ TROUBLESHOOTING GUIDE:
 
