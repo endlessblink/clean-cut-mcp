@@ -4,32 +4,27 @@ import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remo
 const FloatingOrbs: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
-  
+
   // Create multiple orbs with different properties
   const orbs = [
     { size: 120, color: '#FF6B6B', delay: 0, speed: 1 },
     { size: 80, color: '#4ECDC4', delay: 30, speed: 0.8 },
     { size: 100, color: '#45B7D1', delay: 60, speed: 1.2 },
     { size: 60, color: '#96CEB4', delay: 90, speed: 0.9 },
-    { size: 140, color: '#FFEAA7', delay: 20, speed: 0.7 }
+    { size: 140, color: '#FFEAA7', delay: 20, speed: 0.7 },
   ];
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#2D3436' }}>
       {orbs.map((orb, index) => {
         const adjustedFrame = Math.max(0, frame - orb.delay);
-        
+
         // Floating animation
-        const floatY = interpolate(
-          adjustedFrame,
-          [0, fps * 2, fps * 4, fps * 6],
-          [0, -30, 30, 0],
-          {
-            extrapolateRight: 'clamp',
-            easing: (t) => 0.5 * (1 + Math.sin(2 * Math.PI * t - Math.PI / 2))
-          }
-        );
-        
+        const floatY = interpolate(adjustedFrame, [0, fps * 2, fps * 4, fps * 6], [0, -30, 30, 0], {
+          extrapolateRight: 'clamp',
+          easing: t => 0.5 * (1 + Math.sin(2 * Math.PI * t - Math.PI / 2)),
+        });
+
         // Horizontal drift
         const driftX = interpolate(
           adjustedFrame,
@@ -37,35 +32,25 @@ const FloatingOrbs: React.FC = () => {
           [0, 50 * Math.sin(index), -30 * Math.cos(index)],
           {
             extrapolateRight: 'clamp',
-            easing: (t) => t * t * (3 - 2 * t)
+            easing: t => t * t * (3 - 2 * t),
           }
         );
-        
+
         // Scale pulsing effect
-        const scale = interpolate(
-          adjustedFrame,
-          [0, fps * 1.5, fps * 3],
-          [0, 1.1, 1],
-          {
-            extrapolateRight: 'clamp',
-            easing: (t) => 1 - Math.pow(1 - t, 3)
-          }
-        );
-        
+        const scale = interpolate(adjustedFrame, [0, fps * 1.5, fps * 3], [0, 1.1, 1], {
+          extrapolateRight: 'clamp',
+          easing: t => 1 - Math.pow(1 - t, 3),
+        });
+
         // Opacity fade in
-        const opacity = interpolate(
-          adjustedFrame,
-          [0, fps * 0.5],
-          [0, 0.8],
-          {
-            extrapolateRight: 'clamp'
-          }
-        );
-        
+        const opacity = interpolate(adjustedFrame, [0, fps * 0.5], [0, 0.8], {
+          extrapolateRight: 'clamp',
+        });
+
         // Position based on index
-        const baseX = 200 + (index * 250);
+        const baseX = 200 + index * 250;
         const baseY = 300 + Math.sin(index) * 100;
-        
+
         return (
           <div
             key={index}
@@ -80,12 +65,12 @@ const FloatingOrbs: React.FC = () => {
               transform: `translate(-50%, -50%) scale(${scale})`,
               opacity,
               boxShadow: `0 0 ${orb.size / 2}px ${orb.color}44`,
-              filter: 'blur(0.5px)'
+              filter: 'blur(0.5px)',
             }}
           />
         );
       })}
-      
+
       {/* Ambient particles */}
       {Array.from({ length: 15 }).map((_, i) => {
         const particleFrame = Math.max(0, frame - i * 10);
@@ -95,14 +80,14 @@ const FloatingOrbs: React.FC = () => {
           [Math.random() * 800, Math.random() * 800 - 100],
           { extrapolateRight: 'clamp' }
         );
-        
+
         const particleOpacity = interpolate(
           particleFrame,
           [0, fps, durationInFrames - fps, durationInFrames],
           [0, 0.3, 0.3, 0],
           { extrapolateRight: 'clamp' }
         );
-        
+
         return (
           <div
             key={`particle-${i}`}
@@ -115,12 +100,12 @@ const FloatingOrbs: React.FC = () => {
               borderRadius: '50%',
               backgroundColor: '#DDD',
               opacity: particleOpacity,
-              transform: 'translate(-50%, -50%)'
+              transform: 'translate(-50%, -50%)',
             }}
           />
         );
       })}
-      
+
       {/* Title text */}
       <div
         style={{
@@ -133,9 +118,9 @@ const FloatingOrbs: React.FC = () => {
           fontWeight: 'bold',
           textAlign: 'center',
           opacity: interpolate(frame, [fps * 2, fps * 3], [0, 1], {
-            extrapolateRight: 'clamp'
+            extrapolateRight: 'clamp',
           }),
-          textShadow: '0 0 20px rgba(255,255,255,0.3)'
+          textShadow: '0 0 20px rgba(255,255,255,0.3)',
         }}
       >
         Floating Dreams

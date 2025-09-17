@@ -94,13 +94,13 @@ export const GitHubProfileMegaShowcase: React.FC = () => {
   };
 
   // Safe interpolation function
-  const safeInterpolate = (frame: number, inputRange: number[], outputRange: number[], easing?: any) => {
+  const safeInterpolate = (frame, inputRange, outputRange, options = {}) => {
     const [inputStart, inputEnd] = inputRange;
     const [outputStart, outputEnd] = outputRange;
     if (inputEnd === inputStart) return outputStart;
     if (frame <= inputStart) return outputStart;
     if (frame >= inputEnd) return outputEnd;
-    return interpolate(frame, inputRange, outputRange, { easing });
+    return interpolate(frame, inputRange, outputRange, options);
   };
 
   // NON-OVERLAPPING animation scenes with clear gaps

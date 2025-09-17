@@ -179,7 +179,7 @@ class TrueAiStdioMcpServer {
               properties: {
                 action: {
                   type: 'string',
-                  enum: ['validate', 'generate_schema', 'add_props', 'list_props'],
+                  enum: ['validate', 'generate_schema', 'add_props', 'list_props', 'apply_schema'],
                   description: 'Action to perform'
                 },
                 componentName: {
@@ -211,6 +211,21 @@ class TrueAiStdioMcpServer {
               required: ['action', 'componentName'],
               additionalProperties: false
             }
+          },
+          {
+            name: 'auto_sync',
+            description: 'Automatically sync ALL components - register new, update changed, remove deleted',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                force: {
+                  type: 'boolean',
+                  description: 'Force full resync even if no changes detected',
+                  default: false
+                }
+              },
+              additionalProperties: false
+            }
           }
         ]
       };
@@ -238,6 +253,8 @@ class TrueAiStdioMcpServer {
           return await this.handleFormatCode(args);
         } else if (name === 'manage_props') {
           return await this.handleManageProps(args);
+        } else if (name === 'auto_sync') {
+          return await this.handleAutoSync(args);
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -937,7 +954,7 @@ export interface ${componentName}Props {
             }]
           };
 
-        case 'list_props':
+        case 'list_props': {
           // Analyze component file for existing props
           const code = await fs.readFile(componentPath, 'utf8');
           const propsMatches = code.match(/interface\s+\w+Props\s*{([^}]+)}/);
@@ -960,6 +977,112 @@ export interface ${componentName}Props {
                     `Use 'add_props' action to add new props or 'generate_schema' for type definitions.`
             }]
           };
+        }
+
+        case 'apply_schema': {
+          // Automatically generate and apply Remotion schema to Root.tsx
+          const componentCode = await fs.readFile(componentPath, 'utf8');
+          const interfaceMatch = componentCode.match(/interface\s+(\w+Props)\s*{([^}]+)}/);
+
+          if (!interfaceMatch) {
+            throw new Error(`No props interface found in ${componentName}.tsx`);
+          }
+
+          const interfaceName = interfaceMatch[1];
+          const propsContent = interfaceMatch[2];
+
+          // Parse props from interface
+          const props: Array<{name: string, type: string, optional: boolean, defaultValue?: string}> = [];
+          const propLines = propsContent.split('\n').filter(line => line.trim() && !line.trim().startsWith('//'));
+
+          for (const line of propLines) {
+            const trimmed = line.trim().replace(/[;,]$/, '');
+            const match = trimmed.match(/^(\w+)(\?)?:\s*(.+)$/);
+            if (match) {
+              const [, name, optional, type] = match;
+              props.push({
+                name,
+                type: type.trim(),
+                optional: !!optional
+              });
+            }
+          }
+
+          // Generate zod schema
+          const zodProps = props.map(prop => {
+            let zodType = '';
+            switch (true) {
+              case prop.type.includes('number'):
+                zodType = prop.optional ? 'z.number().optional()' : 'z.number()';
+                break;
+              case prop.type.includes('string'):
+                zodType = prop.optional ? 'z.string().optional()' : 'z.string()';
+                break;
+              case prop.type.includes('boolean'):
+                zodType = prop.optional ? 'z.boolean().optional()' : 'z.boolean()';
+                break;
+              case prop.type.includes('|'):
+                // Enum type
+                const enumValues = prop.type.split('|').map(v => v.trim().replace(/['"]/g, ''));
+                zodType = prop.optional ?
+                  `z.enum([${enumValues.map(v => `'${v}'`).join(', ')}]).optional()` :
+                  `z.enum([${enumValues.map(v => `'${v}'`).join(', ')}])`;
+                break;
+              default:
+                zodType = prop.optional ? 'z.any().optional()' : 'z.any()';
+            }
+            return `  ${prop.name}: ${zodType}`;
+          }).join(',\n');
+
+          const zodSchema = `const ${componentName}Schema = z.object({\n${zodProps}\n});`;
+
+          // Update Root.tsx with schema
+          const rootPath = path.join(SRC_DIR, 'Root.tsx');
+          let rootContent = await fs.readFile(rootPath, 'utf8');
+
+          // Add zod import if not present
+          if (!rootContent.includes('import { z }')) {
+            rootContent = rootContent.replace(
+              /import { Composition } from 'remotion';/,
+              `import { Composition } from 'remotion';\nimport { z } from 'zod';`
+            );
+          }
+
+          // Add schema definition before RemotionRoot
+          if (!rootContent.includes(`${componentName}Schema`)) {
+            rootContent = rootContent.replace(
+              /export const RemotionRoot/,
+              `${zodSchema}\n\nexport const RemotionRoot`
+            );
+          }
+
+          // Add schema prop to Composition
+          const compositionRegex = new RegExp(
+            `(<Composition[^>]*id="${componentName}"[^>]*)(>)`,
+            'g'
+          );
+
+          if (compositionRegex.test(rootContent) && !rootContent.includes(`schema={${componentName}Schema}`)) {
+            rootContent = rootContent.replace(
+              compositionRegex,
+              `$1\n        schema={${componentName}Schema}$2`
+            );
+          }
+
+          await fs.writeFile(rootPath, rootContent);
+
+          return {
+            content: [{
+              type: 'text',
+              text: `[SUCCESS] Schema automatically applied!\n\n` +
+                    `[COMPONENT] ${componentName}\n` +
+                    `[PROPS DETECTED] ${props.length} props\n` +
+                    `[SCHEMA] ${componentName}Schema generated\n` +
+                    `[ROOT.TSX] Updated with schema prop\n\n` +
+                    `Props are now interactively editable in Remotion Studio!`
+            }]
+          };
+        }
 
         default:
           throw new Error(`Unknown action: ${action}`);
@@ -977,6 +1100,244 @@ export interface ${componentName}Props {
     }
   }
 
+  private async handleAutoSync(args: any) {
+    const { force = false } = args || {};
+    log('info', 'Auto-syncing all components', { force });
+
+    try {
+      // 1. Scan workspace for all .tsx components
+      const files = await fs.readdir(SRC_DIR);
+      const componentFiles = files.filter(file =>
+        file.endsWith('.tsx') &&
+        file !== 'Composition.tsx' &&
+        file !== 'Root.tsx' &&
+        file !== 'index.ts'
+      );
+
+      const components: Array<{
+        name: string;
+        file: string;
+        hasProps: boolean;
+        interfaceName?: string;
+        props?: Array<{name: string, type: string, optional: boolean}>;
+        duration: number;
+        description: string;
+      }> = [];
+
+      // 2. Analyze each component
+      for (const file of componentFiles) {
+        const componentName = file.replace('.tsx', '');
+        const componentPath = path.join(SRC_DIR, file);
+
+        try {
+          const componentCode = await fs.readFile(componentPath, 'utf8');
+
+          // Check for props interface
+          const interfaceMatch = componentCode.match(/interface\s+(\w+Props)\s*{([^}]+)}/);
+          let hasProps = false;
+          let interfaceName = '';
+          let props: Array<{name: string, type: string, optional: boolean}> = [];
+
+          if (interfaceMatch) {
+            hasProps = true;
+            interfaceName = interfaceMatch[1];
+            const propsContent = interfaceMatch[2];
+            const propLines = propsContent.split('\n').filter(line => line.trim() && !line.trim().startsWith('//'));
+
+            for (const line of propLines) {
+              const trimmed = line.trim().replace(/[;,]$/, '');
+              const match = trimmed.match(/^(\w+)(\?)?:\s*(.+)$/);
+              if (match) {
+                const [, name, optional, type] = match;
+                props.push({
+                  name,
+                  type: type.trim(),
+                  optional: !!optional
+                });
+              }
+            }
+          }
+
+          // Determine duration based on component patterns
+          let duration = 240; // Default 8 seconds (240 frames at 30fps)
+          if (componentName.toLowerCase().includes('showcase')) duration = 450; // 15 seconds
+          if (componentName.toLowerCase().includes('game')) duration = 360; // 12 seconds
+          if (componentName.toLowerCase().includes('test')) duration = 180; // 6 seconds
+          if (componentName.toLowerCase().includes('bounce') || componentName.toLowerCase().includes('pulse')) duration = 120; // 4 seconds
+
+          components.push({
+            name: componentName,
+            file,
+            hasProps,
+            interfaceName: hasProps ? interfaceName : undefined,
+            props: hasProps ? props : undefined,
+            duration,
+            description: this.generateComponentDescription(componentName)
+          });
+
+        } catch (error) {
+          log('warn', `Failed to analyze component ${componentName}`, { error: error.message });
+          // Still add component but without props analysis
+          components.push({
+            name: componentName,
+            file,
+            hasProps: false,
+            duration: 240,
+            description: `${componentName} animation component`
+          });
+        }
+      }
+
+      // 3. Build comprehensive Root.tsx with all components and schemas
+      await this.buildComprehensiveRootTsx(components);
+
+      const schemasGenerated = components.filter(c => c.hasProps).length;
+      const totalComponents = components.length;
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[SUCCESS] Auto-sync completed!\n\n` +
+                `[SCANNED] ${totalComponents} components in workspace\n` +
+                `[REGISTERED] All components in Root.tsx\n` +
+                `[SCHEMAS] ${schemasGenerated} components with interactive props\n` +
+                `[CLEANUP] Removed any orphaned compositions\n\n` +
+                `Components: ${components.map(c => c.name).join(', ')}\n\n` +
+                `All animations are now available in Remotion Studio with automatic props detection!`
+        }]
+      };
+
+    } catch (error) {
+      log('error', 'Auto-sync failed', error);
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Auto-sync failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                `Please check the workspace and try again.`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private generateComponentDescription(componentName: string): string {
+    const name = componentName.toLowerCase();
+    if (name.includes('pacman')) return 'Pacman game animation';
+    if (name.includes('github')) return 'GitHub profile showcase';
+    if (name.includes('floating') || name.includes('orb')) return 'Floating particle effects';
+    if (name.includes('bounce') || name.includes('jump')) return 'Bouncing animation effects';
+    if (name.includes('pulse') || name.includes('beat')) return 'Pulsing rhythm animation';
+    if (name.includes('seedream')) return 'Professional transition effects';
+    if (name.includes('social') || name.includes('tweet')) return 'Social media animation';
+    if (name.includes('product')) return 'Product showcase animation';
+    if (name.includes('sunset') || name.includes('sun')) return 'Sunset scenic animation';
+    if (name.includes('test')) return 'Test animation component';
+    return `${componentName} animation component`;
+  }
+
+  private async buildComprehensiveRootTsx(components: Array<{
+    name: string;
+    hasProps: boolean;
+    props?: Array<{name: string, type: string, optional: boolean}>;
+    duration: number;
+  }>): Promise<void> {
+    const rootPath = path.join(SRC_DIR, 'Root.tsx');
+
+    // Build imports
+    const imports = [
+      `import { Composition } from 'remotion';`,
+      `import { Comp } from './Composition';`
+    ];
+
+    // Check if any components have props
+    const hasAnyProps = components.some(c => c.hasProps);
+    if (hasAnyProps) {
+      imports.push(`import { z } from 'zod';`);
+    }
+
+    // Add component imports
+    for (const comp of components) {
+      imports.push(`import { ${comp.name} } from './${comp.name}';`);
+    }
+
+    // Build schemas
+    const schemas: string[] = [];
+    for (const comp of components) {
+      if (comp.hasProps && comp.props && comp.props.length > 0) {
+        const zodProps = comp.props.map(prop => {
+          let zodType = '';
+          switch (true) {
+            case prop.type.includes('number'):
+              zodType = prop.optional ? 'z.number().optional()' : 'z.number()';
+              break;
+            case prop.type.includes('string'):
+              zodType = prop.optional ? 'z.string().optional()' : 'z.string()';
+              break;
+            case prop.type.includes('boolean'):
+              zodType = prop.optional ? 'z.boolean().optional()' : 'z.boolean()';
+              break;
+            case prop.type.includes('|'):
+              // Enum type
+              const enumValues = prop.type.split('|').map(v => v.trim().replace(/['"]/g, ''));
+              zodType = prop.optional ?
+                `z.enum([${enumValues.map(v => `'${v}'`).join(', ')}]).optional()` :
+                `z.enum([${enumValues.map(v => `'${v}'`).join(', ')}])`;
+              break;
+            default:
+              zodType = prop.optional ? 'z.any().optional()' : 'z.any()';
+          }
+          return `  ${prop.name}: ${zodType}`;
+        }).join(',\n');
+
+        schemas.push(`const ${comp.name}Schema = z.object({\n${zodProps}\n});`);
+      }
+    }
+
+    // Build compositions
+    const compositions = [`      <Composition
+        id="Main"
+        component={Comp}
+        durationInFrames={90}
+        fps={30}
+        width={1920}
+        height={1080}
+      />`];
+
+    for (const comp of components) {
+      const schemaProps = comp.hasProps && comp.props && comp.props.length > 0
+        ? `\n        schema={${comp.name}Schema}`
+        : '';
+
+      compositions.push(`      <Composition
+        id="${comp.name}"
+        component={${comp.name}}
+        durationInFrames={${comp.duration}}
+        fps={30}
+        width={1920}
+        height={1080}${schemaProps}
+      />`);
+    }
+
+    // Build complete Root.tsx
+    const rootContent = [
+      ...imports,
+      '',
+      ...schemas,
+      schemas.length > 0 ? '' : undefined,
+      'export const RemotionRoot: React.FC = () => {',
+      '  return (',
+      '    <>',
+      ...compositions,
+      '    </>',
+      '  );',
+      '};',
+      ''
+    ].filter(line => line !== undefined).join('\n');
+
+    await fs.writeFile(rootPath, rootContent);
+    log('info', `Built comprehensive Root.tsx with ${components.length} components and ${schemas.length} schemas`);
+  }
+
   async run(): Promise<void> {
     log('info', 'Starting TRUE AI STDIO MCP Server');
     log('info', `App Root: ${APP_ROOT}`);
@@ -992,7 +1353,7 @@ export interface ${componentName}Props {
     await this.server.connect(transport);
     
     log('info', 'TRUE AI STDIO MCP Server connected and ready!');
-    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions, format_code, manage_props');
+    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions, format_code, manage_props, auto_sync');
     log('info', 'Claude Desktop can now generate ANY animation using TRUE AI!');
   }
 }

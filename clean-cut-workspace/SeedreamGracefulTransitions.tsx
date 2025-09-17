@@ -67,13 +67,13 @@ const SeedreamGracefulTransitions: React.FC = () => {
   };
   
   // Safe interpolation
-  const safeInterpolate = (frame, inputRange, outputRange, easing) => {
+  const safeInterpolate = (frame, inputRange, outputRange, options = {}) => {
     const [inputStart, inputEnd] = inputRange;
     const [outputStart, outputEnd] = outputRange;
     if (inputEnd === inputStart) return outputStart;
     if (frame <= inputStart) return outputStart;
     if (frame >= inputEnd) return outputEnd;
-    return interpolate(frame, inputRange, outputRange, { easing });
+    return interpolate(frame, inputRange, outputRange, options);
   };
   
   // Image categories

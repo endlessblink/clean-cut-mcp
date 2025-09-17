@@ -94,31 +94,31 @@ export const GitHubProfileShowcaseEnhanced: React.FC = () => {
   };
 
   // Safe interpolation function
-  const safeInterpolate = (frame: number, inputRange: number[], outputRange: number[], easing?: any) => {
+  const safeInterpolate = (frame, inputRange, outputRange, options = {}) => {
     const [inputStart, inputEnd] = inputRange;
     const [outputStart, outputEnd] = outputRange;
     if (inputEnd === inputStart) return outputStart;
     if (frame <= inputStart) return outputStart;
     if (frame >= inputEnd) return outputEnd;
-    return interpolate(frame, inputRange, outputRange, { easing });
+    return interpolate(frame, inputRange, outputRange, options);
   };
 
   // NON-OVERLAPPING animation scenes with clear gaps
   const animations = {
     // Scene 1: Welcome intro (0-75 frames, 0-2.5s)
     intro: {
-      opacity: safeInterpolate(frame, [0, 25], [0, 1], Easing.out(Easing.cubic)) * 
-               safeInterpolate(frame, [50, 75], [1, 0], Easing.in(Easing.cubic)),
-      scale: safeInterpolate(frame, [0, 25], [0.85, 1], Easing.out(Easing.cubic)),
-      y: safeInterpolate(frame, [50, 75], [0, -40], Easing.in(Easing.cubic))
+      opacity: safeInterpolate(frame, [0, 25], [0, 1], { easing: Easing.out(Easing.cubic) }) *
+               safeInterpolate(frame, [50, 75], [1, 0], { easing: Easing.in(Easing.cubic) }),
+      scale: safeInterpolate(frame, [0, 25], [0.85, 1], { easing: Easing.out(Easing.cubic) }),
+      y: safeInterpolate(frame, [50, 75], [0, -40], { easing: Easing.in(Easing.cubic) })
     },
     
     // Scene 2: GitHub stats (90-165 frames, 3-5.5s) - Clear gap after intro
     stats: {
-      opacity: safeInterpolate(frame, [90, 110], [0, 1], Easing.out(Easing.cubic)) * 
-               safeInterpolate(frame, [145, 165], [1, 0], Easing.in(Easing.cubic)),
-      x: safeInterpolate(frame, [90, 110], [50, 0], Easing.out(Easing.cubic)),
-      exitX: safeInterpolate(frame, [145, 165], [0, -70], Easing.in(Easing.cubic))
+      opacity: safeInterpolate(frame, [90, 110], [0, 1], { easing: Easing.out(Easing.cubic) }) *
+               safeInterpolate(frame, [145, 165], [1, 0], { easing: Easing.in(Easing.cubic) }),
+      x: safeInterpolate(frame, [90, 110], [50, 0], { easing: Easing.out(Easing.cubic) }),
+      exitX: safeInterpolate(frame, [145, 165], [0, -70], { easing: Easing.in(Easing.cubic) })
     },
     
     // Scene 3: Featured projects (180-255 frames, 6-8.5s) - Clear gap after stats
