@@ -3,12 +3,12 @@ import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 
 const SeedreamOptimalTiming: React.FC = () => {
   const frame = useCurrentFrame();
-  
+
   // LARGE typography following guidelines
   const FONT_STACKS = {
     primary: '"Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   };
-  
+
   const TYPOGRAPHY = {
     display: {
       fontFamily: FONT_STACKS.primary,
@@ -28,394 +28,168 @@ const SeedreamOptimalTiming: React.FC = () => {
       fontFamily: FONT_STACKS.primary,
       fontSize: '48px',
       fontWeight: 600,
-      lineHeight: 1.3
-    },
-    h3: {
-      fontFamily: FONT_STACKS.primary,
-      fontSize: '32px',
-      fontWeight: 600,
-      lineHeight: 1.4
+      lineHeight: 1.3,
+      letterSpacing: '0em'
     },
     body: {
       fontFamily: FONT_STACKS.primary,
-      fontSize: '24px',
+      fontSize: '32px',
       fontWeight: 400,
-      lineHeight: 1.6
-    },
-    small: {
-      fontFamily: FONT_STACKS.primary,
-      fontSize: '20px',
-      fontWeight: 500,
-      lineHeight: 1.5
-    },
-    badge: {
-      fontFamily: FONT_STACKS.primary,
-      fontSize: '22px',
-      fontWeight: 600,
-      lineHeight: 1.3,
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase' as const
+      lineHeight: 1.5,
+      letterSpacing: '0em'
     }
-  };
-  
-  const FONT_CONTAINER_STYLES = {
-    fontFamily: FONT_STACKS.primary,
-    fontDisplay: 'swap' as const,
-    WebkitFontSmoothing: 'antialiased' as const,
-    MozOsxFontSmoothing: 'grayscale' as const,
-    textRendering: 'optimizeLegibility' as const
-  };
-  
-  // Safe interpolation
-  const safeInterpolate = (frame, inputRange, outputRange, easing) => {
-    const [inputStart, inputEnd] = inputRange;
-    const [outputStart, outputEnd] = outputRange;
-    if (inputEnd === inputStart) return outputStart;
-    if (frame <= inputStart) return outputStart;
-    if (frame >= inputEnd) return outputEnd;
-    return interpolate(frame, inputRange, outputRange, { easing });
-  };
-  
-  // Image categories
-  const imageCategories = [
-    { name: 'Portraits', color: '#FF6B6B' },
-    { name: 'Landscapes', color: '#4ECDC4' },
-    { name: 'Architecture', color: '#45B7D1' },
-    { name: 'Abstract Art', color: '#96CEB4' },
-    { name: 'Products', color: '#FFEAA7' },
-    { name: 'Lifestyle', color: '#DDA0DD' },
-    { name: 'Technology', color: '#20B2AA' },
-    { name: 'Fashion', color: '#F4A460' }
-  ];
-  
-  // OPTIMAL TIMING: LONGER CONTENT TIME + MINIMAL TRANSITIONS
-  const sceneTimings = {
-    // Scene 1: 0-65 frames (2.17s of content) + 5 frame exit (0.17s)
-    title: { start: 0, contentEnd: 65, fadeOut: 70, end: 70 },
-    // Scene 2: 70-135 frames (2.17s of content) + 5 frame exit (0.17s) 
-    features: { start: 65, fadeIn: 70, contentEnd: 135, fadeOut: 140, end: 140 },
-    // Scene 3: 140-205 frames (2.17s of content) + 5 frame exit (0.17s)
-    gallery: { start: 135, fadeIn: 140, contentEnd: 205, fadeOut: 210, end: 210 },
-    // Scene 4: 210-300 frames (3s of content - longer final scene)
-    specs: { start: 205, fadeIn: 210, contentEnd: 300, end: 300 }
-  };
-  
-  // Scene animations with FAST TRANSITIONS + READABLE TIMING
-  const animations = {
-    titleScene: {
-      // Quick 10-frame entry, long content time, quick 5-frame exit
-      opacity: safeInterpolate(frame, [0, 10], [0, 1], Easing.out(Easing.cubic)) * 
-               safeInterpolate(frame, [sceneTimings.title.contentEnd, sceneTimings.title.fadeOut], [1, 0], Easing.in(Easing.cubic)),
-      entryY: safeInterpolate(frame, [0, 10], [30, 0], Easing.out(Easing.cubic)),
-      exitY: safeInterpolate(frame, [sceneTimings.title.contentEnd, sceneTimings.title.fadeOut], [0, -20], Easing.in(Easing.cubic))
-    },
-    
-    featuresScene: {
-      // Quick 10-frame entry, long content time, quick 5-frame exit
-      opacity: safeInterpolate(frame, [sceneTimings.features.fadeIn, sceneTimings.features.fadeIn + 10], [0, 1], Easing.out(Easing.cubic)) * 
-               safeInterpolate(frame, [sceneTimings.features.contentEnd, sceneTimings.features.fadeOut], [1, 0], Easing.in(Easing.cubic)),
-      entryX: safeInterpolate(frame, [sceneTimings.features.fadeIn, sceneTimings.features.fadeIn + 10], [40, 0], Easing.out(Easing.cubic)),
-      exitX: safeInterpolate(frame, [sceneTimings.features.contentEnd, sceneTimings.features.fadeOut], [0, -40], Easing.in(Easing.cubic))
-    },
-    
-    galleryScene: {
-      // Quick 10-frame entry, long content time, quick 5-frame exit
-      opacity: safeInterpolate(frame, [sceneTimings.gallery.fadeIn, sceneTimings.gallery.fadeIn + 10], [0, 1], Easing.out(Easing.cubic)) * 
-               safeInterpolate(frame, [sceneTimings.gallery.contentEnd, sceneTimings.gallery.fadeOut], [1, 0], Easing.in(Easing.cubic)),
-      entryY: safeInterpolate(frame, [sceneTimings.gallery.fadeIn, sceneTimings.gallery.fadeIn + 10], [30, 0], Easing.out(Easing.cubic)),
-      exitScale: safeInterpolate(frame, [sceneTimings.gallery.contentEnd, sceneTimings.gallery.fadeOut], [1, 0.9], Easing.in(Easing.cubic))
-    },
-    
-    specsScene: {
-      // Quick 10-frame entry, stays until end
-      opacity: safeInterpolate(frame, [sceneTimings.specs.fadeIn, sceneTimings.specs.fadeIn + 10], [0, 1], Easing.out(Easing.cubic)),
-      entryScale: safeInterpolate(frame, [sceneTimings.specs.fadeIn, sceneTimings.specs.fadeIn + 10], [0.9, 1], Easing.out(Easing.cubic)),
-      entryY: safeInterpolate(frame, [sceneTimings.specs.fadeIn, sceneTimings.specs.fadeIn + 10], [20, 0], Easing.out(Easing.cubic))
-    }
-  };
-  
-  const containerStyles = {
-    ...FONT_CONTAINER_STYLES,
-    width: '100%',
-    height: '100%',
-    background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)',
-    overflow: 'hidden'
-  };
-  
-  const centeredContentStyle = {
-    position: 'absolute' as const,
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: '95%',
-    maxWidth: '1400px',
-    textAlign: 'center' as const,
-    padding: '60px'
   };
 
+  // Professional color palette
+  const COLORS = {
+    brand: '#1E40AF',
+    accent: '#3B82F6',
+    text: '#1F2937',
+    surface: '#F8FAFC',
+    gradient1: '#6366F1',
+    gradient2: '#8B5CF6'
+  };
+
+  // OPTIMAL TIMING - Balanced animation sequence
+  const animations = {
+    scene1: {
+      opacity: interpolate(frame, [0, 20], [0, 1], { easing: Easing.out(Easing.cubic) }) *
+               interpolate(frame, [80, 100], [1, 0], { easing: Easing.in(Easing.cubic) }),
+      entryY: interpolate(frame, [0, 20], [40, 0], { easing: Easing.out(Easing.back(1.5)) })
+    },
+    scene2: {
+      opacity: interpolate(frame, [60, 80], [0, 1], { easing: Easing.out(Easing.cubic) }) *
+               interpolate(frame, [140, 160], [1, 0], { easing: Easing.in(Easing.cubic) }),
+      entryY: interpolate(frame, [60, 80], [40, 0], { easing: Easing.out(Easing.back(1.5)) })
+    },
+    scene3: {
+      opacity: interpolate(frame, [120, 140], [0, 1], { easing: Easing.out(Easing.cubic) }) *
+               interpolate(frame, [200, 220], [1, 0], { easing: Easing.in(Easing.cubic) }),
+      entryY: interpolate(frame, [120, 140], [40, 0], { easing: Easing.out(Easing.back(1.5)) })
+    },
+    scene4: {
+      opacity: interpolate(frame, [180, 200], [0, 1], { easing: Easing.out(Easing.cubic) }) *
+               interpolate(frame, [260, 280], [1, 0], { easing: Easing.in(Easing.cubic) }),
+      entryY: interpolate(frame, [180, 200], [40, 0], { easing: Easing.out(Easing.back(1.5)) })
+    },
+    scene5: {
+      opacity: interpolate(frame, [240, 260], [0, 1], { easing: Easing.out(Easing.cubic) }),
+      entryY: interpolate(frame, [240, 260], [40, 0], { easing: Easing.out(Easing.back(1.5)) })
+    }
+  };
+
+  // Background animation
+  const bgOpacity = interpolate(frame, [0, 30, 270, 300], [0, 1, 1, 0]);
+  const gradientRotation = interpolate(frame, [0, 300], [0, 360]);
+
   return (
-    <AbsoluteFill style={containerStyles}>
-      
-      {/* Scene 1: Title Introduction - 2.17s READABLE TIME */}
-      {animations.titleScene.opacity > 0.01 && (
-        <div style={centeredContentStyle}>
-          <div style={{
-            opacity: animations.titleScene.opacity,
-            transform: `translateY(${animations.titleScene.entryY + animations.titleScene.exitY}px)`
-          }}>
-            <div style={{
-              ...TYPOGRAPHY.display,
-              background: 'linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1, #96CEB4)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              marginBottom: '40px'
-            }}>
-              Seedream 4.0
-            </div>
-            <div style={{
-              ...TYPOGRAPHY.h2,
-              color: '#e5e5e5',
-              marginBottom: '32px'
-            }}>
-              Visual Generation Max
-            </div>
-            <div style={{
-              ...TYPOGRAPHY.body,
-              color: '#b3b3b3',
-              marginBottom: '60px',
-              maxWidth: '800px',
-              margin: '0 auto 60px auto'
-            }}>
-              The secret to success: Custom RL model framework
-            </div>
-            <div style={{
-              ...TYPOGRAPHY.badge,
-              display: 'inline-block',
-              padding: '24px 40px',
-              background: 'rgba(167, 139, 250, 0.2)',
-              border: '3px solid #a78bfa',
-              borderRadius: '40px',
-              color: '#a78bfa',
-              minHeight: '60px'
-            }}>
-              RewardDance Framework
-            </div>
-          </div>
+    <AbsoluteFill
+      style={{
+        background: `linear-gradient(${gradientRotation}deg, ${COLORS.gradient1}, ${COLORS.gradient2})`,
+        opacity: bgOpacity,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '80px'
+      }}
+    >
+      {/* Scene 1: Brand Introduction */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%, -50%) translateY(${animations.scene1.entryY}px)`,
+          opacity: animations.scene1.opacity,
+          textAlign: 'center',
+          color: 'white'
+        }}
+      >
+        <div style={TYPOGRAPHY.display}>Seedream AI</div>
+        <div style={{...TYPOGRAPHY.h2, marginTop: '24px', opacity: 0.9}}>
+          Professional Video Generation
         </div>
-      )}
-      
-      {/* Scene 2: Key Features - 2.17s READABLE TIME */}
-      {animations.featuresScene.opacity > 0.01 && (
-        <div style={centeredContentStyle}>
-          <div style={{
-            opacity: animations.featuresScene.opacity,
-            transform: `translateX(${animations.featuresScene.entryX + animations.featuresScene.exitX}px)`
-          }}>
-            <div style={{
-              ...TYPOGRAPHY.h1,
-              color: '#ffffff',
-              marginBottom: '80px'
-            }}>
-              Key Advantages
-            </div>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '60px',
-              maxWidth: '1200px',
-              margin: '0 auto'
-            }}>
-              {[
-                { title: 'Native 2K Output', subtitle: '(up to 4K)', icon: '🎯' },
-                { title: 'Improved Consistency', subtitle: 'Enhanced quality', icon: '⚡' },
-                { title: 'Advanced RL Framework', subtitle: 'Custom training', icon: '🧠' },
-                { title: 'Visual Generation Max', subtitle: 'Next-gen AI', icon: '✨' }
-              ].map((feature, index) => {
-                // FASTER stagger for more readable time
-                const staggerDelay = 80 + (index * 5);
-                const featureOpacity = safeInterpolate(frame, [staggerDelay, staggerDelay + 8], [0, 1], Easing.out(Easing.cubic));
-                const featureY = safeInterpolate(frame, [staggerDelay, staggerDelay + 8], [20, 0], Easing.out(Easing.cubic));
-                
-                return (
-                  <div
-                    key={feature.title}
-                    style={{
-                      padding: '60px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      border: '2px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '32px',
-                      minHeight: '280px',
-                      opacity: featureOpacity * animations.featuresScene.opacity,
-                      transform: `translateY(${featureY}px)`,
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  >
-                    <div style={{ fontSize: '60px', marginBottom: '32px' }}>{feature.icon}</div>
-                    <div style={{
-                      ...TYPOGRAPHY.h3,
-                      color: '#ffffff',
-                      marginBottom: '20px'
-                    }}>
-                      {feature.title}
-                    </div>
-                    <div style={{
-                      ...TYPOGRAPHY.body,
-                      color: '#b3b3b3'
-                    }}>
-                      {feature.subtitle}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+      </div>
+
+      {/* Scene 2: Key Feature */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%, -50%) translateY(${animations.scene2.entryY}px)`,
+          opacity: animations.scene2.opacity,
+          textAlign: 'center',
+          color: 'white'
+        }}
+      >
+        <div style={TYPOGRAPHY.h1}>Create Stunning Videos</div>
+        <div style={{...TYPOGRAPHY.body, marginTop: '32px', opacity: 0.8}}>
+          Transform your ideas into professional animations
         </div>
-      )}
-      
-      {/* Scene 3: Image Gallery - 2.17s READABLE TIME */}
-      {animations.galleryScene.opacity > 0.01 && (
-        <div style={centeredContentStyle}>
-          <div style={{
-            opacity: animations.galleryScene.opacity,
-            transform: `translateY(${animations.galleryScene.entryY}px) scale(${animations.galleryScene.exitScale})`
-          }}>
-            <div style={{
-              ...TYPOGRAPHY.h1,
-              color: '#ffffff',
-              marginBottom: '80px'
-            }}>
-              AI Generation Showcase
-            </div>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '40px',
-              maxWidth: '1300px',
-              margin: '0 auto'
-            }}>
-              {imageCategories.map((category, index) => {
-                // FASTER stagger for more readable time
-                const staggerDelay = 150 + (index * 3);
-                const cardOpacity = safeInterpolate(frame, [staggerDelay, staggerDelay + 6], [0, 1], Easing.out(Easing.cubic));
-                const cardY = safeInterpolate(frame, [staggerDelay, staggerDelay + 6], [15, 0], Easing.out(Easing.cubic));
-                
-                return (
-                  <div
-                    key={category.name}
-                    style={{
-                      padding: '40px',
-                      background: `linear-gradient(135deg, ${category.color}25, ${category.color}15)`,
-                      border: `3px solid ${category.color}50`,
-                      borderRadius: '20px',
-                      minHeight: '220px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: cardOpacity * animations.galleryScene.opacity,
-                      transform: `translateY(${cardY}px)`,
-                      boxShadow: `0 12px 40px ${category.color}25`
-                    }}
-                  >
-                    <div style={{
-                      width: '60px',
-                      height: '60px',
-                      borderRadius: '50%',
-                      background: category.color,
-                      marginBottom: '24px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minHeight: '60px'
-                    }}>
-                      <span style={{ fontSize: '28px' }}>🎨</span>
-                    </div>
-                    <div style={{
-                      ...TYPOGRAPHY.small,
-                      color: '#ffffff',
-                      fontWeight: 600,
-                      textAlign: 'center'
-                    }}>
-                      {category.name}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+      </div>
+
+      {/* Scene 3: Benefits */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%, -50%) translateY(${animations.scene3.entryY}px)`,
+          opacity: animations.scene3.opacity,
+          textAlign: 'center',
+          color: 'white'
+        }}
+      >
+        <div style={TYPOGRAPHY.h1}>Lightning Fast</div>
+        <div style={{...TYPOGRAPHY.body, marginTop: '32px', opacity: 0.8}}>
+          Generate videos in seconds, not hours
         </div>
-      )}
-      
-      {/* Scene 4: Technical Specs - 3s READABLE TIME (LONGEST) */}
-      {animations.specsScene.opacity > 0.01 && (
-        <div style={centeredContentStyle}>
-          <div style={{
-            opacity: animations.specsScene.opacity,
-            transform: `scale(${animations.specsScene.entryScale}) translateY(${animations.specsScene.entryY}px)`
-          }}>
-            <div style={{
-              ...TYPOGRAPHY.h1,
-              color: '#4ECDC4',
-              marginBottom: '60px'
-            }}>
-              Technical Excellence
-            </div>
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: '32px',
-              marginBottom: '80px',
-              maxWidth: '1200px',
-              margin: '0 auto 80px auto'
-            }}>
-              {[
-                'Native 2K Resolution',
-                'Up to 4K Output',
-                'Custom RL Framework',
-                'RewardDance Technology',
-                'Visual Generation Max',
-                'Improved Consistency'
-              ].map((spec, index) => {
-                // FASTER stagger for more readable time
-                const badgeDelay = 220 + (index * 2);
-                const badgeOpacity = safeInterpolate(frame, [badgeDelay, badgeDelay + 4], [0, 1], Easing.out(Easing.cubic));
-                const badgeX = safeInterpolate(frame, [badgeDelay, badgeDelay + 4], [-10, 0], Easing.out(Easing.cubic));
-                
-                return (
-                  <div
-                    key={spec}
-                    style={{
-                      ...TYPOGRAPHY.badge,
-                      padding: '24px 36px',
-                      background: 'rgba(78, 205, 196, 0.25)',
-                      border: '3px solid #4ECDC4',
-                      borderRadius: '40px',
-                      color: '#4ECDC4',
-                      minHeight: '60px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      opacity: badgeOpacity * animations.specsScene.opacity,
-                      transform: `translateX(${badgeX}px)`
-                    }}
-                  >
-                    {spec}
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{
-              ...TYPOGRAPHY.body,
-              color: '#e5e5e5',
-              maxWidth: '900px',
-              margin: '0 auto'
-            }}>
-              Powered by ByteDance's advanced machine learning infrastructure
-            </div>
-          </div>
+      </div>
+
+      {/* Scene 4: Quality */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%, -50%) translateY(${animations.scene4.entryY}px)`,
+          opacity: animations.scene4.opacity,
+          textAlign: 'center',
+          color: 'white'
+        }}
+      >
+        <div style={TYPOGRAPHY.h1}>Premium Quality</div>
+        <div style={{...TYPOGRAPHY.body, marginTop: '32px', opacity: 0.8}}>
+          4K resolution with smooth animations
         </div>
-      )}
+      </div>
+
+      {/* Scene 5: Call to Action */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: `translate(-50%, -50%) translateY(${animations.scene5.entryY}px)`,
+          opacity: animations.scene5.opacity,
+          textAlign: 'center',
+          color: 'white'
+        }}
+      >
+        <div style={TYPOGRAPHY.display}>Try Seedream Today</div>
+        <div style={{
+          ...TYPOGRAPHY.h2,
+          marginTop: '32px',
+          padding: '16px 32px',
+          background: 'rgba(255, 255, 255, 0.2)',
+          borderRadius: '12px',
+          border: '2px solid rgba(255, 255, 255, 0.3)'
+        }}>
+          seedream.ai
+        </div>
+      </div>
     </AbsoluteFill>
   );
 };
