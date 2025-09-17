@@ -100,9 +100,20 @@ import {RemotionRoot} from './Root';
 
 registerRoot(RemotionRoot);`;
 
-    await fsp.writeFile(rootTsx, rootContent);
-    await fsp.writeFile(compTsx, compContent);
-    await fsp.writeFile(indexTs, indexContent);
+    // Only write Root.tsx if it doesn't exist (preserve existing comprehensive Root.tsx)
+    if (!(await fileExists(rootTsx))) {
+      await fsp.writeFile(rootTsx, rootContent);
+    }
+
+    // Only write Composition.tsx if it doesn't exist
+    if (!(await fileExists(compTsx))) {
+      await fsp.writeFile(compTsx, compContent);
+    }
+
+    // Only write index.ts if it doesn't exist
+    if (!(await fileExists(indexTs))) {
+      await fsp.writeFile(indexTs, indexContent);
+    }
   }
 
   // Ensure dependencies are installed

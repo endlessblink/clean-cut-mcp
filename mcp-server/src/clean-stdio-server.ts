@@ -135,8 +135,17 @@ class TrueAiStdioMcpServer {
             }
           },
           {
-            name: 'get_project_guidelines', 
+            name: 'get_project_guidelines',
             description: 'Get project configuration and naming guidelines for animations',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'rebuild_compositions',
+            description: 'Rebuild Root.tsx to register ALL existing animations in workspace',
             inputSchema: {
               type: 'object',
               properties: {},
@@ -162,7 +171,9 @@ class TrueAiStdioMcpServer {
         } else if (name === 'list_existing_components') {
           return await this.handleListExistingComponents();
         } else if (name === 'get_project_guidelines') {
-          return await this.handleGetProjectGuidelines();  
+          return await this.handleGetProjectGuidelines();
+        } else if (name === 'rebuild_compositions') {
+          return await this.handleRebuildCompositions();  
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -461,6 +472,99 @@ class TrueAiStdioMcpServer {
     }
   }
 
+  private async handleRebuildCompositions() {
+    try {
+      await this.rebuildComprehensiveRootTsx();
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[COMPOSITIONS REBUILT] Root.tsx rebuilt with ALL workspace animations\\n\\n` +
+                `[SCANNED] All .tsx files in workspace\\n` +
+                `[REGISTERED] All components automatically added\\n` +
+                `[STUDIO] Available at http://localhost:${STUDIO_PORT}\\n\\n` +
+                `[SUCCESS] All animations now visible in Remotion Studio!`
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Failed to rebuild compositions: ${error instanceof Error ? error.message : String(error)}`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  // Rebuild Root.tsx with ALL animations from workspace
+  private async rebuildComprehensiveRootTsx(): Promise<void> {
+    const rootPath = path.join(SRC_DIR, 'Root.tsx');
+
+    try {
+      // Scan workspace for all animation components
+      const files = await fs.readdir(SRC_DIR);
+      const componentFiles = files.filter(file =>
+        file.endsWith('.tsx') &&
+        file !== 'Composition.tsx' &&
+        file !== 'Root.tsx' &&
+        file !== 'index.ts'
+      );
+
+      // Build imports and compositions for all components
+      const imports: string[] = [];
+      const compositions: string[] = [];
+
+      for (const file of componentFiles) {
+        const componentName = file.replace('.tsx', '');
+        imports.push(`import { ${componentName} } from './${componentName}';`);
+
+        // Determine duration based on component type/name patterns
+        let duration = 180; // Default 6 seconds
+        if (componentName.toLowerCase().includes('showcase')) duration = 300; // 10 seconds
+        if (componentName.toLowerCase().includes('bouncing') || componentName.toLowerCase().includes('jumping')) duration = 180; // 6 seconds
+        if (componentName.toLowerCase().includes('test')) duration = 90; // 3 seconds
+        if (componentName.toLowerCase().includes('seedream')) duration = 300; // 10 seconds
+
+        compositions.push(`      <Composition
+        id="${componentName}"
+        component={${componentName}}
+        durationInFrames={${duration}}
+        fps={30}
+        width={1920}
+        height={1080}
+      />`);
+      }
+
+      // Build comprehensive Root.tsx
+      const rootContent = `import { Composition } from 'remotion';
+import { Comp } from './Composition';
+${imports.join('\n')}
+
+export const RemotionRoot: React.FC = () => {
+  return (
+    <>
+      <Composition
+        id="Main"
+        component={Comp}
+        durationInFrames={90}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+${compositions.join('\n')}
+    </>
+  );
+};`;
+
+      await fs.writeFile(rootPath, rootContent);
+      log('info', `Rebuilt Root.tsx with ${componentFiles.length} animations`);
+    } catch (error) {
+      log('error', 'Failed to rebuild comprehensive Root.tsx', { error: error.message });
+      throw error;
+    }
+  }
+
   // Update Root.tsx to register the new animation
   private async updateRootTsx(componentName: string, duration: number): Promise<void> {
     const rootPath = path.join(SRC_DIR, 'Root.tsx');
@@ -590,7 +694,7 @@ ${compositions.map(comp => `      <Composition
     await this.server.connect(transport);
     
     log('info', 'TRUE AI STDIO MCP Server connected and ready!');
-    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines');
+    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions');
     log('info', 'Claude Desktop can now generate ANY animation using TRUE AI!');
   }
 }
