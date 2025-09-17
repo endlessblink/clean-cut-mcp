@@ -16,8 +16,8 @@ const __dirname = path.dirname(__filename);
 
 // Configuration - Standardized to 6970/6971 ports
 const APP_ROOT = process.env.DOCKER_CONTAINER === 'true' ? '/app' : path.resolve(__dirname, '../..');
-const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'exports');
-const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'src');
+const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'clean-cut-exports');
+const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'clean-cut-components');
 const STUDIO_PORT = parseInt(process.env.REMOTION_STUDIO_PORT || '6970');
 
 // Safe stderr-only logging (no stdout pollution for STDIO)

@@ -133,13 +133,13 @@ docker-compose up -d
 # Creates and mounts: ./clean-cut-exports
 ```
 
-**Manual Docker Run**:
+**Manual Docker Run with Full Persistence**:
 ```bash
 # Windows
-docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "%cd%/clean-cut-exports:/workspace/out" clean-cut-mcp
+docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "%cd%/clean-cut-exports:/workspace/out" -v "%cd%/clean-cut-components:/workspace/src" clean-cut-mcp
 
 # macOS/Linux
-docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$(pwd)/clean-cut-exports:/workspace/out" clean-cut-mcp
+docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$(pwd)/clean-cut-exports:/workspace/out" -v "$(pwd)/clean-cut-components:/workspace/src" clean-cut-mcp
 ```
 
 ### MCP Tools Available
@@ -150,10 +150,11 @@ docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$(pwd)/clean-cu
 - `get_studio_url` - Gets Remotion Studio URL
 
 ### Technical Implementation
-- **Volume Mount**: `/workspace/out` (container) ↔ `./clean-cut-exports` (host)
-- **Auto-Creation**: Export directory created automatically with proper permissions
+- **Video Export Volume**: `/workspace/out` (container) ↔ `./clean-cut-exports` (host)
+- **Component Persistence Volume**: `/workspace/src` (container) ↔ `./clean-cut-components` (host)
+- **Auto-Creation**: Both directories created automatically with proper permissions
 - **Path Conversion**: Windows paths automatically converted for Docker compatibility
-- **Write Testing**: Directory write permissions validated during setup
+- **Complete Persistence**: Components survive container rebuilds and restarts
 
 ## 🛡️ INSTALLATION SAFETY:
 The PowerShell installer MUST:

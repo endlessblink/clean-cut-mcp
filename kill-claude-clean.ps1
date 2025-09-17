@@ -14,7 +14,7 @@ foreach ($processName in $claudeProcesses) {
         $processes = Get-Process -Name $processName -ErrorAction SilentlyContinue
         if ($processes) {
             Write-Host "Found $($processes.Count) instance(s) of '$processName'" -ForegroundColor Yellow
-            
+
             foreach ($process in $processes) {
                 try {
                     Stop-Process -Id $process.Id -Force -ErrorAction Stop
@@ -44,7 +44,7 @@ Write-Host "Clearing Claude Desktop Cache..." -ForegroundColor Yellow
 
 $cacheLocations = @(
     "$env:LOCALAPPDATA\Claude\Logs",
-    "$env:LOCALAPPDATA\Claude\Cache", 
+    "$env:LOCALAPPDATA\Claude\Cache",
     "$env:LOCALAPPDATA\Claude\Local Storage",
     "$env:LOCALAPPDATA\Claude\Session Storage",
     "$env:LOCALAPPDATA\Claude\IndexedDB"

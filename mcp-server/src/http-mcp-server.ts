@@ -12,21 +12,30 @@ import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
-import { createWriteStream } from 'fs';
+import { createWriteStream, mkdirSync } from 'fs';
 import { randomUUID } from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration
-const MCP_PORT = parseInt(process.env.MCP_PORT || '6961');
-const STUDIO_PORT = parseInt(process.env.REMOTION_STUDIO_PORT || '6960');
+const MCP_PORT = parseInt(process.env.MCP_PORT || '6971');
+const STUDIO_PORT = parseInt(process.env.REMOTION_STUDIO_PORT || '6970');
 const APP_ROOT = process.env.DOCKER_CONTAINER === 'true' ? '/app' : path.resolve(__dirname, '../..');
-const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'exports');
-const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'src');
+const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'clean-cut-exports');
+const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'clean-cut-components');
+const LOG_FILE = process.env.DOCKER_CONTAINER === 'true'
+  ? path.join('/app', 'mcp-server', 'clean-cut-mcp.log')
+  : path.join(APP_ROOT, 'mcp-server', 'clean-cut-mcp.log');
 
 // CRITICAL FIX: Safe stderr-only logging (no stdout pollution)
-const logStream = createWriteStream('clean-cut-mcp.log', { flags: 'a' });
+mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+const logStream = createWriteStream(LOG_FILE, { flags: 'a' });
+logStream.on('error', (err) => {
+  const timestamp = new Date().toISOString();
+  console.error(`[${timestamp}] [ERROR] Failed to write to log file: ${LOG_FILE}`);
+  console.error(err instanceof Error ? err.stack || err.message : String(err));
+});
 const log = (level: string, message: string, data?: any) => {
   const timestamp = new Date().toISOString();
   // Use stderr ONLY - never stdout (breaks JSON-RPC)
@@ -1602,6 +1611,7 @@ async function startServer() {
     log('info', `App Root: ${APP_ROOT}`);
     log('info', `Exports Directory: ${EXPORTS_DIR}`);
     log('info', `Source Directory: ${SRC_DIR}`);
+    log('info', `Log File: ${LOG_FILE}`);
     
     // Ensure directories exist
     await fs.mkdir(EXPORTS_DIR, { recursive: true });
