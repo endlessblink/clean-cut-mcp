@@ -7,17 +7,7 @@ import {
   Easing,
 } from 'remotion';
 
-// Safe interpolation helper - prevents inputRange monotonic errors
-const safeInterpolate = (frame, inputRange, outputRange, easing) => {
-  const [inputStart, inputEnd] = inputRange;
-  const [outputStart, outputEnd] = outputRange;
-  if (inputEnd === inputStart) return outputStart;
-  if (frame <= inputStart) return outputStart;
-  if (frame >= inputEnd) return outputEnd;
-  return interpolate(frame, inputRange, outputRange, { easing });
-};
-
-export const BouncingBall: React.FC = () => {
+export const BouncingBallRecreated: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames, width, height } = useVideoConfig();
 
@@ -54,11 +44,13 @@ export const BouncingBall: React.FC = () => {
   );
 
   // Scale animation for squash effect
-  const scale = safeInterpolate(
+  const scale = interpolate(
     bounceHeight,
     [height - 100, height / 2, 50],
     [0.8, 1, 1.2],
-    Easing.out(Easing.quad)
+    {
+      easing: Easing.out(Easing.quad),
+    }
   );
 
   // Background gradient animation

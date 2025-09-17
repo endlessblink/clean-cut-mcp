@@ -179,6 +179,65 @@ class TrueAiStdioMcpServer {
     });
   }
 
+  private validateAndFixInterpolate(code: string): string {
+    // Pattern to detect interpolate calls with potential issues
+    const interpolatePattern = /interpolate\s*\(\s*([^,]+),\s*\[([^\]]+)\],\s*\[([^\]]+)\]/g;
+
+    let hasUnsafeInterpolate = false;
+    let matches;
+
+    // Check for descending inputRange arrays
+    while ((matches = interpolatePattern.exec(code)) !== null) {
+      const inputRangeStr = matches[2];
+      const numbers = inputRangeStr.split(',').map(s => {
+        const trimmed = s.trim();
+        // Handle expressions like "height - 100", "height / 2"
+        if (trimmed.includes('height')) {
+          if (trimmed.includes('- 100')) return 980; // height - 100 = 980
+          if (trimmed.includes('/ 2')) return 540;   // height / 2 = 540
+          return 1080; // just height = 1080
+        }
+        return parseFloat(trimmed) || 0;
+      });
+
+      // Check if array is descending (monotonic violation)
+      for (let i = 1; i < numbers.length; i++) {
+        if (numbers[i] <= numbers[i-1]) {
+          hasUnsafeInterpolate = true;
+          break;
+        }
+      }
+    }
+
+    if (!hasUnsafeInterpolate) {
+      return code; // No issues found
+    }
+
+    // Add safeInterpolate helper function at the top of component
+    const safeInterpolateFunction = `
+  // Safe interpolation helper - prevents inputRange monotonic errors
+  const safeInterpolate = (frame, inputRange, outputRange, easing) => {
+    const [inputStart, inputEnd] = inputRange;
+    const [outputStart, outputEnd] = outputRange;
+    if (inputEnd === inputStart) return outputStart;
+    if (frame <= inputStart) return outputStart;
+    if (frame >= inputEnd) return outputEnd;
+    return interpolate(frame, inputRange, outputRange, { easing });
+  };
+`;
+
+    // Insert safeInterpolate function after imports and before component body
+    const insertAfterImports = code.replace(
+      /(import\s+.*from\s+['"][^'"]+['"];?\s*\n)+/,
+      '$&\n' + safeInterpolateFunction
+    );
+
+    // Replace unsafe interpolate calls with safeInterpolate
+    const safeCode = insertAfterImports.replace(/\binterpolate\s*\(/g, 'safeInterpolate(');
+
+    return safeCode;
+  }
+
   private async handleCreateAnimation(args: any) {
     const { code, componentName, duration = 8 } = args || {};
 
@@ -220,12 +279,16 @@ class TrueAiStdioMcpServer {
     }
     
     // Write Claude's generated code with export pattern fix for Remotion compatibility
-    // CRITICAL FIX: Convert 'export default ComponentName' to 'export { ComponentName }' 
+    // CRITICAL FIX: Convert 'export default ComponentName' to 'export { ComponentName }'
     const fixedCode = code.replace(
       new RegExp(`export\\s+default\\s+${validComponentName}\\s*;?`, 'g'),
       `export { ${validComponentName} };`
     );
-    await fs.writeFile(componentPath, fixedCode);
+
+    // INTERPOLATE VALIDATION: Detect and fix unsafe interpolate patterns
+    const safeCode = this.validateAndFixInterpolate(fixedCode);
+
+    await fs.writeFile(componentPath, safeCode);
     log('info', `Created animation file with Claude's code: ${componentPath}`);
 
     const overwriteWarning = componentExists ? `\\n[WARNING] Overwrote existing ${validComponentName} component` : '';
