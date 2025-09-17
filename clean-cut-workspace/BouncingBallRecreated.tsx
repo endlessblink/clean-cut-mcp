@@ -46,8 +46,8 @@ export const BouncingBallRecreated: React.FC = () => {
   // Scale animation for squash effect
   const scale = interpolate(
     bounceHeight,
-    [height - 100, height / 2, 50],
-    [0.8, 1, 1.2],
+    [50, height / 2, height - 100],
+    [1.2, 1, 0.8],
     {
       easing: Easing.out(Easing.quad),
     }
