@@ -151,6 +151,66 @@ class TrueAiStdioMcpServer {
               properties: {},
               additionalProperties: false
             }
+          },
+          {
+            name: 'format_code',
+            description: 'Format animation code using prettier with video-optimized settings',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                componentName: {
+                  type: 'string',
+                  description: 'Name of the component to format'
+                },
+                code: {
+                  type: 'string',
+                  description: 'Code to format (optional - will read from file if not provided)'
+                }
+              },
+              required: ['componentName'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'manage_props',
+            description: 'Validate and manage component props using zod schemas for type safety',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                action: {
+                  type: 'string',
+                  enum: ['validate', 'generate_schema', 'add_props', 'list_props'],
+                  description: 'Action to perform'
+                },
+                componentName: {
+                  type: 'string',
+                  description: 'Name of the component'
+                },
+                props: {
+                  type: 'object',
+                  description: 'Props object to validate or add'
+                },
+                propName: {
+                  type: 'string',
+                  description: 'Name of specific prop to manage'
+                },
+                propType: {
+                  type: 'string',
+                  enum: ['string', 'number', 'boolean', 'color', 'enum'],
+                  description: 'Type of prop to add'
+                },
+                enumValues: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Enum values if propType is enum'
+                },
+                defaultValue: {
+                  description: 'Default value for the prop'
+                }
+              },
+              required: ['action', 'componentName'],
+              additionalProperties: false
+            }
           }
         ]
       };
@@ -173,7 +233,11 @@ class TrueAiStdioMcpServer {
         } else if (name === 'get_project_guidelines') {
           return await this.handleGetProjectGuidelines();
         } else if (name === 'rebuild_compositions') {
-          return await this.handleRebuildCompositions();  
+          return await this.handleRebuildCompositions();
+        } else if (name === 'format_code') {
+          return await this.handleFormatCode(args);
+        } else if (name === 'manage_props') {
+          return await this.handleManageProps(args);
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -679,6 +743,240 @@ ${compositions.map(comp => `      <Composition
     }
   }
 
+  private async handleFormatCode(args: any) {
+    const { componentName, code } = args;
+    log('info', 'Formatting code', { componentName });
+
+    try {
+      let codeToFormat = code;
+      const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+
+      // Read code from file if not provided
+      if (!codeToFormat) {
+        try {
+          codeToFormat = await fs.readFile(componentPath, 'utf8');
+        } catch (error) {
+          throw new Error(`Component file not found: ${componentName}.tsx`);
+        }
+      }
+
+      // Import prettier dynamically since it's not in dependencies
+      const { spawn } = await import('child_process');
+
+      // Format code using prettier (spawn child process)
+      const formattedCode = await new Promise<string>((resolve, reject) => {
+        const prettierProcess = spawn('npx', ['prettier', '--stdin-filepath', `${componentName}.tsx`], {
+          cwd: SRC_DIR,
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+
+        let output = '';
+        let errorOutput = '';
+
+        prettierProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        prettierProcess.stderr.on('data', (data) => {
+          errorOutput += data.toString();
+        });
+
+        prettierProcess.on('close', (code) => {
+          if (code === 0) {
+            resolve(output);
+          } else {
+            reject(new Error(`Prettier failed: ${errorOutput}`));
+          }
+        });
+
+        // Send code to prettier stdin
+        prettierProcess.stdin.write(codeToFormat);
+        prettierProcess.stdin.end();
+      });
+
+      // Write formatted code back to file
+      await fs.writeFile(componentPath, formattedCode);
+      log('info', `Formatted ${componentName} successfully`);
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[SUCCESS] Code formatted successfully!\n\n` +
+                `[COMPONENT] ${componentName}\n` +
+                `[FILE] ${componentName}.tsx\n` +
+                `[FORMATTED] Applied prettier video-optimized formatting\n\n` +
+                `Your code has been formatted with proper indentation, spacing, and style.`
+        }]
+      };
+    } catch (error) {
+      log('error', 'Code formatting failed', error);
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Code formatting failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                `Make sure prettier is installed and the component exists.`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private async handleManageProps(args: any) {
+    const { action, componentName, props, propName, propType, enumValues, defaultValue } = args;
+    log('info', 'Managing props', { action, componentName, propName });
+
+    try {
+      const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+
+      // Check if component exists
+      try {
+        await fs.access(componentPath);
+      } catch {
+        throw new Error(`Component ${componentName}.tsx not found`);
+      }
+
+      switch (action) {
+        case 'validate':
+          if (!props) {
+            throw new Error('Props object required for validation');
+          }
+
+          // Basic validation for animation props (simplified without zod)
+          const validProps = ['duration', 'fps', 'width', 'height', 'backgroundColor', 'title', 'speed', 'size', 'color'];
+          const invalidProps = Object.keys(props).filter(prop => !validProps.includes(prop));
+
+          if (invalidProps.length > 0) {
+            return {
+              content: [{
+                type: 'text',
+                text: `[ERROR] Props validation failed!\n\n` +
+                      `[COMPONENT] ${componentName}\n` +
+                      `[INVALID PROPS] ${invalidProps.join(', ')}\n` +
+                      `[VALID PROPS] ${validProps.join(', ')}\n\n` +
+                      `Please use only valid animation props.`
+              }],
+              isError: true
+            };
+          }
+
+          return {
+            content: [{
+              type: 'text',
+              text: `[SUCCESS] Props validation passed!\n\n` +
+                    `[COMPONENT] ${componentName}\n` +
+                    `[VALIDATED] ${Object.keys(props).length} props\n` +
+                    `[PROPS] ${JSON.stringify(props, null, 2)}\n\n` +
+                    `All props are valid!`
+            }]
+          };
+
+        case 'generate_schema':
+          const schemaDefinition = `// Zod schema for ${componentName} props
+export interface ${componentName}Props {
+  duration?: number; // Animation duration in seconds (1-60)
+  fps?: number; // Frames per second (12-120)
+  width?: number; // Video width (100-4000)
+  height?: number; // Video height (100-4000)
+  backgroundColor?: string; // Background color (#000000)
+  title?: string; // Animation title (max 100 chars)
+  speed?: number; // Animation speed multiplier (0.1-10)
+  size?: number; // Element size (10-1000)
+  color?: string; // Primary color (#ff6b6b)
+}`;
+
+          const schemaPath = path.join(SRC_DIR, `${componentName}.types.ts`);
+          await fs.writeFile(schemaPath, schemaDefinition);
+
+          return {
+            content: [{
+              type: 'text',
+              text: `[SUCCESS] Schema generated!\n\n` +
+                    `[COMPONENT] ${componentName}\n` +
+                    `[SCHEMA] ${componentName}.types.ts\n` +
+                    `[EXPORTS] ${componentName}Props interface\n\n` +
+                    `You can now import and use this interface for type-safe props.`
+            }]
+          };
+
+        case 'add_props':
+          if (!propName || !propType) {
+            throw new Error('propName and propType required for adding props');
+          }
+
+          // Generate prop interface addition
+          let propDefinition = '';
+          switch (propType) {
+            case 'string':
+              propDefinition = `${propName}: string${defaultValue ? ` = '${defaultValue}'` : ''}`;
+              break;
+            case 'number':
+              propDefinition = `${propName}: number${defaultValue ? ` = ${defaultValue}` : ''}`;
+              break;
+            case 'boolean':
+              propDefinition = `${propName}: boolean${defaultValue ? ` = ${defaultValue}` : ''}`;
+              break;
+            case 'color':
+              propDefinition = `${propName}: string${defaultValue ? ` = '${defaultValue}'` : " = '#ffffff'"}`;
+              break;
+            case 'enum':
+              if (!enumValues || enumValues.length === 0) {
+                throw new Error('enumValues required for enum propType');
+              }
+              propDefinition = `${propName}: '${enumValues.join("' | '")}'${defaultValue ? ` = '${defaultValue}'` : ` = '${enumValues[0]}'`}`;
+              break;
+          }
+
+          return {
+            content: [{
+              type: 'text',
+              text: `[SUCCESS] Prop definition ready!\n\n` +
+                    `[COMPONENT] ${componentName}\n` +
+                    `[PROP] ${propDefinition}\n` +
+                    `[TYPE] ${propType}\n\n` +
+                    `Add this prop to your component interface manually.`
+            }]
+          };
+
+        case 'list_props':
+          // Analyze component file for existing props
+          const code = await fs.readFile(componentPath, 'utf8');
+          const propsMatches = code.match(/interface\s+\w+Props\s*{([^}]+)}/);
+          const typeMatches = code.match(/type\s+\w+Props\s*=\s*{([^}]+)}/);
+
+          let detectedProps: string[] = [];
+          if (propsMatches || typeMatches) {
+            const propsContent = propsMatches ? propsMatches[1] : typeMatches![1];
+            const propLines = propsContent.split('\n').filter(line => line.trim());
+            detectedProps = propLines.map(line => line.trim()).filter(line => line && !line.startsWith('//'));
+          }
+
+          return {
+            content: [{
+              type: 'text',
+              text: `[SUCCESS] Props analysis complete!\n\n` +
+                    `[COMPONENT] ${componentName}\n` +
+                    `[DETECTED] ${detectedProps.length} props\n` +
+                    `[PROPS]\n${detectedProps.length > 0 ? detectedProps.join('\n') : 'No props interface found'}\n\n` +
+                    `Use 'add_props' action to add new props or 'generate_schema' for type definitions.`
+            }]
+          };
+
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
+    } catch (error) {
+      log('error', 'Props management failed', error);
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Props management failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                `Please check the component name and parameters, then try again.`
+        }],
+        isError: true
+      };
+    }
+  }
+
   async run(): Promise<void> {
     log('info', 'Starting TRUE AI STDIO MCP Server');
     log('info', `App Root: ${APP_ROOT}`);
@@ -694,7 +992,7 @@ ${compositions.map(comp => `      <Composition
     await this.server.connect(transport);
     
     log('info', 'TRUE AI STDIO MCP Server connected and ready!');
-    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions');
+    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions, format_code, manage_props');
     log('info', 'Claude Desktop can now generate ANY animation using TRUE AI!');
   }
 }

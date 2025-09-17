@@ -4,10 +4,13 @@ import {Comp} from './Composition';
 
 // AUTO-GENERATED IMPORTS - Updated by MCP tools
 import {FloatingOrbs} from './FloatingOrbs';
+import {GitHubProfileMegaShowcase} from './GitHubProfileMegaShowcase';
 import {GitHubProfileShowcase} from './GitHubProfileShowcase';
+import {GitHubProfileShowcaseEnhanced} from './GitHubProfileShowcaseEnhanced';
 import {ProductShowcase} from './ProductShowcase';
 import {SeedreamGracefulTransitions} from './SeedreamGracefulTransitions';
 import {SocialMediaFeed} from './SocialMediaFeed';
+import {SundownSerenity} from './SundownSerenity';
 import {TweetAnimation} from './TweetAnimation';
 
 // Component Registry - Automatically maintained
@@ -19,8 +22,20 @@ const COMPONENT_REGISTRY = [
     description: 'Floating orb particle effects'
   },
   {
+    name: 'GitHubProfileMegaShowcase',
+    component: GitHubProfileMegaShowcase,
+    duration: 450,
+    description: 'GitHub profile showcase animation'
+  },
+  {
     name: 'GitHubProfileShowcase',
     component: GitHubProfileShowcase,
+    duration: 450,
+    description: 'GitHub profile showcase animation'
+  },
+  {
+    name: 'GitHubProfileShowcaseEnhanced',
+    component: GitHubProfileShowcaseEnhanced,
     duration: 450,
     description: 'GitHub profile showcase animation'
   },
@@ -41,6 +56,12 @@ const COMPONENT_REGISTRY = [
     component: SocialMediaFeed,
     duration: 600,
     description: 'Social media feed animation'
+  },
+  {
+    name: 'SundownSerenity',
+    component: SundownSerenity,
+    duration: 360,
+    description: 'SundownSerenity animation component'
   },
   {
     name: 'TweetAnimation',

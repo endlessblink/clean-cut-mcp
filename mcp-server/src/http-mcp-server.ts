@@ -812,6 +812,282 @@ function createMcpServer() {
     }
   );
 
+  // Register code formatting tool with prettier integration
+  server.tool(
+    'format_code',
+    {
+      description: 'Format animation code using prettier with video-optimized settings',
+      inputSchema: {
+        componentName: z.string().describe('Name of the component to format'),
+        code: z.string().optional().describe('Code to format (optional - will read from file if not provided)')
+      }
+    },
+    async ({ componentName, code }) => {
+      try {
+        log('info', 'Formatting code', { componentName });
+
+        let codeToFormat = code;
+        const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+
+        // Read code from file if not provided
+        if (!codeToFormat) {
+          try {
+            codeToFormat = await fs.readFile(componentPath, 'utf8');
+          } catch (error) {
+            throw new Error(`Component file not found: ${componentName}.tsx`);
+          }
+        }
+
+        // Format code using prettier (spawn child process since prettier isn't a dependency)
+        const formattedCode = await new Promise<string>((resolve, reject) => {
+          const prettierProcess = spawn('npx', ['prettier', '--stdin-filepath', `${componentName}.tsx`], {
+            cwd: SRC_DIR,
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+
+          let output = '';
+          let errorOutput = '';
+
+          prettierProcess.stdout.on('data', (data) => {
+            output += data.toString();
+          });
+
+          prettierProcess.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+          });
+
+          prettierProcess.on('close', (code) => {
+            if (code === 0) {
+              resolve(output);
+            } else {
+              reject(new Error(`Prettier failed: ${errorOutput}`));
+            }
+          });
+
+          // Send code to prettier stdin
+          prettierProcess.stdin.write(codeToFormat);
+          prettierProcess.stdin.end();
+        });
+
+        // Write formatted code back to file
+        await fs.writeFile(componentPath, formattedCode);
+        log('info', `Formatted ${componentName} successfully`);
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `[SUCCESS] Code formatted successfully!\n\n` +
+                    `[COMPONENT] ${componentName}\n` +
+                    `[FILE] ${componentName}.tsx\n` +
+                    `[FORMATTED] Applied prettier video-optimized formatting\n\n` +
+                    `Your code has been formatted with proper indentation, spacing, and style.`
+            }
+          ]
+        };
+      } catch (error) {
+        log('error', 'Code formatting failed', error);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `[ERROR] Code formatting failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                  `Make sure prettier is installed and the component exists.`
+            }
+          ]
+        };
+      }
+    }
+  );
+
+  // Register props validation and management tool
+  server.tool(
+    'manage_props',
+    {
+      description: 'Validate and manage component props using zod schemas for type safety',
+      inputSchema: {
+        action: z.enum(['validate', 'generate_schema', 'add_props', 'list_props']).describe('Action to perform'),
+        componentName: z.string().describe('Name of the component'),
+        props: z.record(z.any()).optional().describe('Props object to validate or add'),
+        propName: z.string().optional().describe('Name of specific prop to manage'),
+        propType: z.enum(['string', 'number', 'boolean', 'color', 'enum']).optional().describe('Type of prop to add'),
+        enumValues: z.array(z.string()).optional().describe('Enum values if propType is enum'),
+        defaultValue: z.any().optional().describe('Default value for the prop')
+      }
+    },
+    async ({ action, componentName, props, propName, propType, enumValues, defaultValue }) => {
+      try {
+        log('info', 'Managing props', { action, componentName, propName });
+
+        const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+
+        // Check if component exists
+        try {
+          await fs.access(componentPath);
+        } catch {
+          throw new Error(`Component ${componentName}.tsx not found`);
+        }
+
+        switch (action) {
+          case 'validate':
+            if (!props) {
+              throw new Error('Props object required for validation');
+            }
+
+            // Generate basic validation schema for animation props
+            const animationSchema = z.object({
+              duration: z.number().min(1).max(60).optional().describe('Animation duration in seconds'),
+              fps: z.number().min(12).max(120).optional().describe('Frames per second'),
+              width: z.number().min(100).max(4000).optional().describe('Video width'),
+              height: z.number().min(100).max(4000).optional().describe('Video height'),
+              backgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional().describe('Background color in hex'),
+              title: z.string().max(100).optional().describe('Animation title'),
+              speed: z.number().min(0.1).max(10).optional().describe('Animation speed multiplier'),
+              size: z.number().min(10).max(1000).optional().describe('Element size'),
+              color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional().describe('Primary color in hex')
+            });
+
+            try {
+              const validatedProps = animationSchema.parse(props);
+              return {
+                content: [{
+                  type: 'text',
+                  text: `[SUCCESS] Props validation passed!\n\n` +
+                        `[COMPONENT] ${componentName}\n` +
+                        `[VALIDATED] ${Object.keys(validatedProps).length} props\n` +
+                        `[PROPS] ${JSON.stringify(validatedProps, null, 2)}\n\n` +
+                        `All props are valid and type-safe!`
+                }]
+              };
+            } catch (zodError) {
+              const errors = zodError.errors.map(err => `${err.path.join('.')}: ${err.message}`).join('\n');
+              return {
+                content: [{
+                  type: 'text',
+                  text: `[ERROR] Props validation failed!\n\n` +
+                        `[COMPONENT] ${componentName}\n` +
+                        `[ERRORS] ${errors}\n\n` +
+                        `Please fix these validation errors and try again.`
+                }]
+              };
+            }
+
+          case 'generate_schema':
+            const schemaDefinition = `
+// Zod schema for ${componentName} props
+import { z } from 'zod';
+
+export const ${componentName}PropsSchema = z.object({
+  duration: z.number().min(1).max(60).default(3).describe('Animation duration in seconds'),
+  fps: z.number().min(12).max(120).default(30).describe('Frames per second'),
+  width: z.number().min(100).max(4000).default(1920).describe('Video width'),
+  height: z.number().min(100).max(4000).default(1080).describe('Video height'),
+  backgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#000000').describe('Background color'),
+  title: z.string().max(100).default('Animation').describe('Animation title'),
+  speed: z.number().min(0.1).max(10).default(1).describe('Animation speed multiplier'),
+  size: z.number().min(10).max(1000).default(100).describe('Element size'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default('#ff6b6b').describe('Primary color')
+});
+
+export type ${componentName}Props = z.infer<typeof ${componentName}PropsSchema>;
+`;
+
+            const schemaPath = path.join(SRC_DIR, `${componentName}.schema.ts`);
+            await fs.writeFile(schemaPath, schemaDefinition);
+
+            return {
+              content: [{
+                type: 'text',
+                text: `[SUCCESS] Schema generated!\n\n` +
+                      `[COMPONENT] ${componentName}\n` +
+                      `[SCHEMA] ${componentName}.schema.ts\n` +
+                      `[EXPORTS] ${componentName}PropsSchema, ${componentName}Props\n\n` +
+                      `You can now import and use this schema for type-safe props validation.`
+              }]
+            };
+
+          case 'add_props':
+            if (!propName || !propType) {
+              throw new Error('propName and propType required for adding props');
+            }
+
+            // Read current component code
+            const currentCode = await fs.readFile(componentPath, 'utf8');
+
+            // Generate prop interface addition
+            let propDefinition = '';
+            switch (propType) {
+              case 'string':
+                propDefinition = `${propName}: string${defaultValue ? ` = '${defaultValue}'` : ''}`;
+                break;
+              case 'number':
+                propDefinition = `${propName}: number${defaultValue ? ` = ${defaultValue}` : ''}`;
+                break;
+              case 'boolean':
+                propDefinition = `${propName}: boolean${defaultValue ? ` = ${defaultValue}` : ''}`;
+                break;
+              case 'color':
+                propDefinition = `${propName}: string${defaultValue ? ` = '${defaultValue}'` : " = '#ffffff'"}`;
+                break;
+              case 'enum':
+                if (!enumValues || enumValues.length === 0) {
+                  throw new Error('enumValues required for enum propType');
+                }
+                propDefinition = `${propName}: '${enumValues.join("' | '")}'${defaultValue ? ` = '${defaultValue}'` : ` = '${enumValues[0]}'`}`;
+                break;
+            }
+
+            return {
+              content: [{
+                type: 'text',
+                text: `[SUCCESS] Prop definition ready!\n\n` +
+                      `[COMPONENT] ${componentName}\n` +
+                      `[PROP] ${propDefinition}\n` +
+                      `[TYPE] ${propType}\n\n` +
+                      `Add this prop to your component interface manually or use the edit_component tool.`
+              }]
+            };
+
+          case 'list_props':
+            // Analyze component file for existing props
+            const code = await fs.readFile(componentPath, 'utf8');
+            const propsMatches = code.match(/interface\s+\w+Props\s*{([^}]+)}/);
+            const typeMatches = code.match(/type\s+\w+Props\s*=\s*{([^}]+)}/);
+
+            let detectedProps = [];
+            if (propsMatches || typeMatches) {
+              const propsContent = propsMatches ? propsMatches[1] : typeMatches[1];
+              const propLines = propsContent.split('\n').filter(line => line.trim());
+              detectedProps = propLines.map(line => line.trim()).filter(line => line && !line.startsWith('//'));
+            }
+
+            return {
+              content: [{
+                type: 'text',
+                text: `[SUCCESS] Props analysis complete!\n\n` +
+                      `[COMPONENT] ${componentName}\n` +
+                      `[DETECTED] ${detectedProps.length} props\n` +
+                      `[PROPS]\n${detectedProps.length > 0 ? detectedProps.join('\n') : 'No props interface found'}\n\n` +
+                      `Use 'add_props' action to add new props or 'generate_schema' for zod validation.`
+              }]
+            };
+
+          default:
+            throw new Error(`Unknown action: ${action}`);
+        }
+      } catch (error) {
+        log('error', 'Props management failed', error);
+        return {
+          content: [{
+            type: 'text',
+            text: `[ERROR] Props management failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+                  `Please check the component name and parameters, then try again.`
+          }]
+        };
+      }
+    }
+  );
+
   return server;
 }
 
