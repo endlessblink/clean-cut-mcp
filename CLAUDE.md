@@ -72,7 +72,7 @@ Claude Desktop (Windows) → docker exec → clean-cut-mcp container → Remotio
 5. **Container Conflicts**: Using existing container names → Docker daemon conflicts
 
 ## 🎯 PROJECT GOAL: "One-Script Magic"
-User asks: "Create a bouncing ball animation" → Claude responds: "Animation ready at http://localhost:6970"
+User asks: "Create a text reveal animation" → Claude responds: "Animation ready at http://localhost:6970"
 User exports video from Remotion Studio → Video automatically appears in `./clean-cut-exports` folder
 
 ## 🏗️ ARCHITECTURE: Cross-Platform Docker + MCP + Remotion
@@ -81,7 +81,7 @@ User exports video from Remotion Studio → Video automatically appears in `./cl
 - **Container Name**: `clean-cut-mcp` (unique, no conflicts)
 - **Ports**: 6970 (Remotion Studio), 6971 (MCP HTTP Server)
 - **Tools**: `create_animation`, `list_animations`, `get_studio_url`, `get_export_directory`
-- **Animations**: bouncing-ball, sliding-text, rotating-object, fade-in-out
+- **Animation Types**: text-reveal, logo-entrance, shape-morphing, data-visualization, particle-effects, slide-transitions, ui-animations, kinetic-typography
 - **Networking**: Container exposes localhost:6970-6971 to Windows for Claude Desktop connection
 - **Video Export**: Docker volume mount `/workspace/out` → `./clean-cut-exports` (cross-platform)
 
@@ -190,6 +190,20 @@ This project exists because the original `rough-cuts-mcp` had:
 **Clean-Cut-MCP must be bulletproof and never break anything.**
 **Docker containers are cross-platform by design - don't move them between platforms.**
 
+
+# CRITICAL: REMOTION COMPONENT EXPORT PATTERN
+When generating React/Remotion components, ALWAYS use this exact export pattern:
+
+```typescript
+export const ComponentName: React.FC = () => {
+  // component code
+};
+export default ComponentName;
+```
+
+**NEVER use `const ComponentName:` - it causes undefined component errors in Remotion Studio.**
+
+See REMOTION_EXAMPLES.md and REMOTION_GUIDELINES.md for complete reference patterns.
 
 # CRITICAL: NO EMOJIS IN CODE - JSON PARSING ERRORS
 NEVER use emoji characters in MCP server code, tool responses, or log messages.

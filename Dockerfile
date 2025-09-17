@@ -19,19 +19,36 @@ RUN npm run build
 # Stage 2: Runtime image
 FROM node:22-bookworm-slim
 
-# Install runtime deps: ffmpeg and Google Chrome (for Remotion renders)
+# Install runtime deps: ffmpeg, Chrome dependencies, and minimal browser tools for xdg-open fallback
 RUN apt-get update && \
-    apt-get install -y curl gnupg ca-certificates ffmpeg && \
-    mkdir -p /etc/apt/keyrings && \
-    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
-      | gpg --dearmor -o /etc/apt/keyrings/google-linux.gpg && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-linux.gpg] \
-      http://dl.google.com/linux/chrome/deb/ stable main" \
-      > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && \
-    apt-get install -y google-chrome-stable && \
+    apt-get install -y \
+        curl \
+        gnupg \
+        ca-certificates \
+        ffmpeg \
+        libnss3 \
+        libdbus-1-3 \
+        libatk1.0-0 \
+        libatk-bridge2.0-0 \
+        libgbm-dev \
+        libxss1 \
+        libasound2 \
+        libxdamage1 \
+        libxrandr2 \
+        libxcomposite1 \
+        libxcursor1 \
+        libgtk-3-0 \
+        xdg-utils \
+        w3m && \
     rm -rf /var/lib/apt/lists/* && \
-    ffmpeg -version && google-chrome --version
+    ffmpeg -version
+
+# Install Remotion CLI globally and ensure Chrome Headless Shell is installed
+RUN npm install -g @remotion/cli@4.0.347 remotion@4.0.347 && \
+    npx remotion browser ensure
+
+# Configure xdg-open to use text browser as fallback (prevents "no method available" errors)
+RUN xdg-settings set default-web-browser w3m || true
 
 WORKDIR /app
 
@@ -43,19 +60,29 @@ COPY --from=builder /app/mcp-server/package.json ./mcp-server/package.json
 # Copy supervisor script that initializes workspace and launches both services
 COPY start.js ./start.js
 
+# Copy Remotion configuration and tsconfig to workspace
+COPY clean-cut-workspace/remotion.config.ts ./remotion.config.ts
+COPY clean-cut-workspace/tsconfig.json ./tsconfig.json
+
 # Copy guidelines directory for MCP tools
 COPY claude-dev-guidelines ./claude-dev-guidelines
 
-# Environment variables
+# Environment variables for headless Remotion operation with memory optimization
 ENV NODE_ENV=production \
     DOCKER_CONTAINER=true \
     MCP_SERVER_PORT=6971 \
     REMOTION_STUDIO_PORT=6970 \
     REMOTION_NON_INTERACTIVE=1 \
-    CHROME_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-extensions --disable-plugins --disable-background-networking --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows"
+    REMOTION_OUTPUT_DIR=/workspace/out \
+    DISPLAY=:99 \
+    XDG_RUNTIME_DIR=/tmp/runtime \
+    BROWSER=none \
+    NODE_OPTIONS="--max-old-space-size=2048 --enable-source-maps" \
+    REMOTION_CHROME_FLAGS="--disable-dev-shm-usage --no-sandbox --disable-gpu --disable-extensions --disable-plugins --disable-background-networking --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows"
 
-# Create export directory and volume mount point for Remotion renders
-RUN mkdir -p /workspace/out && chmod 755 /workspace/out
+# Create export directory, XDG runtime directory, and volume mount point for Remotion renders
+RUN mkdir -p /workspace/out && chmod 755 /workspace/out && \
+    mkdir -p /tmp/runtime && chmod 700 /tmp/runtime
 
 # Document exposed ports
 EXPOSE 6970
