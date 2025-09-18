@@ -15,6 +15,7 @@ import { PulsingCircle } from './PulsingCircle';
 import { SeedreamGracefulTransitions } from './SeedreamGracefulTransitions';
 import { SocialMediaFeed } from './SocialMediaFeed';
 import { SundownSerenity } from './SundownSerenity';
+import { TestAnimation } from './TestAnimation';
 import { TweetAnimation } from './TweetAnimation';
 
 const PacmanMazeRunnerWithPropsSchema = z.object({
@@ -149,6 +150,14 @@ export const RemotionRoot: React.FC = () => {
         id="SundownSerenity"
         component={SundownSerenity}
         durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="TestAnimation"
+        component={TestAnimation}
+        durationInFrames={180}
         fps={30}
         width={1920}
         height={1080}

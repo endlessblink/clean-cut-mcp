@@ -146,6 +146,13 @@ registerRoot(RemotionRoot);`;
     await fsp.copyFile(prettierrcApp, prettierrcSrc);
   }
 
+  // CRITICAL: Copy .prettierrc from src to workspace root for Studio component deletion
+  const prettierrcWorkspace = path.join(WORKSPACE, '.prettierrc');
+  if (await fileExists(prettierrcSrc) && !(await fileExists(prettierrcWorkspace))) {
+    await fsp.copyFile(prettierrcSrc, prettierrcWorkspace);
+    console.error('[start.js] Copied .prettierrc for Remotion Studio deletion compatibility');
+  }
+
   // Ensure dependencies are installed
   const nodeModules = path.join(WORKSPACE, 'node_modules');
   if (!(await fileExists(nodeModules))) {
