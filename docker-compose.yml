@@ -10,7 +10,7 @@ services:
       # Videos exported from Remotion Studio appear in ./clean-cut-exports on your host
       - ./clean-cut-exports:/workspace/out
       # Persistent workspace - animations survive container rebuilds (NEW - host-mounted for transparency)
-      - ./clean-cut-workspace:/workspace/src
+      - ./clean-cut-workspace:/workspace
     environment:
       - NODE_ENV=production
       - DOCKER_CONTAINER=true

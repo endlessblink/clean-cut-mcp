@@ -21,16 +21,34 @@ async function fileExists(p) {
 async function ensureWorkspaceInitialized() {
   await ensureDir(WORKSPACE);
   const pkgJsonPath = path.join(WORKSPACE, 'package.json');
-  const srcDir = path.join(WORKSPACE, 'src');
   const outDir = path.join(WORKSPACE, 'out');
-  const rootTsx = path.join(srcDir, 'Root.tsx');
-  const compTsx = path.join(srcDir, 'Composition.tsx');
-  const indexTs = path.join(srcDir, 'index.ts');
+  const rootTsx = path.join(WORKSPACE, 'Root.tsx');
+  const compTsx = path.join(WORKSPACE, 'Composition.tsx');
+  const indexTs = path.join(WORKSPACE, 'index.ts');
 
   // Ensure export directory exists with proper permissions
   await ensureDir(outDir);
-  
-  const needScaffold = !(await fileExists(pkgJsonPath)) || !(await fileExists(srcDir));
+
+  // UNIFIED WORKSPACE: Migrate from /workspace/src if needed
+  const srcDir = path.join(WORKSPACE, 'src');
+  if (await fileExists(srcDir)) {
+    console.error('[start.js] Migrating to unified workspace structure...');
+
+    // Copy all component files from src to workspace root
+    const srcFiles = await fsp.readdir(srcDir);
+    for (const file of srcFiles) {
+      if (file.endsWith('.tsx') || file.endsWith('.ts') || file === '.prettierrc' || file === 'remotion.config.ts' || file === 'tsconfig.json') {
+        const srcPath = path.join(srcDir, file);
+        const destPath = path.join(WORKSPACE, file);
+        if (!(await fileExists(destPath))) {
+          await fsp.copyFile(srcPath, destPath);
+          console.error(`[start.js] Migrated: ${file}`);
+        }
+      }
+    }
+  }
+
+  const needScaffold = !(await fileExists(pkgJsonPath));
 
   if (needScaffold) {
     const pkg = {
@@ -41,7 +59,9 @@ async function ensureWorkspaceInitialized() {
       scripts: {
         start: 'remotion studio',
         render: 'remotion render',
-        upgrade: 'remotion upgrade'
+        upgrade: 'remotion upgrade',
+        prettier: 'prettier',
+        format: 'prettier --write .'
       },
       dependencies: {
         '@remotion/cli': '^4.0.0',
@@ -49,6 +69,9 @@ async function ensureWorkspaceInitialized() {
         'react': '^18.0.0',
         'react-dom': '^18.0.0',
         'remotion': '^4.0.0'
+      },
+      devDependencies: {
+        'prettier': '^3.6.2'
       }
     };
     await fsp.writeFile(pkgJsonPath, JSON.stringify(pkg, null, 2));
@@ -116,10 +139,129 @@ registerRoot(RemotionRoot);`;
     }
   }
 
+  // Copy .prettierrc to workspace src directory for Remotion Studio
+  const prettierrcSrc = path.join(srcDir, '.prettierrc');
+  const prettierrcApp = '/app/.prettierrc';
+  if (await fileExists(prettierrcApp) && !(await fileExists(prettierrcSrc))) {
+    await fsp.copyFile(prettierrcApp, prettierrcSrc);
+  }
+
   // Ensure dependencies are installed
   const nodeModules = path.join(WORKSPACE, 'node_modules');
   if (!(await fileExists(nodeModules))) {
     await run('npm', ['install'], {cwd: WORKSPACE});
+  }
+
+  // SAFE: Enhanced prettier binary verification for Remotion Studio
+  await ensurePrettierBinary();
+}
+
+// SAFE: Comprehensive prettier binary verification with multiple fallbacks
+async function ensurePrettierBinary() {
+  const binDir = path.join(WORKSPACE, 'node_modules', '.bin');
+  const binPath = path.join(binDir, 'prettier');
+
+  console.error('[start.js] Ensuring prettier binary for Remotion Studio deletion...');
+
+  // Method 1: Try npm rebuild (safest approach)
+  try {
+    console.error('[start.js] Attempting npm rebuild to create prettier binary...');
+    await run('npm', ['rebuild'], {cwd: WORKSPACE});
+
+    if (await fileExists(binPath)) {
+      // Verify it works
+      const result = await testPrettierBinary(binPath);
+      if (result) {
+        console.error('[start.js] SUCCESS: npm rebuild created working prettier binary');
+        return true;
+      }
+    }
+  } catch (error) {
+    console.error('[start.js] npm rebuild failed:', error.message);
+  }
+
+  // Method 2: Try npm install prettier specifically
+  try {
+    console.error('[start.js] Attempting direct prettier installation...');
+    await run('npm', ['install', 'prettier@3.6.2', '--save-dev'], {cwd: WORKSPACE});
+
+    if (await fileExists(binPath)) {
+      const result = await testPrettierBinary(binPath);
+      if (result) {
+        console.error('[start.js] SUCCESS: npm install created working prettier binary');
+        return true;
+      }
+    }
+  } catch (error) {
+    console.error('[start.js] npm install prettier failed:', error.message);
+  }
+
+  // Method 3: Create complete prettier package structure with npm recognition
+  try {
+    console.error('[start.js] Creating complete prettier package structure with npm recognition...');
+    const prettierPkgDir = path.join(WORKSPACE, 'node_modules', 'prettier');
+
+    // Create prettier package directory and copy from global installation
+    await fsp.mkdir(prettierPkgDir, { recursive: true });
+    await run('cp', ['-r', '/usr/local/lib/node_modules/prettier/.', prettierPkgDir], {});
+
+    // Update package.json to properly declare prettier dependency
+    const pkgJsonPath = path.join(WORKSPACE, 'package.json');
+    if (await fileExists(pkgJsonPath)) {
+      const pkg = JSON.parse(await fsp.readFile(pkgJsonPath, 'utf-8'));
+      pkg.devDependencies = pkg.devDependencies || {};
+      pkg.devDependencies.prettier = '^3.6.2';
+      await fsp.writeFile(pkgJsonPath, JSON.stringify(pkg, null, 2));
+    }
+
+    // Create binary symlink
+    await fsp.mkdir(binDir, { recursive: true });
+    await fsp.unlink(binPath).catch(() => {}); // Remove existing
+    await fsp.symlink('../prettier/bin/prettier.cjs', binPath);
+
+    // Force npm to recognize the package
+    await run('npm', ['rebuild'], {cwd: WORKSPACE});
+
+    // Verify npm recognizes prettier
+    const npmCheck = await run('npm', ['ls', 'prettier'], {cwd: WORKSPACE}).catch(() => null);
+    const result = await testPrettierBinary(binPath);
+
+    if (result) {
+      console.error('[start.js] SUCCESS: Complete prettier package with npm recognition created');
+      return true;
+    }
+  } catch (error) {
+    console.error('[start.js] Complete prettier package creation failed:', error.message);
+  }
+
+  // Method 4: Fallback to global prettier symlink (current working method)
+  try {
+    console.error('[start.js] Falling back to global prettier symlink...');
+    await fsp.mkdir(binDir, { recursive: true });
+    await fsp.unlink(binPath).catch(() => {}); // Remove existing
+    await fsp.symlink('/usr/local/bin/prettier', binPath);
+
+    const result = await testPrettierBinary(binPath);
+    if (result) {
+      console.error('[start.js] SUCCESS: Global prettier symlink created (fallback)');
+      return true;
+    }
+  } catch (error) {
+    console.error('[start.js] Global prettier symlink failed:', error.message);
+  }
+
+  console.error('[start.js] WARNING: All prettier setup methods failed - Remotion Studio deletion may not work');
+  return false;
+}
+
+// SAFE: Test if prettier binary actually works
+async function testPrettierBinary(binPath) {
+  try {
+    const result = await run('node', [binPath, '--version'], {cwd: WORKSPACE});
+    return true;
+  } catch (error) {
+    console.error(`[start.js] Prettier test failed for ${binPath}:`, error.message);
+    return false;
   }
 }
 

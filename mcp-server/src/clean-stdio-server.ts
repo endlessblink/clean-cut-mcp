@@ -9,6 +9,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import path from 'path';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,6 +32,8 @@ const log = (level: string, message: string, data?: any) => {
 
 class TrueAiStdioMcpServer {
   private server: Server;
+  private rootFileWatcher: fsSync.FSWatcher | null = null;
+  private lastRootContent: string = '';
 
   constructor() {
     this.server = new Server(
@@ -47,6 +50,7 @@ class TrueAiStdioMcpServer {
 
     this.setupToolHandlers();
     this.setupErrorHandling();
+    this.setupFileWatcher();
   }
 
   private setupErrorHandling(): void {
@@ -56,6 +60,10 @@ class TrueAiStdioMcpServer {
 
     process.on('SIGINT', async () => {
       log('info', 'Shutting down gracefully...');
+      if (this.rootFileWatcher) {
+        this.rootFileWatcher.close();
+        log('info', 'File watcher closed');
+      }
       await this.server.close();
       process.exit(0);
     });
@@ -226,6 +234,46 @@ class TrueAiStdioMcpServer {
               },
               additionalProperties: false
             }
+          },
+          {
+            name: 'delete_component',
+            description: 'Completely delete a component - removes file, import, and composition registration',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                componentName: {
+                  type: 'string',
+                  description: 'Name of the component to delete completely'
+                },
+                deleteFile: {
+                  type: 'boolean',
+                  description: 'Whether to delete the component file (default: true)',
+                  default: true
+                },
+                force: {
+                  type: 'boolean',
+                  description: 'Force deletion even if component is not found in some places',
+                  default: false
+                }
+              },
+              required: ['componentName'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'cleanup_broken_imports',
+            description: 'Find and remove broken/unused imports from Root.tsx after manual deletions',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                dryRun: {
+                  type: 'boolean',
+                  description: 'Show what would be cleaned up without making changes',
+                  default: false
+                }
+              },
+              additionalProperties: false
+            }
           }
         ]
       };
@@ -255,6 +303,10 @@ class TrueAiStdioMcpServer {
           return await this.handleManageProps(args);
         } else if (name === 'auto_sync') {
           return await this.handleAutoSync(args);
+        } else if (name === 'delete_component') {
+          return await this.handleDeleteComponent(args);
+        } else if (name === 'cleanup_broken_imports') {
+          return await this.handleCleanupBrokenImports(args);
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -1338,6 +1390,263 @@ export interface ${componentName}Props {
     log('info', `Built comprehensive Root.tsx with ${components.length} components and ${schemas.length} schemas`);
   }
 
+  // ========================================
+  // FILE WATCHER & DELETION MONITORING
+  // ========================================
+
+  private async setupFileWatcher(): Promise<void> {
+    try {
+      const rootPath = path.join(SRC_DIR, 'Root.tsx');
+
+      // Initialize last content
+      try {
+        this.lastRootContent = await fs.readFile(rootPath, 'utf-8');
+      } catch (error) {
+        log('warn', 'Root.tsx not found for file watching, will watch for creation');
+        this.lastRootContent = '';
+      }
+
+      // Watch for changes to Root.tsx
+      this.rootFileWatcher = fsSync.watch(rootPath, async (eventType) => {
+        if (eventType === 'change') {
+          await this.handleRootFileChange();
+        }
+      });
+
+      log('info', 'File watcher setup complete - monitoring Root.tsx for deletion events');
+    } catch (error) {
+      log('error', 'Failed to setup file watcher', { error: error.message });
+    }
+  }
+
+  private async handleRootFileChange(): Promise<void> {
+    try {
+      const rootPath = path.join(SRC_DIR, 'Root.tsx');
+      const newContent = await fs.readFile(rootPath, 'utf-8');
+
+      if (newContent !== this.lastRootContent) {
+        log('info', 'Root.tsx changed - analyzing for broken imports');
+
+        // Find removed compositions and clean up imports
+        await this.autoCleanupAfterStudioDeletion(this.lastRootContent, newContent);
+
+        this.lastRootContent = newContent;
+      }
+    } catch (error) {
+      log('error', 'Error handling Root.tsx change', { error: error.message });
+    }
+  }
+
+  private async autoCleanupAfterStudioDeletion(oldContent: string, newContent: string): Promise<void> {
+    try {
+      // Extract component names from import statements
+      const oldImports = this.extractImportedComponents(oldContent);
+      const newImports = this.extractImportedComponents(newContent);
+      const oldCompositions = this.extractCompositionComponents(oldContent);
+      const newCompositions = this.extractCompositionComponents(newContent);
+
+      // Find imports that are no longer used in compositions
+      const unusedImports = oldImports.filter(imp =>
+        newImports.includes(imp) && !newCompositions.includes(imp)
+      );
+
+      if (unusedImports.length > 0) {
+        log('info', `Found ${unusedImports.length} orphaned imports after Studio deletion: ${unusedImports.join(', ')}`);
+
+        // Remove orphaned imports
+        let cleanedContent = newContent;
+        for (const componentName of unusedImports) {
+          const importRegex = new RegExp(`import\\s*\\{\\s*${componentName}\\s*\\}\\s*from\\s*['"\\.].*?['"];?\\s*\n?`, 'g');
+          cleanedContent = cleanedContent.replace(importRegex, '');
+        }
+
+        // Clean up any empty lines
+        cleanedContent = cleanedContent.replace(/\n\s*\n\s*\n/g, '\n\n');
+
+        // Write the cleaned content
+        const rootPath = path.join(SRC_DIR, 'Root.tsx');
+        await fs.writeFile(rootPath, cleanedContent);
+        this.lastRootContent = cleanedContent;
+
+        log('info', `Auto-cleaned ${unusedImports.length} orphaned imports from Root.tsx`);
+      }
+    } catch (error) {
+      log('error', 'Error during auto-cleanup', { error: error.message });
+    }
+  }
+
+  private extractImportedComponents(content: string): string[] {
+    const importRegex = /import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]\.\//g;
+    const components: string[] = [];
+    let match;
+
+    while ((match = importRegex.exec(content)) !== null) {
+      const importNames = match[1].split(',').map(name => name.trim());
+      components.push(...importNames);
+    }
+
+    return components.filter(name => name !== 'Comp' && name !== 'z'); // Exclude common non-component imports
+  }
+
+  private extractCompositionComponents(content: string): string[] {
+    const compositionRegex = /<Composition[^>]*component=\{([^}]+)\}/g;
+    const components: string[] = [];
+    let match;
+
+    while ((match = compositionRegex.exec(content)) !== null) {
+      components.push(match[1].trim());
+    }
+
+    return components;
+  }
+
+  // ========================================
+  // COMPREHENSIVE DELETE FUNCTIONALITY
+  // ========================================
+
+  private async handleDeleteComponent(args: any): Promise<any> {
+    const { componentName, deleteFile = true, force = false } = args;
+
+    try {
+      const results = {
+        fileDeleted: false,
+        importRemoved: false,
+        compositionRemoved: false,
+        errors: [] as string[]
+      };
+
+      // 1. Remove from Root.tsx (composition and import)
+      const rootPath = path.join(SRC_DIR, 'Root.tsx');
+      try {
+        let rootContent = await fs.readFile(rootPath, 'utf-8');
+        const originalContent = rootContent;
+
+        // Remove import
+        const importRegex = new RegExp(`import\\s*\\{\\s*${componentName}\\s*\\}\\s*from\\s*['"\\.].*?['"];?\\s*\n?`, 'g');
+        rootContent = rootContent.replace(importRegex, '');
+
+        // Remove composition
+        const compositionRegex = new RegExp(
+          `<Composition[^>]*id=["']${componentName}["'][^>]*component=\\{${componentName}\\}[^>]*>[^<]*</Composition>\\s*`,
+          'gs'
+        );
+        rootContent = rootContent.replace(compositionRegex, '');
+
+        // Clean up extra whitespace
+        rootContent = rootContent.replace(/\n\s*\n\s*\n/g, '\n\n');
+
+        if (rootContent !== originalContent) {
+          await fs.writeFile(rootPath, rootContent);
+          this.lastRootContent = rootContent;
+          results.importRemoved = true;
+          results.compositionRemoved = true;
+          log('info', `Removed ${componentName} from Root.tsx`);
+        }
+      } catch (error) {
+        results.errors.push(`Failed to update Root.tsx: ${error.message}`);
+        if (!force) throw error;
+      }
+
+      // 2. Delete component file
+      if (deleteFile) {
+        const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+        try {
+          await fs.unlink(componentPath);
+          results.fileDeleted = true;
+          log('info', `Deleted component file: ${componentName}.tsx`);
+        } catch (error) {
+          results.errors.push(`Failed to delete file: ${error.message}`);
+          if (!force) throw error;
+        }
+      }
+
+      const successMessage = [
+        results.fileDeleted ? 'File deleted' : '',
+        results.importRemoved ? 'Import removed' : '',
+        results.compositionRemoved ? 'Composition removed' : ''
+      ].filter(Boolean).join(', ');
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[SUCCESS] Component '${componentName}' deleted successfully.\n\nActions taken:\n- ${successMessage}\n\nRemotions should update automatically in Studio.${results.errors.length > 0 ? `\n\nWarnings:\n${results.errors.join('\n')}` : ''}`
+        }]
+      };
+
+    } catch (error) {
+      log('error', `Delete component failed: ${componentName}`, { error: error.message });
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Failed to delete component '${componentName}': ${error.message}`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private async handleCleanupBrokenImports(args: any): Promise<any> {
+    const { dryRun = false } = args;
+
+    try {
+      const rootPath = path.join(SRC_DIR, 'Root.tsx');
+      const rootContent = await fs.readFile(rootPath, 'utf-8');
+
+      const importedComponents = this.extractImportedComponents(rootContent);
+      const usedComponents = this.extractCompositionComponents(rootContent);
+
+      const brokenImports = importedComponents.filter(comp => !usedComponents.includes(comp));
+
+      if (brokenImports.length === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: '[OK] No broken imports found. Root.tsx is clean!'
+          }]
+        };
+      }
+
+      if (dryRun) {
+        return {
+          content: [{
+            type: 'text',
+            text: `[DRY RUN] Found ${brokenImports.length} broken imports that would be removed:\n\n${brokenImports.map(name => `- ${name}`).join('\n')}\n\nRun with dryRun: false to apply cleanup.`
+          }]
+        };
+      }
+
+      // Remove broken imports
+      let cleanedContent = rootContent;
+      for (const componentName of brokenImports) {
+        const importRegex = new RegExp(`import\\s*\\{\\s*${componentName}\\s*\\}\\s*from\\s*['"\\.].*?['"];?\\s*\n?`, 'g');
+        cleanedContent = cleanedContent.replace(importRegex, '');
+      }
+
+      // Clean up whitespace
+      cleanedContent = cleanedContent.replace(/\n\s*\n\s*\n/g, '\n\n');
+
+      await fs.writeFile(rootPath, cleanedContent);
+      this.lastRootContent = cleanedContent;
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[SUCCESS] Cleaned up ${brokenImports.length} broken imports:\n\n${brokenImports.map(name => `- ${name}`).join('\n')}\n\nRoot.tsx has been updated.`
+        }]
+      };
+
+    } catch (error) {
+      log('error', 'Cleanup broken imports failed', { error: error.message });
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Failed to cleanup broken imports: ${error.message}`
+        }],
+        isError: true
+      };
+    }
+  }
+
   async run(): Promise<void> {
     log('info', 'Starting TRUE AI STDIO MCP Server');
     log('info', `App Root: ${APP_ROOT}`);
@@ -1353,7 +1662,7 @@ export interface ${componentName}Props {
     await this.server.connect(transport);
     
     log('info', 'TRUE AI STDIO MCP Server connected and ready!');
-    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions, format_code, manage_props, auto_sync');
+    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions, format_code, manage_props, auto_sync, delete_component, cleanup_broken_imports');
     log('info', 'Claude Desktop can now generate ANY animation using TRUE AI!');
   }
 }

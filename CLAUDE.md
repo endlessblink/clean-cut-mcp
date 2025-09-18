@@ -55,6 +55,52 @@ Claude Desktop (Windows) → docker exec → clean-cut-mcp container → Remotio
 # We have to have ONE SCRIPT that installs everything flawlessly, E2E. Nothing else is acceptable!!!!!!
 # ALWAYS VALIDATE WHAT YOU ARE NOT SURE ABOUT OR NO KNOW WITH ONLINE RESEARCH
 
+## 🚨 CRITICAL: PRETTIER CONFIGURATION FOR REMOTION STUDIO DELETION
+
+**WORKING SOLUTION IMPLEMENTED (Sept 2025):**
+
+### Root Cause Analysis:
+- **Remotion Studio deletion feature** requires prettier to be available as LOCAL project dependency
+- **NOT sufficient:** Global prettier installation at `/usr/local/bin/prettier`
+- **Required:** Prettier binary must exist at `/workspace/node_modules/.bin/prettier`
+- **Challenge:** Volume mounts overwrite Docker build-time installations
+
+### Working Configuration:
+1. **Dockerfile**: Global prettier installation via `npm install -g prettier@3.6.2`
+2. **start.js Runtime Setup**: Creates symlink from global to local path
+3. **Symlink Creation**: `/workspace/node_modules/.bin/prettier -> /usr/local/bin/prettier`
+4. **Persistence**: Symlink created every container startup, survives volume mounts
+
+### Why Other Approaches Failed:
+- ❌ **Pure npm install**: Volume mounts overwrite build-time installations
+- ❌ **devDependency only**: Docker build vs runtime conflict
+- ❌ **Global prettier only**: Remotion Studio can't find it in local project
+
+### Implementation Details:
+```javascript
+// In start.js - WORKING APPROACH
+const prettierBin = path.join(WORKSPACE, 'node_modules', '.bin', 'prettier');
+const prettierBinDir = path.join(WORKSPACE, 'node_modules', '.bin');
+if (!(await fileExists(prettierBin))) {
+  await fsp.mkdir(prettierBinDir, { recursive: true });
+  await fsp.symlink('/usr/local/bin/prettier', prettierBin);
+}
+```
+
+### Test Verification:
+- ✅ `docker exec clean-cut-mcp /workspace/node_modules/.bin/prettier --version` returns `3.6.2`
+- ✅ Remotion Studio component deletion no longer shows "Prettier cannot be found"
+- ✅ Configuration persists across container rebuilds
+- ✅ Works with volume-mounted workspace directories
+
+### DO NOT BREAK THIS CONFIGURATION:
+- **Never remove** global prettier from Dockerfile
+- **Never remove** symlink creation from start.js
+- **Never change** workspace directory structure without testing prettier
+- **Always test** component deletion in Remotion Studio after changes
+
+**Research Source**: Based on Remotion official Docker docs, Prettier installation guides, and extensive testing of Docker + volume mount scenarios.
+
 
 ### ✅ SAFE CONFIGURATION PRACTICES:
 - **ALWAYS** use full Docker path: `"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"`

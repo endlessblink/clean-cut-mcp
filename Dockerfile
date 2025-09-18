@@ -43,8 +43,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     ffmpeg -version
 
-# Install Remotion CLI globally and ensure Chrome Headless Shell is installed
-RUN npm install -g @remotion/cli@4.0.347 remotion@4.0.347 && \
+# Install Remotion CLI globally, prettier, and ensure Chrome Headless Shell is installed
+RUN npm install -g @remotion/cli@4.0.347 remotion@4.0.347 prettier@3.6.2 && \
     npx remotion browser ensure
 
 # Configure xdg-open to use text browser as fallback (prevents "no method available" errors)
@@ -60,9 +60,10 @@ COPY --from=builder /app/mcp-server/package.json ./mcp-server/package.json
 # Copy supervisor script that initializes workspace and launches both services
 COPY start.js ./start.js
 
-# Copy Remotion configuration and tsconfig to workspace
+# Copy Remotion configuration, tsconfig, and prettier config to workspace
 COPY clean-cut-workspace/remotion.config.ts ./remotion.config.ts
 COPY clean-cut-workspace/tsconfig.json ./tsconfig.json
+COPY .prettierrc ./.prettierrc
 
 # Copy guidelines directory for MCP tools
 COPY claude-dev-guidelines ./claude-dev-guidelines
@@ -83,6 +84,15 @@ ENV NODE_ENV=production \
 # Create export directory, XDG runtime directory, and volume mount point for Remotion renders
 RUN mkdir -p /workspace/out && chmod 755 /workspace/out && \
     mkdir -p /tmp/runtime && chmod 700 /tmp/runtime
+
+# PERMANENT: Install prettier properly at build time for Remotion Studio deletion
+WORKDIR /workspace
+RUN npm init -y && \
+    npm install prettier@3.6.2 --save-dev && \
+    mkdir -p node_modules/prettier && \
+    cp -r /usr/local/lib/node_modules/prettier/* node_modules/prettier/ 2>/dev/null || true && \
+    npm rebuild
+
 
 # Document exposed ports
 EXPOSE 6970
