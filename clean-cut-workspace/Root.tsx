@@ -18,7 +18,6 @@ import { ProductShowcase } from './ProductShowcase';
 import { PulsingCircle } from './PulsingCircle';
 import { QuickTestAnimation } from './QuickTestAnimation';
 import { SeedreamGracefulTransitions } from './SeedreamGracefulTransitions';
-import { SimpleTest } from './SimpleTest';
 import { SocialMediaFeed } from './SocialMediaFeed';
 import { SundownSerenity } from './SundownSerenity';
 import { TweetAnimation } from './TweetAnimation';
@@ -76,13 +75,6 @@ const PacmanMazeRunnerWithPropsSchema = z.object({
   ghostSpeed: z.number().optional(),
   mazeScale: z.number().optional(),
   showUI: z.boolean().optional(),
-});
-const SimpleTestSchema = z.object({
-  title: z.string().optional(),
-  primaryColor: z.string().optional(),
-  secondaryColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  animationSpeed: z.number().optional(),
 });
 
 export const RemotionRoot: React.FC = () => {

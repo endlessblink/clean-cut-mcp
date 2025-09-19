@@ -33,6 +33,7 @@ const log = (level: string, message: string, data?: any) => {
 class TrueAiStdioMcpServer {
   private server: Server;
   private rootFileWatcher: fsSync.FSWatcher | null = null;
+  private workspaceWatcher: fsSync.FSWatcher | null = null;
   private lastRootContent: string = '';
 
   constructor() {
@@ -51,6 +52,7 @@ class TrueAiStdioMcpServer {
     this.setupToolHandlers();
     this.setupErrorHandling();
     this.setupFileWatcher();
+    this.setupWorkspaceWatcher();
   }
 
   private setupErrorHandling(): void {
@@ -62,7 +64,11 @@ class TrueAiStdioMcpServer {
       log('info', 'Shutting down gracefully...');
       if (this.rootFileWatcher) {
         this.rootFileWatcher.close();
-        log('info', 'File watcher closed');
+        log('info', 'Root file watcher closed');
+      }
+      if (this.workspaceWatcher) {
+        this.workspaceWatcher.close();
+        log('info', 'Workspace watcher closed');
       }
       await this.server.close();
       process.exit(0);
@@ -1727,9 +1733,80 @@ export interface ${componentName}Props {
         }
       });
 
-      log('info', 'File watcher setup complete - monitoring Root.tsx for deletion events');
+      log('info', 'Root file watcher setup complete - monitoring Root.tsx for changes');
     } catch (error) {
-      log('error', 'Failed to setup file watcher', { error: error.message });
+      log('error', 'Failed to setup root file watcher', { error: error.message });
+    }
+  }
+
+  private async setupWorkspaceWatcher(): Promise<void> {
+    try {
+      // Watch the entire workspace directory for component deletions
+      this.workspaceWatcher = fsSync.watch(SRC_DIR, async (eventType, filename) => {
+        if (eventType === 'rename' && filename && filename.endsWith('.tsx')) {
+          // 'rename' event fires for both creation and deletion
+          const componentPath = path.join(SRC_DIR, filename);
+          const componentExists = await fs.access(componentPath).then(() => true).catch(() => false);
+
+          if (!componentExists && filename !== 'Root.tsx' && filename !== 'Composition.tsx') {
+            // Component was deleted - clean up orphaned references
+            const componentName = path.basename(filename, '.tsx');
+            log('info', `Detected deletion of ${componentName}.tsx - cleaning orphaned references`);
+            await this.cleanupOrphanedReferences(componentName);
+          }
+        }
+      });
+
+      log('info', 'Workspace watcher setup complete - monitoring for component deletions');
+    } catch (error) {
+      log('error', 'Failed to setup workspace watcher', { error: error.message });
+    }
+  }
+
+  private async cleanupOrphanedReferences(componentName: string): Promise<void> {
+    try {
+      const rootPath = path.join(SRC_DIR, 'Root.tsx');
+      let rootContent = await fs.readFile(rootPath, 'utf-8');
+
+      // Double-check component file doesn't exist before cleaning
+      const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+      const componentExists = await fs.access(componentPath).then(() => true).catch(() => false);
+
+      if (componentExists) {
+        log('info', `Component ${componentName} still exists - skipping cleanup`);
+        return;
+      }
+
+      // Safe cleanup - only remove specific orphaned references
+      const originalContent = rootContent;
+
+      // Remove import statement
+      rootContent = rootContent.replace(
+        new RegExp(`import\\s*\\{\\s*${componentName}\\s*\\}\\s*from\\s*['"]\\.\\/${componentName}['"];?\\n?`, 'g'),
+        ''
+      );
+
+      // Remove schema definition
+      rootContent = rootContent.replace(
+        new RegExp(`const\\s+${componentName}Schema\\s*=\\s*z\\.object\\([^}]+\\}\\);\\n?`, 'gs'),
+        ''
+      );
+
+      // Remove composition entry (both self-closing and with schema)
+      rootContent = rootContent
+        .replace(new RegExp(`\\s*<Composition[^>]*id="${componentName}"[^>]*\\/?>\\n?`, 'gs'), '')
+        .replace(new RegExp(`\\s*<Composition[^>]*id="${componentName}"[^>]*>.*?<\\/Composition>\\n?`, 'gs'), '');
+
+      // Only write if changes were made
+      if (rootContent !== originalContent) {
+        await fs.writeFile(rootPath, rootContent);
+        log('info', `Successfully cleaned orphaned references for ${componentName}`);
+      } else {
+        log('info', `No orphaned references found for ${componentName}`);
+      }
+    } catch (error) {
+      log('error', `Failed to cleanup orphaned references for ${componentName}`, { error: error.message });
+      // Don't throw - deletion cleanup failure shouldn't crash the system
     }
   }
 
