@@ -1,7 +1,31 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 
-export const GitHubProfileShowcase: React.FC = () => {
+interface GitHubProfileShowcaseProps {
+  username?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  publicRepos?: number;
+  starsEarned?: number;
+  totalCommits?: number;
+  animationSpeed?: number;
+  projectName1?: string;
+  projectName2?: string;
+  projectName3?: string;
+}
+
+export const GitHubProfileShowcase: React.FC<GitHubProfileShowcaseProps> = ({
+  username = 'YourUsername',
+  accentColor = '#58a6ff',
+  backgroundColor = '#0d1117',
+  publicRepos = 15,
+  starsEarned = 6,
+  totalCommits = 200,
+  animationSpeed = 1,
+  projectName1 = 'awesome-project',
+  projectName2 = 'react-components',
+  projectName3 = 'web-portfolio'
+}) => {
   const frame = useCurrentFrame();
   
   // Professional Typography System
@@ -78,13 +102,13 @@ export const GitHubProfileShowcase: React.FC = () => {
     textRendering: 'optimizeLegibility' as const
   };
 
-  // Colors
+  // Colors (using props)
   const COLORS = {
     primary: '#ffffff',
     secondary: '#e5e5e5',
     tertiary: '#cccccc',
     muted: '#b3b3b3',
-    accent: '#58a6ff',
+    accent: accentColor,
     success: '#3fb950',
     warning: '#f85149',
     purple: '#a78bfa',
@@ -151,26 +175,32 @@ export const GitHubProfileShowcase: React.FC = () => {
     cta: animations.cta.opacity
   };
 
-  // GitHub data
+  // GitHub data (using props)
   const githubStats = [
-    { label: 'Public Repos', value: '15+', icon: '📁' },
-    { label: 'Stars Earned', value: '6+', icon: '⭐' },
-    { label: 'Commits', value: '200+', icon: '📝' },
+    { label: 'Public Repos', value: `${publicRepos}+`, icon: '📁' },
+    { label: 'Stars Earned', value: `${starsEarned}+`, icon: '⭐' },
+    { label: 'Commits', value: `${totalCommits}+`, icon: '📝' },
     { label: 'Following', value: 'Active', icon: '👥' }
   ];
 
   const featuredProjects = [
     {
-      name: 'Like-I-Said-memory-mcp-server',
-      description: 'Advanced MCP Memory & Task Management for LLMs with AI Enhancement and React Dashboard',
+      name: projectName1,
+      description: 'Advanced project with modern technology stack',
       tech: ['TypeScript', 'React', 'AI/ML', 'MCP'],
       status: 'Active'
     },
     {
-      name: 'Comfy-Guru',
-      description: 'MCP that connects Claude Desktop to your ComfyUI logs - squashing errors peacefully',
+      name: projectName2,
+      description: 'Innovative project with cutting-edge features',
       tech: ['Python', 'MCP', 'ComfyUI', 'Automation'],
-      status: '⭐ 6 stars'
+      status: '⭐ Popular'
+    },
+    {
+      name: projectName3,
+      description: 'Creative portfolio showcasing modern development',
+      tech: ['React', 'TypeScript', 'Design', 'UX'],
+      status: '🚀 Featured'
     }
   ];
 
@@ -180,14 +210,15 @@ export const GitHubProfileShowcase: React.FC = () => {
     focus: ['LLM Integration', 'AI Enhancement', 'Developer Tools', 'Automation']
   };
 
-  // Background gradient
+  // Background gradient (using backgroundColor prop)
   const backgroundStyle = {
-    background: `linear-gradient(135deg, 
-      hsl(220, 26%, 14%) 0%,
+    backgroundColor: backgroundColor,
+    background: `linear-gradient(135deg,
+      ${backgroundColor} 0%,
       hsl(220, 26%, 18%) 25%,
-      hsl(220, 26%, 12%) 50%,
+      ${backgroundColor} 50%,
       hsl(220, 26%, 16%) 75%,
-      hsl(220, 26%, 10%) 100%)`
+      ${backgroundColor} 100%)`
   };
 
   const containerStyles = {
