@@ -351,62 +351,216 @@ class TrueAiStdioMcpServer {
   }
 
   private validateAndFixInterpolate(code: string): string {
-    // Pattern to detect interpolate calls with potential issues
-    const interpolatePattern = /interpolate\s*\(\s*([^,]+),\s*\[([^\]]+)\],\s*\[([^\]]+)\]/g;
+    // CRITICAL FIX: Detect and eliminate infinite recursion in safeInterpolate functions
 
-    let hasUnsafeInterpolate = false;
-    let matches;
+    // Pattern 1: Fix direct recursive calls (the main issue)
+    code = code.replace(
+      /return\s+safeInterpolate\s*\([^)]+\)\s*;?/g,
+      'return interpolate(frame, inputRange, outputRange, options);'
+    );
 
-    // Check for descending inputRange arrays
-    while ((matches = interpolatePattern.exec(code)) !== null) {
-      const inputRangeStr = matches[2];
-      const numbers = inputRangeStr.split(',').map(s => {
-        const trimmed = s.trim();
-        // Handle expressions like "height - 100", "height / 2"
-        if (trimmed.includes('height')) {
-          if (trimmed.includes('- 100')) return 980; // height - 100 = 980
-          if (trimmed.includes('/ 2')) return 540;   // height / 2 = 540
-          return 1080; // just height = 1080
-        }
-        return parseFloat(trimmed) || 0;
-      });
+    // Pattern 2: Replace recursive safeInterpolate function definitions entirely
+    const recursiveFunctionPattern = /const\s+safeInterpolate\s*=\s*\([^)]+\)\s*=>\s*\{[^}]*safeInterpolate\([^}]*\}\s*;?/gs;
 
-      // Check if array is descending (monotonic violation)
-      for (let i = 1; i < numbers.length; i++) {
-        if (numbers[i] <= numbers[i-1]) {
-          hasUnsafeInterpolate = true;
-          break;
-        }
-      }
-    }
-
-    if (!hasUnsafeInterpolate) {
-      return code; // No issues found
-    }
-
-    // Add safeInterpolate helper function at the top of component
-    const safeInterpolateFunction = `
-  // Safe interpolation helper - prevents inputRange monotonic errors
-  const safeInterpolate = (frame, inputRange, outputRange, easing) => {
+    if (recursiveFunctionPattern.test(code)) {
+      // Replace with non-recursive implementation
+      const properSafeInterpolate = `const safeInterpolate = (frame, inputRange, outputRange, options = {}) => {
     const [inputStart, inputEnd] = inputRange;
     const [outputStart, outputEnd] = outputRange;
     if (inputEnd === inputStart) return outputStart;
     if (frame <= inputStart) return outputStart;
     if (frame >= inputEnd) return outputEnd;
-    return interpolate(frame, inputRange, outputRange, { easing });
-  };
-`;
+    return interpolate(frame, inputRange, outputRange, options);
+  };`;
 
-    // Insert safeInterpolate function after imports and before component body
-    const insertAfterImports = code.replace(
-      /(import\s+.*from\s+['"][^'"]+['"];?\s*\n)+/,
-      '$&\n' + safeInterpolateFunction
+      code = code.replace(recursiveFunctionPattern, properSafeInterpolate);
+    }
+
+    return code;
+  }
+
+  private async validateAndResolveName(requestedName: string): Promise<{
+    hasConflict: boolean;
+    requestedName: string;
+    safeName: string;
+    conflictsWith: string[];
+    alternatives: string[];
+  }> {
+    // Normalize requested name to PascalCase
+    const normalizedName = requestedName.charAt(0).toUpperCase() + requestedName.slice(1);
+
+    // Scan existing component files
+    let existingComponents: string[] = [];
+    try {
+      const files = await fs.readdir(SRC_DIR);
+      existingComponents = files
+        .filter(file => file.endsWith('.tsx') && !['Root.tsx', 'Composition.tsx'].includes(file))
+        .map(file => file.replace('.tsx', ''));
+    } catch (error) {
+      log('warn', 'Could not scan existing components for collision detection', error);
+    }
+
+    // Check for exact matches
+    const exactMatch = existingComponents.find(name =>
+      name.toLowerCase() === normalizedName.toLowerCase()
     );
 
-    // Replace unsafe interpolate calls with safeInterpolate
-    const safeCode = insertAfterImports.replace(/\binterpolate\s*\(/g, 'safeInterpolate(');
+    // Check for similar names (fuzzy matching)
+    const similarMatches = existingComponents.filter(name => {
+      const similarity = this.calculateNameSimilarity(normalizedName.toLowerCase(), name.toLowerCase());
+      return similarity > 0.7; // 70% similarity threshold
+    });
 
-    return safeCode;
+    // Detect patterns and suggest meaningful alternatives
+    const alternatives = this.generateSmartAlternatives(normalizedName, existingComponents);
+
+    const conflicts = [...new Set([exactMatch, ...similarMatches].filter(Boolean))];
+
+    return {
+      hasConflict: conflicts.length > 0,
+      requestedName: normalizedName,
+      safeName: conflicts.length > 0 ? alternatives[0] : normalizedName,
+      conflictsWith: conflicts,
+      alternatives: alternatives.slice(0, 5) // Top 5 suggestions
+    };
+  }
+
+  private calculateNameSimilarity(str1: string, str2: string): number {
+    // Simple Levenshtein distance-based similarity
+    const matrix = Array.from(Array(str2.length + 1), () => Array(str1.length + 1).fill(0));
+
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        if (str1[i - 1] === str2[j - 1]) {
+          matrix[j][i] = matrix[j - 1][i - 1];
+        } else {
+          matrix[j][i] = Math.min(
+            matrix[j - 1][i] + 1,
+            matrix[j][i - 1] + 1,
+            matrix[j - 1][i - 1] + 1
+          );
+        }
+      }
+    }
+
+    const maxLength = Math.max(str1.length, str2.length);
+    return (maxLength - matrix[str2.length][str1.length]) / maxLength;
+  }
+
+  private generateSmartAlternatives(requestedName: string, existingNames: string[]): string[] {
+    const alternatives: string[] = [];
+    const baseName = requestedName;
+
+    // Pattern-based alternatives
+    const patterns = [
+      `${baseName}Animation`,
+      `${baseName}Effect`,
+      `${baseName}Motion`,
+      `${baseName}Transition`,
+      `Enhanced${baseName}`,
+      `${baseName}Advanced`,
+      `${baseName}Pro`,
+      `${baseName}Plus`,
+      `${baseName}V2`,
+      `${baseName}Improved`
+    ];
+
+    // Add alternatives that don't conflict
+    patterns.forEach(pattern => {
+      if (!existingNames.some(existing => existing.toLowerCase() === pattern.toLowerCase())) {
+        alternatives.push(pattern);
+      }
+    });
+
+    // If all patterns conflict, use intelligent numbering
+    if (alternatives.length === 0) {
+      for (let i = 2; i <= 10; i++) {
+        const numberedName = `${baseName}${i}`;
+        if (!existingNames.some(existing => existing.toLowerCase() === numberedName.toLowerCase())) {
+          alternatives.push(numberedName);
+        }
+      }
+    }
+
+    // Semantic alternatives based on animation type detection
+    const semanticAlternatives = this.generateSemanticAlternatives(baseName, existingNames);
+    alternatives.unshift(...semanticAlternatives);
+
+    return [...new Set(alternatives)].slice(0, 10); // Remove duplicates, limit to 10
+  }
+
+  private generateSemanticAlternatives(baseName: string, existingNames: string[]): string[] {
+    const lower = baseName.toLowerCase();
+    const alternatives: string[] = [];
+
+    // Motion/Animation synonyms
+    if (lower.includes('bounce')) {
+      ['Floating', 'Pulsing', 'Oscillating', 'SpringBounce'].forEach(alt => {
+        const suggestion = baseName.replace(/bounce/i, alt);
+        if (!existingNames.some(name => name.toLowerCase() === suggestion.toLowerCase())) {
+          alternatives.push(suggestion);
+        }
+      });
+    }
+
+    // Shape/Geometric synonyms
+    if (lower.includes('circle') || lower.includes('geometric')) {
+      ['Sphere', 'Orb', 'Ring', 'Polygon', 'Morphing'].forEach(alt => {
+        const suggestion = baseName.replace(/(circle|geometric)/i, alt);
+        if (!existingNames.some(name => name.toLowerCase() === suggestion.toLowerCase())) {
+          alternatives.push(suggestion);
+        }
+      });
+    }
+
+    // Text/Typography alternatives
+    if (lower.includes('text')) {
+      ['Typography', 'Letters', 'Words', 'Writing', 'Script'].forEach(alt => {
+        const suggestion = baseName.replace(/text/i, alt);
+        if (!existingNames.some(name => name.toLowerCase() === suggestion.toLowerCase())) {
+          alternatives.push(suggestion);
+        }
+      });
+    }
+
+    return alternatives.slice(0, 3); // Top 3 semantic alternatives
+  }
+
+  private fixComponentExports(code: string, componentName: string): string {
+    // RESEARCH-VALIDATED: Prefer modern "export const" pattern, avoid duplicates
+
+    // Check what export patterns already exist
+    const hasConstExport = new RegExp(`export\\s+const\\s+${componentName}\\s*:`).test(code);
+    const hasNamedExport = new RegExp(`export\\s*\\{[^}]*${componentName}[^}]*\\}`).test(code);
+    const hasDefaultExport = new RegExp(`export\\s+default\\s+${componentName}`).test(code);
+
+    // MODERN PATTERN: If has "export const ComponentName", it's perfect - don't touch it
+    if (hasConstExport) {
+      log('info', `Component ${componentName} uses modern export const pattern - no changes needed`);
+      return code;
+    }
+
+    // LEGACY PATTERN: If has default export, replace with named export
+    if (hasDefaultExport) {
+      log('info', `Converting legacy default export to named export for ${componentName}`);
+      return code.replace(
+        new RegExp(`export\\s+default\\s+${componentName}\\s*;?`, 'g'),
+        `export { ${componentName} };`
+      );
+    }
+
+    // If has named export already, don't add duplicate
+    if (hasNamedExport) {
+      log('info', `Component ${componentName} already has named export - no changes needed`);
+      return code;
+    }
+
+    // FALLBACK: If no exports detected, add named export
+    log('info', `No exports detected - adding named export for ${componentName}`);
+    return code.trim() + `\n\nexport { ${componentName} };`;
   }
 
   private async handleCreateAnimation(args: any) {
@@ -439,22 +593,26 @@ class TrueAiStdioMcpServer {
     await fs.mkdir(EXPORTS_DIR, { recursive: true });
     await fs.mkdir(SRC_DIR, { recursive: true });
 
-    // Validate component name format
-    const validComponentName = componentName.charAt(0).toUpperCase() + componentName.slice(1);
+    // ROBUST COLLISION DETECTION: Prevent name conflicts and suggest alternatives
+    const nameValidation = await this.validateAndResolveName(componentName);
+    if (nameValidation.hasConflict) {
+      return {
+        content: [{
+          type: 'text',
+          text: `[NAME CONFLICT] "${nameValidation.requestedName}" conflicts with existing component.\\n\\n` +
+                `[EXISTING] ${nameValidation.conflictsWith.join(', ')}\\n\\n` +
+                `[SUGGESTED ALTERNATIVES]:\\n${nameValidation.alternatives.map(alt => `- ${alt}`).join('\\n')}\\n\\n` +
+                `[SOLUTION] Use one of the suggested names or choose a completely different name.`
+        }],
+        isError: true
+      };
+    }
+
+    const validComponentName = nameValidation.safeName;
     const componentPath = path.join(SRC_DIR, `${validComponentName}.tsx`);
     
-    // COLLISION DETECTION: Check if component already exists
-    const componentExists = await fs.access(componentPath).then(() => true).catch(() => false);
-    if (componentExists) {
-      log('warn', `Component ${validComponentName} already exists - overwriting`, { componentPath });
-    }
-    
-    // Write Claude's generated code with export pattern fix for Remotion compatibility
-    // CRITICAL FIX: Convert 'export default ComponentName' to 'export { ComponentName }'
-    const fixedCode = code.replace(
-      new RegExp(`export\\s+default\\s+${validComponentName}\\s*;?`, 'g'),
-      `export { ${validComponentName} };`
-    );
+    // Write Claude's generated code with SMART export pattern fixing
+    const fixedCode = this.fixComponentExports(code, validComponentName);
 
     // INTERPOLATE VALIDATION: Detect and fix unsafe interpolate patterns
     const safeCode = this.validateAndFixInterpolate(fixedCode);
@@ -472,7 +630,8 @@ class TrueAiStdioMcpServer {
       // Continue - don't fail the whole operation if sync fails
     }
 
-    const overwriteWarning = componentExists ? `\\n[WARNING] Overwrote existing ${validComponentName} component` : '';
+    const collisionInfo = nameValidation.requestedName !== validComponentName ?
+      `\\n[COLLISION RESOLVED] Requested "${nameValidation.requestedName}" → Using "${validComponentName}"` : '';
 
     return {
       content: [{
@@ -481,7 +640,7 @@ class TrueAiStdioMcpServer {
               `[FILE] ${validComponentName}.tsx\\n` +
               `[DURATION] ${duration} seconds\\n` +
               `[AUTO-REGISTERED] Component added to Root.tsx automatically\\n` +
-              `[STUDIO] Ready at http://localhost:${STUDIO_PORT}${overwriteWarning}\\n\\n` +
+              `[STUDIO] Ready at http://localhost:${STUDIO_PORT}${collisionInfo}\\n\\n` +
               `[SUCCESS] Animation created and synced - immediately visible in Studio!`
       }]
     };
