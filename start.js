@@ -161,6 +161,9 @@ registerRoot(RemotionRoot);`;
 
   // SAFE: Enhanced prettier binary verification for Remotion Studio
   await ensurePrettierBinary();
+
+  // RESEARCH-VALIDATED: Startup auto-repair for broken imports (Docker volume mount solution)
+  await cleanupBrokenImports();
 }
 
 // SAFE: Comprehensive prettier binary verification with multiple fallbacks
@@ -309,6 +312,16 @@ async function main() {
   console.error(`[ENTRYPOINT] Initializing workspace at ${WORKSPACE} ...`);
   await ensureWorkspaceInitialized();
 
+  // Clear Remotion cache for fresh bundle (WSL2 sync fix)
+  console.error(`[ENTRYPOINT] Clearing Remotion cache for WSL2 compatibility...`);
+  try {
+    await fsp.rmdir(path.join(WORKSPACE, '.remotion'), {recursive: true}).catch(() => {});
+    await fsp.rmdir(path.join(WORKSPACE, 'node_modules', '.cache'), {recursive: true}).catch(() => {});
+    console.error(`[ENTRYPOINT] Remotion cache cleared`);
+  } catch (error) {
+    console.error(`[ENTRYPOINT] Cache clear warning: ${error.message}`);
+  }
+
   console.error(`[ENTRYPOINT] Launching Remotion Studio on port ${STUDIO_PORT} ...`);
   const studio = spawnBackground('npx', ['remotion', 'studio', '--host', '0.0.0.0', '--port', String(STUDIO_PORT), '--root', WORKSPACE, '--no-open'], {
     cwd: WORKSPACE,
@@ -316,6 +329,8 @@ async function main() {
       ...process.env,
       // Avoid trying to open a browser in the container
       BROWSER: 'none',
+      // WSL2 Docker file watching fix (research-validated)
+      CHOKIDAR_USEPOLLING: 'true',
       // Pass Chrome stability flags for video rendering
       REMOTION_CHROME_FLAGS: process.env.CHROME_FLAGS
     }
@@ -337,6 +352,77 @@ async function main() {
   await wait(studio);
   console.error('[ENTRYPOINT] Remotion Studio exited. Exiting container.');
   shutdown();
+}
+
+// RESEARCH-VALIDATED: Startup auto-repair for Docker volume mount deletion persistence
+async function cleanupBrokenImports() {
+  try {
+    const srcDir = path.join(WORKSPACE, 'src');
+    const rootPath = path.join(srcDir, 'Root.tsx');
+
+    if (!(await fileExists(rootPath))) {
+      console.error('[start.js] Root.tsx not found - skipping cleanup');
+      return;
+    }
+
+    console.error('[start.js] Scanning for broken imports (Docker volume mount solution)...');
+
+    let rootContent = await fsp.readFile(rootPath, 'utf-8');
+    const originalContent = rootContent;
+    let cleanupCount = 0;
+
+    // Find all import statements and check if component files exist
+    const importPattern = /import\s*\{\s*(\w+)\s*\}\s*from\s*['"]\.\//g;
+    let match;
+    const brokenImports = [];
+
+    while ((match = importPattern.exec(rootContent)) !== null) {
+      const componentName = match[1];
+
+      // Skip system components
+      if (componentName === 'Comp' || componentName === 'z') continue;
+
+      const componentPath = path.join(srcDir, `${componentName}.tsx`);
+
+      if (!(await fileExists(componentPath))) {
+        brokenImports.push(componentName);
+        console.error(`[start.js] Found broken import: ${componentName} (file missing)`);
+      }
+    }
+
+    // Clean up each broken import
+    for (const componentName of brokenImports) {
+      // Remove import statement
+      rootContent = rootContent.replace(
+        new RegExp(`import\\s*\\{\\s*${componentName}\\s*\\}\\s*from\\s*['"]\\.\\/${componentName}['"];?\\n?`, 'g'),
+        ''
+      );
+
+      // Remove schema definition
+      rootContent = rootContent.replace(
+        new RegExp(`const\\s+${componentName}Schema\\s*=\\s*z\\.object\\([^}]+\\}\\);\\n?`, 'gs'),
+        ''
+      );
+
+      // Remove composition entries
+      rootContent = rootContent
+        .replace(new RegExp(`\\s*<Composition[^>]*id="${componentName}"[^>]*\\/?>\\n?`, 'gs'), '')
+        .replace(new RegExp(`\\s*<Composition[^>]*id="${componentName}"[^>]*>.*?<\\/Composition>\\n?`, 'gs'), '');
+
+      cleanupCount++;
+    }
+
+    // Only write if changes were made
+    if (rootContent !== originalContent) {
+      await fsp.writeFile(rootPath, rootContent);
+      console.error(`[start.js] SUCCESS: Cleaned ${cleanupCount} broken imports - Studio will start clean`);
+    } else {
+      console.error('[start.js] No broken imports found - Root.tsx is clean');
+    }
+  } catch (error) {
+    console.error('[start.js] Cleanup failed (non-fatal):', error.message);
+    // Don't throw - startup should continue even if cleanup fails
+  }
 }
 
 main().catch((err) => {

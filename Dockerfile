@@ -59,6 +59,7 @@ COPY --from=builder /app/mcp-server/package.json ./mcp-server/package.json
 
 # Copy supervisor script that initializes workspace and launches both services
 COPY start.js ./start.js
+COPY cleanup-service.js ./cleanup-service.js
 
 # Copy Remotion configuration, tsconfig, and prettier config to workspace
 COPY clean-cut-workspace/remotion.config.ts ./remotion.config.ts
@@ -105,5 +106,5 @@ VOLUME ["/workspace/out"]
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -fsS http://localhost:6971/health || exit 1
 
-# Start both services
-CMD ["node", "/app/start.js"]
+# Start both services: background cleanup + main Studio service
+CMD ["sh", "-c", "node /app/cleanup-service.js & node /app/start.js"]

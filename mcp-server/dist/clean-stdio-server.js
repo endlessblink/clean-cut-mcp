@@ -1554,24 +1554,59 @@ export interface ${componentName}Props {
     }
     async setupWorkspaceWatcher() {
         try {
-            // Watch the entire workspace directory for component deletions
-            this.workspaceWatcher = fsSync.watch(SRC_DIR, async (eventType, filename) => {
-                if (eventType === 'rename' && filename && filename.endsWith('.tsx')) {
-                    // 'rename' event fires for both creation and deletion
-                    const componentPath = path.join(SRC_DIR, filename);
-                    const componentExists = await fs.access(componentPath).then(() => true).catch(() => false);
-                    if (!componentExists && filename !== 'Root.tsx' && filename !== 'Composition.tsx') {
-                        // Component was deleted - clean up orphaned references
-                        const componentName = path.basename(filename, '.tsx');
-                        log('info', `Detected deletion of ${componentName}.tsx - cleaning orphaned references`);
-                        await this.cleanupOrphanedReferences(componentName);
+            // RESEARCH-VALIDATED: Use polling instead of fs.watch for Docker volume mount compatibility
+            // "The fix to watching file changes in docker is to use polling" - Docker best practices 2024
+            // Keep track of known components for deletion detection
+            let knownComponents = new Set();
+            // Initial scan to populate known components
+            await this.scanAndUpdateKnownComponents(knownComponents);
+            // Polling-based detection every 5 seconds (research-recommended interval)
+            const pollingInterval = setInterval(async () => {
+                try {
+                    const currentComponents = new Set();
+                    await this.scanAndUpdateKnownComponents(currentComponents);
+                    // Detect deletions by comparing sets
+                    for (const componentName of knownComponents) {
+                        if (!currentComponents.has(componentName)) {
+                            log('info', `Polling detected deletion: ${componentName}.tsx - cleaning orphaned references`);
+                            await this.cleanupOrphanedReferences(componentName);
+                        }
                     }
+                    // Detect new components (for logging)
+                    for (const componentName of currentComponents) {
+                        if (!knownComponents.has(componentName)) {
+                            log('info', `Polling detected new component: ${componentName}.tsx`);
+                        }
+                    }
+                    // Update known components
+                    knownComponents = currentComponents;
                 }
-            });
-            log('info', 'Workspace watcher setup complete - monitoring for component deletions');
+                catch (error) {
+                    log('error', 'Polling scan failed (non-fatal)', { error: error.message });
+                }
+            }, 5000); // 5-second interval - balance of responsiveness vs performance
+            // Store interval for cleanup
+            this.workspaceWatcher = {
+                close: () => clearInterval(pollingInterval)
+            };
+            log('info', 'Polling-based workspace watcher setup complete - monitoring for component deletions every 5 seconds');
         }
         catch (error) {
             log('error', 'Failed to setup workspace watcher', { error: error.message });
+        }
+    }
+    async scanAndUpdateKnownComponents(componentSet) {
+        try {
+            const files = await fs.readdir(SRC_DIR);
+            files
+                .filter(file => file.endsWith('.tsx') && file !== 'Root.tsx' && file !== 'Composition.tsx')
+                .forEach(file => {
+                const componentName = path.basename(file, '.tsx');
+                componentSet.add(componentName);
+            });
+        }
+        catch (error) {
+            log('error', 'Failed to scan components', { error: error.message });
         }
     }
     async cleanupOrphanedReferences(componentName) {
