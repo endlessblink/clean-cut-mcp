@@ -265,6 +265,50 @@ Response: [SUCCESS] No conflicts detected - proceeding with ParticleStorm
 # We have to have ONE SCRIPT that installs everything flawlessly, E2E. Nothing else is acceptable!!!!!!
 # ALWAYS VALIDATE WHAT YOU ARE NOT SURE ABOUT OR NO KNOW WITH ONLINE RESEARCH
 
+## 🚨 CRITICAL: NEVER BREAK WORKING SYSTEMS WHILE CLEANING
+
+**CATASTROPHIC ERROR PREVENTION (Sept 2025):**
+
+### **ABSOLUTE RULE: NEVER DELETE WORKING DIRECTORIES**
+- **NEVER** use `rm -rf clean-cut-workspace` to "clean up" for external users
+- **NEVER** replace working workspace directories wholesale
+- **ALWAYS** use .gitignore to exclude files from repository without breaking functionality
+- **ALWAYS** test system works after each cleanup step
+
+### **WRONG Approach (BREAKS SYSTEM):**
+```bash
+rm -rf clean-cut-workspace          # DESTROYS working registerRoot() chain
+mv clean-workspace-clean clean-cut-workspace  # BREAKS Studio completely
+# Result: "Waiting for registerRoot()" error, unusable system
+```
+
+### **CORRECT Approach (PRESERVES FUNCTIONALITY):**
+```bash
+# Add to .gitignore instead:
+clean-cut-workspace/PersonalAnimation1.tsx
+clean-cut-workspace/PersonalAnimation2.tsx
+clean-cut-workspace/TestAnimation*.tsx
+
+# System continues working, files just not committed to repository
+# External users get clean repo, functionality preserved
+```
+
+### **Why This Rule Exists:**
+- **Remotion requires precise entry point chain**: index.ts → Root.tsx → registerRoot()
+- **Breaking this chain** = "Waiting for registerRoot()" error = completely unusable Studio
+- **External users would abandon project** thinking it's non-functional
+- **All features useless** if basic Studio won't start
+
+### **Test After Every Change:**
+1. **Studio loads** without registerRoot() errors
+2. **Basic composition renders** (Main animation)
+3. **MCP tools respond** correctly
+4. **External user workflow intact**
+
+**REMEMBER**: Working system > Clean repository. Use .gitignore for cleanup, never directory replacement.
+
+---
+
 ## 🚨 CRITICAL: PRETTIER CONFIGURATION FOR REMOTION STUDIO DELETION
 
 **WORKING SOLUTION IMPLEMENTED (Sept 2025):**

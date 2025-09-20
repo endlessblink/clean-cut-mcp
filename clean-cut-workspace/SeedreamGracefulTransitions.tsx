@@ -1,10 +1,10 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 
-const SeedreamProfessional: React.FC = () => {
+const SeedreamGracefulTransitions: React.FC = () => {
   const frame = useCurrentFrame();
   
-  // MUCH LARGER typography - following guidelines STRICTLY
+  // LARGE typography following guidelines
   const FONT_STACKS = {
     primary: '"Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   };
@@ -12,45 +12,45 @@ const SeedreamProfessional: React.FC = () => {
   const TYPOGRAPHY = {
     display: {
       fontFamily: FONT_STACKS.primary,
-      fontSize: '96px', // MUCH LARGER - was 72px
+      fontSize: '96px',
       fontWeight: 800,
       lineHeight: 1.1,
       letterSpacing: '-0.02em'
     },
     h1: {
       fontFamily: FONT_STACKS.primary,
-      fontSize: '64px', // MUCH LARGER - was 48px
+      fontSize: '64px',
       fontWeight: 700,
       lineHeight: 1.2,
       letterSpacing: '-0.01em'
     },
     h2: {
       fontFamily: FONT_STACKS.primary,
-      fontSize: '48px', // MUCH LARGER - was 36px
+      fontSize: '48px',
       fontWeight: 600,
       lineHeight: 1.3
     },
     h3: {
       fontFamily: FONT_STACKS.primary,
-      fontSize: '32px', // MUCH LARGER - was 24px
+      fontSize: '32px',
       fontWeight: 600,
       lineHeight: 1.4
     },
     body: {
       fontFamily: FONT_STACKS.primary,
-      fontSize: '24px', // MUCH LARGER - was 18px
+      fontSize: '24px',
       fontWeight: 400,
       lineHeight: 1.6
     },
     small: {
       fontFamily: FONT_STACKS.primary,
-      fontSize: '20px', // MUCH LARGER - was 16px
+      fontSize: '20px',
       fontWeight: 500,
       lineHeight: 1.5
     },
     badge: {
       fontFamily: FONT_STACKS.primary,
-      fontSize: '22px', // MUCH LARGER - was 18px
+      fontSize: '22px',
       fontWeight: 600,
       lineHeight: 1.3,
       letterSpacing: '0.05em',
@@ -66,17 +66,17 @@ const SeedreamProfessional: React.FC = () => {
     textRendering: 'optimizeLegibility' as const
   };
   
-  // Safe interpolation with bounds checking
-  const safeInterpolate = (frame, inputRange, outputRange, easing) => {
+  // Safe interpolation
+  const safeInterpolate = (frame, inputRange, outputRange, options = {}) => {
     const [inputStart, inputEnd] = inputRange;
     const [outputStart, outputEnd] = outputRange;
     if (inputEnd === inputStart) return outputStart;
     if (frame <= inputStart) return outputStart;
     if (frame >= inputEnd) return outputEnd;
-    return interpolate(frame, inputRange, outputRange, { easing });
+    return interpolate(frame, inputRange, outputRange, options);
   };
   
-  // AI-generated image categories
+  // Image categories
   const imageCategories = [
     { name: 'Portraits', color: '#FF6B6B' },
     { name: 'Landscapes', color: '#4ECDC4' },
@@ -88,49 +88,43 @@ const SeedreamProfessional: React.FC = () => {
     { name: 'Fashion', color: '#F4A460' }
   ];
   
-  // MUCH SMOOTHER overlapping scene animations with LONGER transitions
-  const animations = {
-    // Scene 1: Title introduction (0-120 frames) - LONGER duration
-    titleScene: {
-      opacity: safeInterpolate(frame, [0, 30], [0, 1], Easing.out(Easing.cubic)) * 
-                safeInterpolate(frame, [90, 120], [1, 0], Easing.in(Easing.cubic)),
-      entryY: safeInterpolate(frame, [0, 30], [60, 0], Easing.out(Easing.cubic)),
-      exitY: safeInterpolate(frame, [90, 120], [0, -40], Easing.in(Easing.cubic)),
-      scale: safeInterpolate(frame, [0, 30], [0.85, 1], Easing.out(Easing.cubic))
-    },
-    
-    // Scene 2: Feature showcase (105-195 frames) - LONGER overlap
-    featuresScene: {
-      opacity: safeInterpolate(frame, [105, 135], [0, 1], Easing.out(Easing.cubic)) * 
-               safeInterpolate(frame, [165, 195], [1, 0], Easing.in(Easing.cubic)),
-      entryX: safeInterpolate(frame, [105, 135], [80, 0], Easing.out(Easing.cubic)),
-      exitX: safeInterpolate(frame, [165, 195], [0, -80], Easing.in(Easing.cubic)),
-      scale: safeInterpolate(frame, [105, 135], [0.9, 1], Easing.out(Easing.cubic))
-    },
-    
-    // Scene 3: Image gallery showcase (180-270 frames) - LONGER overlap
-    galleryScene: {
-      opacity: safeInterpolate(frame, [180, 210], [0, 1], Easing.out(Easing.cubic)) * 
-               safeInterpolate(frame, [240, 270], [1, 0], Easing.in(Easing.cubic)),
-      entryY: safeInterpolate(frame, [180, 210], [70, 0], Easing.out(Easing.cubic)),
-      exitScale: safeInterpolate(frame, [240, 270], [1, 0.7], Easing.in(Easing.cubic)),
-      scale: safeInterpolate(frame, [180, 210], [0.8, 1], Easing.out(Easing.cubic))
-    },
-    
-    // Scene 4: Technical specs (255-300 frames) - LONGER overlap
-    specsScene: {
-      opacity: safeInterpolate(frame, [255, 285], [0, 1], Easing.out(Easing.cubic)),
-      entryScale: safeInterpolate(frame, [255, 285], [0.7, 1], Easing.out(Easing.cubic)),
-      entryY: safeInterpolate(frame, [255, 285], [50, 0], Easing.out(Easing.cubic))
-    }
+  // GRACEFUL TRANSITIONS WITH PROPER ENTRY AND EXIT ANIMATIONS
+  const sceneTimings = {
+    title: { start: 0, contentEnd: 65, fadeOut: 75, end: 90 },
+    features: { start: 75, fadeIn: 90, contentEnd: 150, fadeOut: 165, end: 180 },
+    gallery: { start: 165, fadeIn: 180, contentEnd: 240, fadeOut: 255, end: 270 },
+    specs: { start: 255, fadeIn: 270, contentEnd: 285, end: 300 }
   };
   
-  // Calculate scene visibility
-  const sceneVisibility = {
-    title: animations.titleScene.opacity,
-    features: animations.featuresScene.opacity,
-    gallery: animations.galleryScene.opacity,
-    specs: animations.specsScene.opacity
+  // Scene animations with GRACEFUL EXITS
+  const animations = {
+    titleScene: {
+      // Fade in at start, fade out before next scene
+      opacity: safeInterpolate(frame, [0, 20], [0, 1], Easing.out(Easing.cubic)) * 
+               safeInterpolate(frame, [sceneTimings.title.contentEnd, sceneTimings.title.fadeOut], [1, 0], Easing.in(Easing.cubic)),
+      entryY: safeInterpolate(frame, [0, 20], [50, 0], Easing.out(Easing.cubic)),
+      exitY: safeInterpolate(frame, [sceneTimings.title.contentEnd, sceneTimings.title.fadeOut], [0, -30], Easing.in(Easing.cubic))
+    },
+    
+    featuresScene: {
+      opacity: safeInterpolate(frame, [sceneTimings.features.fadeIn, sceneTimings.features.fadeIn + 20], [0, 1], Easing.out(Easing.cubic)) * 
+               safeInterpolate(frame, [sceneTimings.features.contentEnd, sceneTimings.features.fadeOut], [1, 0], Easing.in(Easing.cubic)),
+      entryX: safeInterpolate(frame, [sceneTimings.features.fadeIn, sceneTimings.features.fadeIn + 20], [60, 0], Easing.out(Easing.cubic)),
+      exitX: safeInterpolate(frame, [sceneTimings.features.contentEnd, sceneTimings.features.fadeOut], [0, -60], Easing.in(Easing.cubic))
+    },
+    
+    galleryScene: {
+      opacity: safeInterpolate(frame, [sceneTimings.gallery.fadeIn, sceneTimings.gallery.fadeIn + 20], [0, 1], Easing.out(Easing.cubic)) * 
+               safeInterpolate(frame, [sceneTimings.gallery.contentEnd, sceneTimings.gallery.fadeOut], [1, 0], Easing.in(Easing.cubic)),
+      entryY: safeInterpolate(frame, [sceneTimings.gallery.fadeIn, sceneTimings.gallery.fadeIn + 20], [50, 0], Easing.out(Easing.cubic)),
+      exitScale: safeInterpolate(frame, [sceneTimings.gallery.contentEnd, sceneTimings.gallery.fadeOut], [1, 0.7], Easing.in(Easing.cubic))
+    },
+    
+    specsScene: {
+      opacity: safeInterpolate(frame, [sceneTimings.specs.fadeIn, sceneTimings.specs.fadeIn + 20], [0, 1], Easing.out(Easing.cubic)),
+      entryScale: safeInterpolate(frame, [sceneTimings.specs.fadeIn, sceneTimings.specs.fadeIn + 20], [0.8, 1], Easing.out(Easing.cubic)),
+      entryY: safeInterpolate(frame, [sceneTimings.specs.fadeIn, sceneTimings.specs.fadeIn + 20], [40, 0], Easing.out(Easing.cubic))
+    }
   };
   
   const containerStyles = {
@@ -146,24 +140,24 @@ const SeedreamProfessional: React.FC = () => {
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    width: '95%', // WIDER
-    maxWidth: '1400px', // MUCH LARGER container
+    width: '95%',
+    maxWidth: '1400px',
     textAlign: 'center' as const,
-    padding: '60px' // GENEROUS padding
+    padding: '60px'
   };
 
   return (
     <AbsoluteFill style={containerStyles}>
       
-      {/* Scene 1: Title Introduction */}
-      {sceneVisibility.title > 0.01 && (
+      {/* Scene 1: Title Introduction - GRACEFUL FADE OUT */}
+      {animations.titleScene.opacity > 0.01 && (
         <div style={centeredContentStyle}>
           <div style={{
-            opacity: sceneVisibility.title,
-            transform: `translateY(${animations.titleScene.entryY + animations.titleScene.exitY}px) scale(${animations.titleScene.scale})`
+            opacity: animations.titleScene.opacity,
+            transform: `translateY(${animations.titleScene.entryY + animations.titleScene.exitY}px)`
           }}>
             <div style={{
-              ...TYPOGRAPHY.display, // 96px font size - HUGE
+              ...TYPOGRAPHY.display,
               background: 'linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1, #96CEB4)',
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
@@ -173,14 +167,14 @@ const SeedreamProfessional: React.FC = () => {
               Seedream 4.0
             </div>
             <div style={{
-              ...TYPOGRAPHY.h2, // 48px font size
+              ...TYPOGRAPHY.h2,
               color: '#e5e5e5',
               marginBottom: '32px'
             }}>
               Visual Generation Max
             </div>
             <div style={{
-              ...TYPOGRAPHY.body, // 24px font size - LARGE
+              ...TYPOGRAPHY.body,
               color: '#b3b3b3',
               marginBottom: '60px',
               maxWidth: '800px',
@@ -189,14 +183,14 @@ const SeedreamProfessional: React.FC = () => {
               The secret to success: Custom RL model framework
             </div>
             <div style={{
-              ...TYPOGRAPHY.badge, // 22px font size
+              ...TYPOGRAPHY.badge,
               display: 'inline-block',
-              padding: '24px 40px', // MUCH LARGER padding
+              padding: '24px 40px',
               background: 'rgba(167, 139, 250, 0.2)',
               border: '3px solid #a78bfa',
               borderRadius: '40px',
               color: '#a78bfa',
-              minHeight: '60px' // LARGER touch target
+              minHeight: '60px'
             }}>
               RewardDance Framework
             </div>
@@ -204,15 +198,15 @@ const SeedreamProfessional: React.FC = () => {
         </div>
       )}
       
-      {/* Scene 2: Key Features */}
-      {sceneVisibility.features > 0.01 && (
+      {/* Scene 2: Key Features - GRACEFUL SLIDE OUT */}
+      {animations.featuresScene.opacity > 0.01 && (
         <div style={centeredContentStyle}>
           <div style={{
-            opacity: sceneVisibility.features,
-            transform: `translateX(${animations.featuresScene.entryX + animations.featuresScene.exitX}px) scale(${animations.featuresScene.scale})`
+            opacity: animations.featuresScene.opacity,
+            transform: `translateX(${animations.featuresScene.entryX + animations.featuresScene.exitX}px)`
           }}>
             <div style={{
-              ...TYPOGRAPHY.h1, // 64px font size - HUGE
+              ...TYPOGRAPHY.h1,
               color: '#ffffff',
               marginBottom: '80px'
             }}>
@@ -220,8 +214,8 @@ const SeedreamProfessional: React.FC = () => {
             </div>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr', // EXPLICIT columns
-              gap: '60px', // MUCH LARGER gaps
+              gridTemplateColumns: '1fr 1fr',
+              gap: '60px',
               maxWidth: '1200px',
               margin: '0 auto'
             }}>
@@ -231,37 +225,34 @@ const SeedreamProfessional: React.FC = () => {
                 { title: 'Advanced RL Framework', subtitle: 'Custom training', icon: '🧠' },
                 { title: 'Visual Generation Max', subtitle: 'Next-gen AI', icon: '✨' }
               ].map((feature, index) => {
-                // SMOOTHER stagger with LONGER delays
-                const staggerDelay = 115 + (index * 12);
-                const featureOpacity = safeInterpolate(frame, [staggerDelay, staggerDelay + 20], [0, 1], Easing.out(Easing.cubic));
-                const featureY = safeInterpolate(frame, [staggerDelay, staggerDelay + 20], [30, 0], Easing.out(Easing.cubic));
-                const featureScale = safeInterpolate(frame, [staggerDelay, staggerDelay + 20], [0.9, 1], Easing.out(Easing.cubic));
+                const staggerDelay = 100 + (index * 8);
+                const featureOpacity = safeInterpolate(frame, [staggerDelay, staggerDelay + 15], [0, 1], Easing.out(Easing.cubic));
+                const featureY = safeInterpolate(frame, [staggerDelay, staggerDelay + 15], [30, 0], Easing.out(Easing.cubic));
                 
                 return (
                   <div
                     key={feature.title}
                     style={{
-                      padding: '60px', // MASSIVE padding
+                      padding: '60px',
                       background: 'rgba(255, 255, 255, 0.05)',
                       border: '2px solid rgba(255, 255, 255, 0.15)',
                       borderRadius: '32px',
-                      minHeight: '280px', // HUGE cards
-                      opacity: featureOpacity,
-                      transform: `translateY(${featureY}px) scale(${featureScale})`,
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s ease'
+                      minHeight: '280px',
+                      opacity: featureOpacity * animations.featuresScene.opacity,
+                      transform: `translateY(${featureY}px)`,
+                      backdropFilter: 'blur(10px)'
                     }}
                   >
                     <div style={{ fontSize: '60px', marginBottom: '32px' }}>{feature.icon}</div>
                     <div style={{
-                      ...TYPOGRAPHY.h3, // 32px font size - LARGE
+                      ...TYPOGRAPHY.h3,
                       color: '#ffffff',
                       marginBottom: '20px'
                     }}>
                       {feature.title}
                     </div>
                     <div style={{
-                      ...TYPOGRAPHY.body, // 24px font size - LARGE
+                      ...TYPOGRAPHY.body,
                       color: '#b3b3b3'
                     }}>
                       {feature.subtitle}
@@ -274,15 +265,15 @@ const SeedreamProfessional: React.FC = () => {
         </div>
       )}
       
-      {/* Scene 3: Image Gallery Showcase */}
-      {sceneVisibility.gallery > 0.01 && (
+      {/* Scene 3: Image Gallery - GRACEFUL SCALE OUT */}
+      {animations.galleryScene.opacity > 0.01 && (
         <div style={centeredContentStyle}>
           <div style={{
-            opacity: sceneVisibility.gallery,
-            transform: `translateY(${animations.galleryScene.entryY}px) scale(${animations.galleryScene.scale * animations.galleryScene.exitScale})`
+            opacity: animations.galleryScene.opacity,
+            transform: `translateY(${animations.galleryScene.entryY}px) scale(${animations.galleryScene.exitScale})`
           }}>
             <div style={{
-              ...TYPOGRAPHY.h1, // 64px font size - HUGE
+              ...TYPOGRAPHY.h1,
               color: '#ffffff',
               marginBottom: '80px'
             }}>
@@ -290,52 +281,36 @@ const SeedreamProfessional: React.FC = () => {
             </div>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)', // EXPLICIT columns
-              gap: '40px', // LARGER gaps
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '40px',
               maxWidth: '1300px',
               margin: '0 auto'
             }}>
               {imageCategories.map((category, index) => {
-                // MUCH SMOOTHER stagger
-                const staggerDelay = 190 + (index * 8);
-                const cardOpacity = safeInterpolate(frame, [staggerDelay, staggerDelay + 18], [0, 1], Easing.out(Easing.cubic));
-                const cardScale = safeInterpolate(frame, [staggerDelay, staggerDelay + 18], [0.7, 1], Easing.out(Easing.cubic));
-                const cardY = safeInterpolate(frame, [staggerDelay, staggerDelay + 18], [40, 0], Easing.out(Easing.cubic));
+                const staggerDelay = 190 + (index * 5);
+                const cardOpacity = safeInterpolate(frame, [staggerDelay, staggerDelay + 12], [0, 1], Easing.out(Easing.cubic));
+                const cardY = safeInterpolate(frame, [staggerDelay, staggerDelay + 12], [30, 0], Easing.out(Easing.cubic));
                 
                 return (
                   <div
                     key={category.name}
                     style={{
-                      padding: '40px', // LARGER padding
+                      padding: '40px',
                       background: `linear-gradient(135deg, ${category.color}25, ${category.color}15)`,
                       border: `3px solid ${category.color}50`,
                       borderRadius: '20px',
-                      minHeight: '220px', // HUGE cards
+                      minHeight: '220px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      opacity: cardOpacity,
-                      transform: `scale(${cardScale}) translateY(${cardY}px)`,
-                      boxShadow: `0 12px 40px ${category.color}25`,
-                      position: 'relative',
-                      overflow: 'hidden',
-                      transition: 'all 0.3s ease'
+                      opacity: cardOpacity * animations.galleryScene.opacity,
+                      transform: `translateY(${cardY}px)`,
+                      boxShadow: `0 12px 40px ${category.color}25`
                     }}
                   >
-                    {/* Subtle shine effect */}
                     <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: -100,
-                      width: '100%',
-                      height: '100%',
-                      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)',
-                      transform: `translateX(${safeInterpolate(frame, [staggerDelay + 20, staggerDelay + 50], [0, 250])}px)`
-                    }} />
-                    
-                    <div style={{
-                      width: '60px', // MUCH LARGER icons
+                      width: '60px',
                       height: '60px',
                       borderRadius: '50%',
                       background: category.color,
@@ -343,12 +318,12 @@ const SeedreamProfessional: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      minHeight: '60px' // LARGE touch target
+                      minHeight: '60px'
                     }}>
                       <span style={{ fontSize: '28px' }}>🎨</span>
                     </div>
                     <div style={{
-                      ...TYPOGRAPHY.small, // 20px font size - MUCH LARGER
+                      ...TYPOGRAPHY.small,
                       color: '#ffffff',
                       fontWeight: 600,
                       textAlign: 'center'
@@ -363,15 +338,15 @@ const SeedreamProfessional: React.FC = () => {
         </div>
       )}
       
-      {/* Scene 4: Technical Specifications */}
-      {sceneVisibility.specs > 0.01 && (
+      {/* Scene 4: Technical Specs - GRACEFUL FINAL SCENE */}
+      {animations.specsScene.opacity > 0.01 && (
         <div style={centeredContentStyle}>
           <div style={{
-            opacity: sceneVisibility.specs,
+            opacity: animations.specsScene.opacity,
             transform: `scale(${animations.specsScene.entryScale}) translateY(${animations.specsScene.entryY}px)`
           }}>
             <div style={{
-              ...TYPOGRAPHY.h1, // 64px font size - HUGE
+              ...TYPOGRAPHY.h1,
               color: '#4ECDC4',
               marginBottom: '60px'
             }}>
@@ -381,7 +356,7 @@ const SeedreamProfessional: React.FC = () => {
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'center',
-              gap: '32px', // LARGER gaps
+              gap: '32px',
               marginBottom: '80px',
               maxWidth: '1200px',
               margin: '0 auto 80px auto'
@@ -394,27 +369,25 @@ const SeedreamProfessional: React.FC = () => {
                 'Visual Generation Max',
                 'Improved Consistency'
               ].map((spec, index) => {
-                // SMOOTHER badge animations
-                const badgeDelay = 265 + (index * 6);
-                const badgeOpacity = safeInterpolate(frame, [badgeDelay, badgeDelay + 15], [0, 1], Easing.out(Easing.cubic));
-                const badgeX = safeInterpolate(frame, [badgeDelay, badgeDelay + 15], [-30, 0], Easing.out(Easing.cubic));
-                const badgeScale = safeInterpolate(frame, [badgeDelay, badgeDelay + 15], [0.8, 1], Easing.out(Easing.cubic));
+                const badgeDelay = 280 + (index * 3);
+                const badgeOpacity = safeInterpolate(frame, [badgeDelay, badgeDelay + 8], [0, 1], Easing.out(Easing.cubic));
+                const badgeX = safeInterpolate(frame, [badgeDelay, badgeDelay + 8], [-20, 0], Easing.out(Easing.cubic));
                 
                 return (
                   <div
                     key={spec}
                     style={{
-                      ...TYPOGRAPHY.badge, // 22px font size
-                      padding: '24px 36px', // MUCH LARGER padding
+                      ...TYPOGRAPHY.badge,
+                      padding: '24px 36px',
                       background: 'rgba(78, 205, 196, 0.25)',
                       border: '3px solid #4ECDC4',
                       borderRadius: '40px',
                       color: '#4ECDC4',
-                      minHeight: '60px', // LARGE touch target
+                      minHeight: '60px',
                       display: 'flex',
                       alignItems: 'center',
-                      opacity: badgeOpacity,
-                      transform: `translateX(${badgeX}px) scale(${badgeScale})`
+                      opacity: badgeOpacity * animations.specsScene.opacity,
+                      transform: `translateX(${badgeX}px)`
                     }}
                   >
                     {spec}
@@ -423,7 +396,7 @@ const SeedreamProfessional: React.FC = () => {
               })}
             </div>
             <div style={{
-              ...TYPOGRAPHY.body, // 24px font size - LARGE
+              ...TYPOGRAPHY.body,
               color: '#e5e5e5',
               maxWidth: '900px',
               margin: '0 auto'
@@ -437,4 +410,4 @@ const SeedreamProfessional: React.FC = () => {
   );
 };
 
-export { SeedreamProfessional };
+export { SeedreamGracefulTransitions };
