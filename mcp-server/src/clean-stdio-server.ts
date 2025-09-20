@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 // Configuration - Standardized to 6970/6971 ports
 const APP_ROOT = process.env.DOCKER_CONTAINER === 'true' ? '/app' : path.resolve(__dirname, '../..');
 const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'clean-cut-exports');
-const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'clean-cut-components');
+const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace' : path.join(APP_ROOT, 'clean-cut-components');
 const STUDIO_PORT = parseInt(process.env.REMOTION_STUDIO_PORT || '6970');
 
 // Safe stderr-only logging (no stdout pollution for STDIO)
@@ -107,7 +107,16 @@ class TrueAiStdioMcpServer {
    - Must have TypeScript interface with meaningful optional props
    - Must have default values for all props
    - Must actually USE the props in JSX/styles
-   - Must export with: export { ComponentName };
+   - Must export with: export const ComponentName: React.FC
+
+5. CRITICAL EASING PATTERNS (Remotion API - Research Validated):
+   ✅ WORKING Bezier Alternatives:
+     - Ease-out effect: Easing.bezier(0, 0, 0.58, 1)
+     - Ease-in-out effect: Easing.bezier(0.42, 0, 0.58, 1)
+     - Ease-in effect: Easing.bezier(0.42, 0, 1, 1)
+     - Custom smooth: Easing.bezier(0.25, 0.1, 0.25, 1)
+   ❌ BROKEN Complex Easing: Easing.out(Easing.cubic), Easing.inOut(Easing.ease)
+   ❌ BROKEN Recursion: safeInterpolate calling itself instead of interpolate
 
 ⚡ AUTOMATIC FEATURES: This tool automatically calls auto_sync to register the animation in Root.tsx with proper Zod schema generation.`,
             inputSchema: {
@@ -395,12 +404,13 @@ class TrueAiStdioMcpServer {
     // Normalize requested name to PascalCase
     const normalizedName = requestedName.charAt(0).toUpperCase() + requestedName.slice(1);
 
-    // Scan existing component files
+    // Scan existing component files in professional asset structure
     let existingComponents: string[] = [];
     try {
-      const files = await fs.readdir(SRC_DIR);
+      const animationsDir = path.join(SRC_DIR, 'assets', 'animations');
+      const files = await fs.readdir(animationsDir);
       existingComponents = files
-        .filter(file => file.endsWith('.tsx') && !['Root.tsx', 'Composition.tsx'].includes(file))
+        .filter(file => file.endsWith('.tsx'))
         .map(file => file.replace('.tsx', ''));
     } catch (error) {
       log('warn', 'Could not scan existing components for collision detection', error);
@@ -542,6 +552,11 @@ class TrueAiStdioMcpServer {
       EXPORTS_DIR,
       path.dirname(SRC_DIR), // Parent workspace directory
       path.join(SRC_DIR, '..', 'out'), // Alternative export path
+      path.join(SRC_DIR, 'assets'), // Professional asset structure
+      path.join(SRC_DIR, 'assets', 'animations'), // Animation components
+      path.join(SRC_DIR, 'assets', 'audio'), // Audio assets
+      path.join(SRC_DIR, 'assets', 'audio', 'sfx'), // Sound effects
+      path.join(SRC_DIR, 'assets', 'exports'), // Internal export organization
     ];
 
     for (const dir of requiredDirectories) {
@@ -568,13 +583,14 @@ class TrueAiStdioMcpServer {
   private async fixAllExistingExports(): Promise<void> {
     // ONE-TIME CLEANUP: Fix export duplication in all existing components
     try {
-      const files = await fs.readdir(SRC_DIR);
+      const animationsDir = path.join(SRC_DIR, 'assets', 'animations');
+      const files = await fs.readdir(animationsDir);
       let fixedCount = 0;
 
       for (const file of files) {
-        if (file.endsWith('.tsx') && file !== 'Root.tsx' && file !== 'Composition.tsx') {
+        if (file.endsWith('.tsx')) {
           const componentName = path.basename(file, '.tsx');
-          const filePath = path.join(SRC_DIR, file);
+          const filePath = path.join(animationsDir, file);
 
           try {
             const content = await fs.readFile(filePath, 'utf-8');
@@ -694,7 +710,7 @@ class TrueAiStdioMcpServer {
     }
 
     const validComponentName = nameValidation.safeName;
-    const componentPath = path.join(SRC_DIR, `${validComponentName}.tsx`);
+    const componentPath = path.join(SRC_DIR, 'assets', 'animations', `${validComponentName}.tsx`);
     
     // Write Claude's generated code with SMART export pattern fixing
     const fixedCode = this.fixComponentExports(code, validComponentName);
@@ -843,12 +859,10 @@ class TrueAiStdioMcpServer {
 
   private async handleListExistingComponents() {
     try {
-      const files = await fs.readdir(SRC_DIR);
-      const componentFiles = files.filter(file => 
-        file.endsWith('.tsx') && 
-        file !== 'Composition.tsx' && 
-        file !== 'Root.tsx' && 
-        file !== 'index.ts'
+      const animationsDir = path.join(SRC_DIR, 'assets', 'animations');
+      const files = await fs.readdir(animationsDir);
+      const componentFiles = files.filter(file =>
+        file.endsWith('.tsx')
       );
       
       const components = componentFiles.map(file => {
@@ -944,13 +958,11 @@ class TrueAiStdioMcpServer {
     const rootPath = path.join(SRC_DIR, 'Root.tsx');
 
     try {
-      // Scan workspace for all animation components
-      const files = await fs.readdir(SRC_DIR);
+      // Scan assets/animations for all animation components
+      const animationsDir = path.join(SRC_DIR, 'assets', 'animations');
+      const files = await fs.readdir(animationsDir);
       const componentFiles = files.filter(file =>
-        file.endsWith('.tsx') &&
-        file !== 'Composition.tsx' &&
-        file !== 'Root.tsx' &&
-        file !== 'index.ts'
+        file.endsWith('.tsx')
       );
 
       // Build imports and compositions for all components
@@ -959,7 +971,7 @@ class TrueAiStdioMcpServer {
 
       for (const file of componentFiles) {
         const componentName = file.replace('.tsx', '');
-        imports.push(`import { ${componentName} } from './${componentName}';`);
+        imports.push(`import { ${componentName} } from './assets/animations/${componentName}';`);
 
         // Determine duration based on component type/name patterns
         let duration = 180; // Default 6 seconds
@@ -1021,7 +1033,7 @@ ${compositions.join('\n')}
       if (!rootExists) {
         // Create new Root.tsx
         rootContent = `import { Composition } from 'remotion';
-import { ${componentName} } from './${componentName}';
+import { ${componentName} } from './assets/animations/${componentName}';
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -1052,7 +1064,10 @@ export const RemotionRoot: React.FC = () => {
             // Extract component name from import (exclude the base Composition)
             const match = trimmed.match(/import { (\\w+) } from/);
             if (match) {
-              importLines.push(trimmed);
+              const componentName = match[1];
+              // ALWAYS generate professional import path regardless of existing path
+              const professionalImport = `import { ${componentName} } from './assets/animations/${componentName}';`;
+              importLines.push(professionalImport);
             }
           } else if (trimmed.includes('id="') && !trimmed.includes('id="Main"')) {
             // Extract composition info
@@ -1070,7 +1085,7 @@ export const RemotionRoot: React.FC = () => {
         }
         
         // Add new component if not already present
-        const importStatement = `import { ${componentName} } from './${componentName}';`;
+        const importStatement = `import { ${componentName} } from './assets/animations/${componentName}';`;
         if (!importLines.includes(importStatement)) {
           importLines.push(importStatement);
         }
@@ -1127,7 +1142,7 @@ ${compositions.map(comp => `      <Composition
 
     try {
       let codeToFormat = code;
-      const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+      const componentPath = path.join(SRC_DIR, 'assets', 'animations', `${componentName}.tsx`);
 
       // Read code from file if not provided
       if (!codeToFormat) {
@@ -1204,7 +1219,7 @@ ${compositions.map(comp => `      <Composition
     log('info', 'Managing props', { action, componentName, propName });
 
     try {
-      const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+      const componentPath = path.join(SRC_DIR, 'assets', 'animations', `${componentName}.tsx`);
 
       // Check if component exists
       try {
@@ -1466,20 +1481,18 @@ export interface ${componentName}Props {
     log('info', 'Auto-syncing all components', { force });
 
     try {
-      // 1. Scan workspace for all .tsx components with container-reality validation
-      log('info', 'Scanning workspace for components...');
-      const files = await fs.readdir(SRC_DIR);
+      // 1. Scan assets/animations for all .tsx components with container-reality validation
+      log('info', 'Scanning assets/animations for components...');
+      const animationsDir = path.join(SRC_DIR, 'assets', 'animations');
+      const files = await fs.readdir(animationsDir);
       const componentFiles = files.filter(file =>
-        file.endsWith('.tsx') &&
-        file !== 'Composition.tsx' &&
-        file !== 'Root.tsx' &&
-        file !== 'index.ts'
+        file.endsWith('.tsx')
       );
 
       // CONTAINER-REALITY VALIDATION: Verify all files actually exist and are readable
       const validatedComponents: string[] = [];
       for (const file of componentFiles) {
-        const componentPath = path.join(SRC_DIR, file);
+        const componentPath = path.join(animationsDir, file);
         try {
           await fs.access(componentPath);
           const content = await fs.readFile(componentPath, 'utf8');
@@ -1509,7 +1522,7 @@ export interface ${componentName}Props {
       log('info', 'Analyzing components for props and interfaces...');
       for (const file of validatedComponents) {
         const componentName = file.replace('.tsx', '');
-        const componentPath = path.join(SRC_DIR, file);
+        const componentPath = path.join(animationsDir, file);
 
         try {
           log('info', `Processing component: ${componentName}`);
@@ -1684,7 +1697,7 @@ export interface ${componentName}Props {
     ];
 
     // Merge existing imports with new component imports (with deduplication)
-    const newComponentImports = components.map(comp => `import { ${comp.name} } from './${comp.name}';`);
+    const newComponentImports = components.map(comp => `import { ${comp.name} } from './assets/animations/${comp.name}';`);
     const allImportsRaw = [...baseImports, ...existingImports, ...newComponentImports];
 
     // DEDUPLICATION: Remove duplicate imports (research-validated fix)
@@ -1897,9 +1910,10 @@ export interface ${componentName}Props {
 
   private async scanAndUpdateKnownComponents(componentSet: Set<string>): Promise<void> {
     try {
-      const files = await fs.readdir(SRC_DIR);
+      const animationsDir = path.join(SRC_DIR, 'assets', 'animations');
+      const files = await fs.readdir(animationsDir);
       files
-        .filter(file => file.endsWith('.tsx') && file !== 'Root.tsx' && file !== 'Composition.tsx')
+        .filter(file => file.endsWith('.tsx'))
         .forEach(file => {
           const componentName = path.basename(file, '.tsx');
           componentSet.add(componentName);
@@ -1915,7 +1929,7 @@ export interface ${componentName}Props {
       let rootContent = await fs.readFile(rootPath, 'utf-8');
 
       // Double-check component file doesn't exist before cleaning
-      const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+      const componentPath = path.join(SRC_DIR, 'assets', 'animations', `${componentName}.tsx`);
       const componentExists = await fs.access(componentPath).then(() => true).catch(() => false);
 
       if (componentExists) {
@@ -1926,9 +1940,9 @@ export interface ${componentName}Props {
       // Safe cleanup - only remove specific orphaned references
       const originalContent = rootContent;
 
-      // Remove import statement
+      // Remove import statement (handles both old and new asset structure paths)
       rootContent = rootContent.replace(
-        new RegExp(`import\\s*\\{\\s*${componentName}\\s*\\}\\s*from\\s*['"]\\.\\/${componentName}['"];?\\n?`, 'g'),
+        new RegExp(`import\\s*\\{\\s*${componentName}\\s*\\}\\s*from\\s*['"]\\.(\\/assets\\/animations)?\\/${componentName}['"];?\\n?`, 'g'),
         ''
       );
 
@@ -2013,7 +2027,7 @@ export interface ${componentName}Props {
   }
 
   private extractImportedComponents(content: string): string[] {
-    const importRegex = /import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]\.\//g;
+    const importRegex = /import\s*\{\s*([^}]+)\s*\}\s*from\s*['"]\.\/assets\/animations\//g;
     const components: string[] = [];
     let match;
 
@@ -2086,7 +2100,7 @@ export interface ${componentName}Props {
 
       // 2. Delete component file
       if (deleteFile) {
-        const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+        const componentPath = path.join(SRC_DIR, 'assets', 'animations', `${componentName}.tsx`);
         try {
           await fs.unlink(componentPath);
           results.fileDeleted = true;

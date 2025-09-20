@@ -4,6 +4,14 @@
 
 **🎯 DESIGNED FOR EXTERNAL USERS WITHOUT CLAUDE CODE**
 
+CRITICAL - ALWAYS VALIDATE WITH PLAYWRIGHT MCP AND ACTUALLY LOOK AT THE STATE OF THE REMOTION STUDIO SCREEN BEFORE SAYING THAT EVERYTHING WORKS!!!
+
+
+  1. Never use backups that contain deleted/broken references
+  2. Always clean Root.tsx manually to match actual existing files
+  3. Update host and container simultaneously to prevent conflicts
+  4. Test each change immediately with Playwright validation
+
 This project works with **ONLY** these requirements:
 - ✅ **Docker** (Windows, macOS, or Linux)
 - ✅ **Claude Desktop** (free from Anthropic)
@@ -505,6 +513,22 @@ export default ComponentName;
 **NEVER use `const ComponentName:` - it causes undefined component errors in Remotion Studio.**
 
 See REMOTION_EXAMPLES.md and REMOTION_GUIDELINES.md for complete reference patterns.
+
+# CRITICAL: NEVER CLAIM SUCCESS WITHOUT THOROUGH VERIFICATION
+NEVER say "MISSION ACCOMPLISHED" or claim something is "working" without complete testing!
+- ALWAYS test every animation individually in Remotion Studio using Playwright MCP
+- ALWAYS check for JavaScript errors in browser console via Playwright
+- ALWAYS verify animations actually render without errors before claiming success
+- NEVER assume fixing imports means animations work - ALWAYS VALIDATE
+- NEVER claim "all animations working" without testing EACH ONE individually
+- If you see ANY JavaScript errors, the system is BROKEN - don't claim success
+- Use Playwright MCP for EVERY claim about Studio functionality - no exceptions
+- MANDATORY: Check browser console messages for errors before any success claims
+
+# CRITICAL: ALWAYS USE PLAYWRIGHT MCP FOR STUDIO TESTING
+ALWAYS use the Playwright MCP to check if Remotion Studio is working correctly!
+Use `mcp__playwright__browser_navigate` to http://localhost:6970 to verify animations are visible.
+This is the ONLY reliable way to test Studio functionality - never assume it works without verification.
 
 # CRITICAL: NO EMOJIS IN CODE - JSON PARSING ERRORS
 NEVER use emoji characters in MCP server code, tool responses, or log messages.

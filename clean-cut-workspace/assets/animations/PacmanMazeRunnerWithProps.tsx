@@ -13,7 +13,7 @@ interface PacmanMazeRunnerProps {
   showUI?: boolean;
 }
 
-const PacmanMazeRunnerWithProps: React.FC<PacmanMazeRunnerProps> = ({
+export const PacmanMazeRunnerWithProps: React.FC<PacmanMazeRunnerProps> = ({
   pacmanSpeed = 0.3,
   pacmanColor = '#FFFF00',
   showGhosts = true,
@@ -550,4 +550,3 @@ const PacmanMazeRunnerWithProps: React.FC<PacmanMazeRunnerProps> = ({
   );
 };
 
-export { PacmanMazeRunnerWithProps };

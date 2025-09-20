@@ -78,7 +78,7 @@ const discoverComponents = () => {
 // Generate Root.tsx content
 const generateRootTsx = (components) => {
   const imports = components
-    .map(comp => `import {${comp.name}} from './${comp.name}';`)
+    .map(comp => `import {${comp.name}} from '.assets/animations/${comp.name}';`)
     .join('\n');
 
   const registry = components

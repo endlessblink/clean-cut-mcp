@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 
-const SeedreamGracefulTransitions: React.FC = () => {
+export const SeedreamGracefulTransitions: React.FC = () => {
   const frame = useCurrentFrame();
   
   // LARGE typography following guidelines
@@ -410,4 +410,3 @@ const SeedreamGracefulTransitions: React.FC = () => {
   );
 };
 
-export { SeedreamGracefulTransitions };

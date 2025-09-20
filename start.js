@@ -76,7 +76,8 @@ async function ensureWorkspaceInitialized() {
     };
     await fsp.writeFile(pkgJsonPath, JSON.stringify(pkg, null, 2));
 
-    await ensureDir(srcDir);
+    // DISABLED: Do not create src directory - use unified workspace structure
+    // await ensureDir(srcDir);
     const rootContent = `import {Composition} from 'remotion';
 import {Comp} from './Composition';
 
@@ -143,14 +144,23 @@ registerRoot(RemotionRoot);`;
   const prettierrcSrc = path.join(srcDir, '.prettierrc');
   const prettierrcApp = '/app/.prettierrc';
   if (await fileExists(prettierrcApp) && !(await fileExists(prettierrcSrc))) {
-    await fsp.copyFile(prettierrcApp, prettierrcSrc);
+    try {
+      await fsp.mkdir(path.dirname(prettierrcSrc), { recursive: true });
+      await fsp.copyFile(prettierrcApp, prettierrcSrc);
+    } catch (error) {
+      console.error('[start.js] Warning: Could not copy .prettierrc:', error.message);
+    }
   }
 
   // CRITICAL: Copy .prettierrc from src to workspace root for Studio component deletion
   const prettierrcWorkspace = path.join(WORKSPACE, '.prettierrc');
   if (await fileExists(prettierrcSrc) && !(await fileExists(prettierrcWorkspace))) {
-    await fsp.copyFile(prettierrcSrc, prettierrcWorkspace);
-    console.error('[start.js] Copied .prettierrc for Remotion Studio deletion compatibility');
+    try {
+      await fsp.copyFile(prettierrcSrc, prettierrcWorkspace);
+      console.error('[start.js] Copied .prettierrc for Remotion Studio deletion compatibility');
+    } catch (error) {
+      console.error('[start.js] Warning: Could not copy .prettierrc to workspace:', error.message);
+    }
   }
 
   // Ensure dependencies are installed
@@ -323,7 +333,7 @@ async function main() {
   }
 
   console.error(`[ENTRYPOINT] Launching Remotion Studio on port ${STUDIO_PORT} ...`);
-  const studio = spawnBackground('npx', ['remotion', 'studio', '--host', '0.0.0.0', '--port', String(STUDIO_PORT), '--root', WORKSPACE, '--no-open'], {
+  const studio = spawnBackground('npx', ['remotion', 'studio', '--config', '/workspace/remotion.config.ts', '--host', '0.0.0.0', '--port', String(STUDIO_PORT), '--no-open'], {
     cwd: WORKSPACE,
     env: {
       ...process.env,
@@ -382,11 +392,23 @@ async function cleanupBrokenImports() {
       // Skip system components
       if (componentName === 'Comp' || componentName === 'z') continue;
 
-      const componentPath = path.join(srcDir, `${componentName}.tsx`);
+      // RESEARCH-VALIDATED: Check both root and assets/animations/ directories for professional asset structure
+      const possiblePaths = [
+        path.join(srcDir, `${componentName}.tsx`), // Root location (legacy)
+        path.join(srcDir, 'assets', 'animations', `${componentName}.tsx`) // Professional asset location
+      ];
 
-      if (!(await fileExists(componentPath))) {
+      let componentExists = false;
+      for (const componentPath of possiblePaths) {
+        if (await fileExists(componentPath)) {
+          componentExists = true;
+          break;
+        }
+      }
+
+      if (!componentExists) {
         brokenImports.push(componentName);
-        console.error(`[start.js] Found broken import: ${componentName} (file missing)`);
+        console.error(`[start.js] Found broken import: ${componentName} (file missing from both root and assets/animations)`);
       }
     }
 

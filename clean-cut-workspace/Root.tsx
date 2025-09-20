@@ -2,36 +2,18 @@ import { Composition } from 'remotion';
 import { Comp } from './Composition';
 import React from 'react';
 import { z } from 'zod';
-import { BouncingBall } from './assets/animations/BouncingBall';
-import { FloatingOrbs } from './assets/animations/FloatingOrbs';
 import { GitHubProfileMegaShowcase } from './assets/animations/GitHubProfileMegaShowcase';
-import { GitHubProfileShowcase } from './assets/animations/GitHubProfileShowcase';
 import { GitHubProfileShowcaseEnhanced } from './assets/animations/GitHubProfileShowcaseEnhanced';
-import { PacmanAnimation } from './assets/animations/PacmanAnimation';
-import { PacmanGame } from './assets/animations/PacmanGame';
 import { PacmanGameImproved } from './assets/animations/PacmanGameImproved';
-import { PacmanMazeRunner } from './assets/animations/PacmanMazeRunner';
 import { PacmanMazeRunnerWithProps } from './assets/animations/PacmanMazeRunnerWithProps';
 import { ProductShowcase } from './assets/animations/ProductShowcase';
-import { PulsingOrbs } from './assets/animations/PulsingOrbs';
-import { QuickTestAnimation } from './assets/animations/QuickTestAnimation';
 import { SeedreamGracefulTransitions } from './assets/animations/SeedreamGracefulTransitions';
 import { SocialMediaFeed } from './assets/animations/SocialMediaFeed';
 import { SundownSerenity } from './assets/animations/SundownSerenity';
 import { TweetAnimation } from './assets/animations/TweetAnimation';
+import { WelcomeAnimation } from './assets/animations/WelcomeAnimation';
+import { WelcomeDemo } from './assets/animations/WelcomeDemo';
 
-const GitHubProfileShowcaseSchema = z.object({
-  username: z.string().optional(),
-  accentColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  publicRepos: z.number().optional(),
-  starsEarned: z.number().optional(),
-  totalCommits: z.number().optional(),
-  animationSpeed: z.number().optional(),
-  projectName1: z.string().optional(),
-  projectName2: z.string().optional(),
-  projectName3: z.string().optional()
-});
 const PacmanMazeRunnerWithPropsSchema = z.object({
   pacmanSpeed: z.number().optional(),
   pacmanColor: z.string().optional(),
@@ -42,15 +24,6 @@ const PacmanMazeRunnerWithPropsSchema = z.object({
   ghostSpeed: z.number().optional(),
   mazeScale: z.number().optional(),
   showUI: z.boolean().optional()
-});
-const PulsingOrbsSchema = z.object({
-  primaryColor: z.string().optional(),
-  secondaryColor: z.string().optional(),
-  accentColor: z.string().optional(),
-  orbCount: z.number().optional(),
-  pulseDuration: z.number().optional(),
-  title: z.string().optional(),
-  showRipples: z.boolean().optional()
 });
 
 export const RemotionRoot: React.FC = () => {
@@ -65,37 +38,12 @@ export const RemotionRoot: React.FC = () => {
         height={1080}
       />
       <Composition
-        id="BouncingBall"
-        component={BouncingBall}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="FloatingOrbs"
-        component={FloatingOrbs}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
         id="GitHubProfileMegaShowcase"
         component={GitHubProfileMegaShowcase}
         durationInFrames={450}
         fps={30}
         width={1920}
         height={1080}
-      />
-      <Composition
-        id="GitHubProfileShowcase"
-        component={GitHubProfileShowcase}
-        durationInFrames={450}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={GitHubProfileShowcaseSchema}
       />
       <Composition
         id="GitHubProfileShowcaseEnhanced"
@@ -106,33 +54,9 @@ export const RemotionRoot: React.FC = () => {
         height={1080}
       />
       <Composition
-        id="PacmanAnimation"
-        component={PacmanAnimation}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="PacmanGame"
-        component={PacmanGame}
-        durationInFrames={360}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
         id="PacmanGameImproved"
         component={PacmanGameImproved}
         durationInFrames={360}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="PacmanMazeRunner"
-        component={PacmanMazeRunner}
-        durationInFrames={240}
         fps={30}
         width={1920}
         height={1080}
@@ -150,23 +74,6 @@ export const RemotionRoot: React.FC = () => {
         id="ProductShowcase"
         component={ProductShowcase}
         durationInFrames={450}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="PulsingOrbs"
-        component={PulsingOrbs}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={PulsingOrbsSchema}
-      />
-      <Composition
-        id="QuickTestAnimation"
-        component={QuickTestAnimation}
-        durationInFrames={180}
         fps={30}
         width={1920}
         height={1080}
@@ -198,6 +105,22 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="TweetAnimation"
         component={TweetAnimation}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="WelcomeAnimation"
+        component={WelcomeAnimation}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="WelcomeDemo"
+        component={WelcomeDemo}
         durationInFrames={240}
         fps={30}
         width={1920}

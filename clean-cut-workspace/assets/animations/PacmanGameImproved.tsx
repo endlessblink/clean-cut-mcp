@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 
-const PacmanGameImproved: React.FC = () => {
+export const PacmanGameImproved: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps, durationInFrames } = useVideoConfig();
 
@@ -378,4 +378,3 @@ const PacmanGameImproved: React.FC = () => {
   );
 };
 
-export { PacmanGameImproved };
