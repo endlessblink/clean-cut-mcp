@@ -493,6 +493,70 @@ class TrueAiStdioMcpServer {
         }
         return alternatives.slice(0, 3); // Top 3 semantic alternatives
     }
+    async ensureWorkspaceDirectories() {
+        // STDIO MODE FIX: Ensure all directories exist regardless of execution context
+        const requiredDirectories = [
+            SRC_DIR,
+            EXPORTS_DIR,
+            path.dirname(SRC_DIR), // Parent workspace directory
+            path.join(SRC_DIR, '..', 'out'), // Alternative export path
+        ];
+        for (const dir of requiredDirectories) {
+            try {
+                await fs.mkdir(dir, { recursive: true });
+                log('info', `Ensured directory exists: ${dir}`);
+            }
+            catch (error) {
+                log('warn', `Failed to create directory ${dir}`, { error: error.message });
+                // Continue - don't fail for directory creation issues
+            }
+        }
+        // Verify critical directories exist
+        try {
+            await fs.access(SRC_DIR);
+            await fs.access(EXPORTS_DIR);
+            log('info', 'All workspace directories verified and accessible');
+        }
+        catch (error) {
+            log('error', 'Critical workspace directories not accessible', { error: error.message });
+            throw new Error(`Workspace initialization failed: ${error.message}`);
+        }
+    }
+    async fixAllExistingExports() {
+        // ONE-TIME CLEANUP: Fix export duplication in all existing components
+        try {
+            const files = await fs.readdir(SRC_DIR);
+            let fixedCount = 0;
+            for (const file of files) {
+                if (file.endsWith('.tsx') && file !== 'Root.tsx' && file !== 'Composition.tsx') {
+                    const componentName = path.basename(file, '.tsx');
+                    const filePath = path.join(SRC_DIR, file);
+                    try {
+                        const content = await fs.readFile(filePath, 'utf-8');
+                        const fixedContent = this.fixComponentExports(content, componentName);
+                        if (fixedContent !== content) {
+                            await fs.writeFile(filePath, fixedContent);
+                            log('info', `Fixed exports in ${componentName}.tsx`);
+                            fixedCount++;
+                        }
+                    }
+                    catch (error) {
+                        log('warn', `Failed to fix exports in ${file}`, { error: error.message });
+                    }
+                }
+            }
+            if (fixedCount > 0) {
+                log('info', `Successfully fixed exports in ${fixedCount} existing components`);
+            }
+            else {
+                log('info', 'All existing components have correct export patterns');
+            }
+        }
+        catch (error) {
+            log('error', 'Failed to fix existing exports (non-fatal)', { error: error.message });
+            // Don't throw - this is a cleanup operation that shouldn't break the system
+        }
+    }
     fixComponentExports(code, componentName) {
         // RESEARCH-VALIDATED: Prefer modern "export const" pattern, avoid duplicates
         // Check what export patterns already exist
@@ -540,9 +604,10 @@ class TrueAiStdioMcpServer {
                 isError: true
             };
         }
-        // Ensure directories exist
-        await fs.mkdir(EXPORTS_DIR, { recursive: true });
-        await fs.mkdir(SRC_DIR, { recursive: true });
+        // ROBUST DIRECTORY INITIALIZATION: Ensure all required directories exist (STDIO mode fix)
+        await this.ensureWorkspaceDirectories();
+        // ONE-TIME EXPORT CLEANUP: Fix duplicate exports in existing components
+        await this.fixAllExistingExports();
         // ROBUST COLLISION DETECTION: Prevent name conflicts and suggest alternatives
         const nameValidation = await this.validateAndResolveName(componentName);
         if (nameValidation.hasConflict) {
@@ -563,8 +628,26 @@ class TrueAiStdioMcpServer {
         const fixedCode = this.fixComponentExports(code, validComponentName);
         // INTERPOLATE VALIDATION: Detect and fix unsafe interpolate patterns
         const safeCode = this.validateAndFixInterpolate(fixedCode);
-        await fs.writeFile(componentPath, safeCode);
-        log('info', `Created animation file with Claude's code: ${componentPath}`);
+        // ROBUST FILE CREATION: With error recovery for external users
+        try {
+            await fs.writeFile(componentPath, safeCode);
+            log('info', `Created animation file with Claude's code: ${componentPath}`);
+        }
+        catch (fileError) {
+            log('error', 'Failed to create animation file', { error: fileError.message });
+            return {
+                content: [{
+                        type: 'text',
+                        text: `[CREATE FAILED] Automatic creation failed. Manual fallback steps:\\n\\n` +
+                            `1. Create file: clean-cut-workspace/${validComponentName}.tsx\\n` +
+                            `2. Add your component code to the file\\n` +
+                            `3. Use auto_sync tool to register it in Root.tsx\\n\\n` +
+                            `[ERROR DETAILS] ${fileError.message}\\n\\n` +
+                            `[SUPPORT] This ensures external users always have a path forward`
+                    }],
+                isError: true
+            };
+        }
         // AUTOMATIC SYNC: Always call auto_sync after creating animation to ensure it appears in Studio
         log('info', 'Auto-syncing new animation to Root.tsx...');
         try {
@@ -573,7 +656,17 @@ class TrueAiStdioMcpServer {
         }
         catch (syncError) {
             log('error', 'Auto-sync failed, but animation file created', syncError);
-            // Continue - don't fail the whole operation if sync fails
+            return {
+                content: [{
+                        type: 'text',
+                        text: `[PARTIAL SUCCESS] Animation file created but auto-sync failed.\\n\\n` +
+                            `[FILE] ${validComponentName}.tsx created successfully\\n` +
+                            `[MANUAL STEP] Run auto_sync tool to register it in Root.tsx\\n\\n` +
+                            `[ERROR] ${syncError.message}\\n\\n` +
+                            `[FALLBACK] Manual registration available`
+                    }],
+                isError: false // File was created, just sync failed
+            };
         }
         const collisionInfo = nameValidation.requestedName !== validComponentName ?
             `\\n[COLLISION RESOLVED] Requested "${nameValidation.requestedName}" → Using "${validComponentName}"` : '';

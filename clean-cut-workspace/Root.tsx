@@ -1,3 +1,4 @@
+import React from 'react';
 import { Composition } from 'remotion';
 import { Comp } from './Composition';
 import { z } from 'zod';
@@ -28,7 +29,7 @@ const GitHubProfileShowcaseSchema = z.object({
   animationSpeed: z.number().optional(),
   projectName1: z.string().optional(),
   projectName2: z.string().optional(),
-  projectName3: z.string().optional(),
+  projectName3: z.string().optional()
 });
 const PacmanMazeRunnerWithPropsSchema = z.object({
   pacmanSpeed: z.number().optional(),
@@ -39,13 +40,20 @@ const PacmanMazeRunnerWithPropsSchema = z.object({
   gameTheme: z.enum(['classic', 'neon', 'retro', 'modern']).optional(),
   ghostSpeed: z.number().optional(),
   mazeScale: z.number().optional(),
-  showUI: z.boolean().optional(),
+  showUI: z.boolean().optional()
 });
 
 export const RemotionRoot: React.FC = () => {
   return (
     <>
-      <Composition id="Main" component={Comp} durationInFrames={90} fps={30} width={1920} height={1080} />
+      <Composition
+        id="Main"
+        component={Comp}
+        durationInFrames={90}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
       <Composition
         id="BouncingBall"
         component={BouncingBall}
@@ -53,7 +61,7 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />{' '}
+      />
       <Composition
         id="FloatingOrbs"
         component={FloatingOrbs}
@@ -61,7 +69,7 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />{' '}
+      />
       <Composition
         id="GitHubProfileMegaShowcase"
         component={GitHubProfileMegaShowcase}
@@ -87,7 +95,22 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
       />
-      <Composition id="PacmanGame" component={PacmanGame} durationInFrames={360} fps={30} width={1920} height={1080} />
+      <Composition
+        id="PacmanAnimation"
+        component={PacmanAnimation}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
+        id="PacmanGame"
+        component={PacmanGame}
+        durationInFrames={360}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
       <Composition
         id="PacmanGameImproved"
         component={PacmanGameImproved}
@@ -120,7 +143,7 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />{' '}
+      />
       <Composition
         id="QuickTestAnimation"
         component={QuickTestAnimation}
@@ -160,7 +183,7 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />{' '}
+      />
     </>
   );
 };
