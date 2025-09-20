@@ -16,6 +16,7 @@ services:
       - DOCKER_CONTAINER=true
       - REMOTION_STUDIO_PORT=6970
       - REMOTION_NON_INTERACTIVE=1
+      - CHOKIDAR_USEPOLLING=true
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6970/"]

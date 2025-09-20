@@ -1,0 +1,91 @@
+# Clean-Cut-MCP - External User Repository
+# Exclude development artifacts, personal animations, and unnecessary files
+
+# Development directories - Not needed for external users
+archive/
+extrenal-mcp-bmad/
+docs/debugging/
+
+# Personal test animations - Keep workspace clean for external users
+clean-cut-workspace/*.tsx
+!clean-cut-workspace/Composition.tsx
+!clean-cut-workspace/Root.tsx
+!clean-cut-workspace/index.ts
+clean-cut-workspace/*.types.ts
+
+# Node.js dependencies
+node_modules/
+clean-cut-workspace/node_modules/
+clean-cut-workspace/src/
+mcp-server/node_modules/
+package-lock.json
+*.log
+npm-debug.log*
+
+# MCP server build artifacts (keep source, exclude compiled)
+mcp-server/dist/
+mcp-server/clean-cut-workspace/
+
+# Remotion cache and build artifacts
+clean-cut-workspace/out/
+.remotion/
+*.mp4
+*.mov
+*.webm
+
+# Video exports (users will generate their own)
+clean-cut-exports/
+
+# Development backups
+*.backup
+*.bak
+*.orig
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker volumes and cache
+.docker/
+
+# Windows specific
+desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# Environment and config files
+.env
+.env.local
+.env.*.local
+
+# Testing artifacts
+test-results/
+coverage/
+
+# Documentation images (keep essential docs only)
+docs/debugging/*.png
+docs/debugging/*.webp
+docs/debugging/*.jpg
+!docs/README.md
+
+# Build logs and debug files
+*.debug
+build.log
+error.log
+debug.log
