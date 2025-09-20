@@ -563,10 +563,18 @@ class TrueAiStdioMcpServer {
         const hasConstExport = new RegExp(`export\\s+const\\s+${componentName}\\s*:`).test(code);
         const hasNamedExport = new RegExp(`export\\s*\\{[^}]*${componentName}[^}]*\\}`).test(code);
         const hasDefaultExport = new RegExp(`export\\s+default\\s+${componentName}`).test(code);
-        // MODERN PATTERN: If has "export const ComponentName", it's perfect - don't touch it
+        // MODERN PATTERN: If has "export const ComponentName", remove any duplicate named exports
         if (hasConstExport) {
-            log('info', `Component ${componentName} uses modern export const pattern - no changes needed`);
-            return code;
+            if (hasNamedExport) {
+                log('info', `Component ${componentName} has export const + duplicate named export - removing duplicate`);
+                // Remove duplicate export { ComponentName }; statements
+                const cleanedCode = code.replace(new RegExp(`\\s*export\\s*\\{\\s*${componentName}\\s*\\}\\s*;?\\n?`, 'g'), '');
+                return cleanedCode;
+            }
+            else {
+                log('info', `Component ${componentName} uses modern export const pattern - no changes needed`);
+                return code;
+            }
         }
         // LEGACY PATTERN: If has default export, replace with named export
         if (hasDefaultExport) {

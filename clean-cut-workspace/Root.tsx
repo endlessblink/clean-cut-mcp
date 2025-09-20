@@ -1,6 +1,6 @@
-import React from 'react';
 import { Composition } from 'remotion';
 import { Comp } from './Composition';
+import React from 'react';
 import { z } from 'zod';
 import { BouncingBall } from './BouncingBall';
 import { FloatingOrbs } from './FloatingOrbs';
@@ -13,6 +13,7 @@ import { PacmanGameImproved } from './PacmanGameImproved';
 import { PacmanMazeRunner } from './PacmanMazeRunner';
 import { PacmanMazeRunnerWithProps } from './PacmanMazeRunnerWithProps';
 import { ProductShowcase } from './ProductShowcase';
+import { PulsingOrbs } from './PulsingOrbs';
 import { QuickTestAnimation } from './QuickTestAnimation';
 import { SeedreamGracefulTransitions } from './SeedreamGracefulTransitions';
 import { SocialMediaFeed } from './SocialMediaFeed';
@@ -41,6 +42,15 @@ const PacmanMazeRunnerWithPropsSchema = z.object({
   ghostSpeed: z.number().optional(),
   mazeScale: z.number().optional(),
   showUI: z.boolean().optional()
+});
+const PulsingOrbsSchema = z.object({
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  accentColor: z.string().optional(),
+  orbCount: z.number().optional(),
+  pulseDuration: z.number().optional(),
+  title: z.string().optional(),
+  showRipples: z.boolean().optional()
 });
 
 export const RemotionRoot: React.FC = () => {
@@ -143,6 +153,15 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      <Composition
+        id="PulsingOrbs"
+        component={PulsingOrbs}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={PulsingOrbsSchema}
       />
       <Composition
         id="QuickTestAnimation"
