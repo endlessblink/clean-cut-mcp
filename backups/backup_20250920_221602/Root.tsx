@@ -2,11 +2,8 @@ import { Composition } from 'remotion';
 import { Comp } from './Composition';
 import React from 'react';
 import { z } from 'zod';
-import { BouncingBall } from './assets/animations/BouncingBall';
-import { FloatingOrbs } from './assets/animations/FloatingOrbs';
 import { GitHubProfileMegaShowcase } from './assets/animations/GitHubProfileMegaShowcase';
 import { GitHubProfileShowcaseEnhanced } from './assets/animations/GitHubProfileShowcaseEnhanced';
-import { McpTestAnimation } from './assets/animations/McpTestAnimation';
 import { PacmanGameImproved } from './assets/animations/PacmanGameImproved';
 import { PacmanMazeRunnerWithProps } from './assets/animations/PacmanMazeRunnerWithProps';
 import { ProductShowcase } from './assets/animations/ProductShowcase';
@@ -28,20 +25,6 @@ const PacmanMazeRunnerWithPropsSchema = z.object({
   mazeScale: z.number().optional(),
   showUI: z.boolean().optional()
 });
-const WelcomeAnimationSchema = z.object({
-  title: z.string().optional(),
-  accentColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  textColor: z.string().optional(),
-  animationSpeed: z.number().optional()
-});
-const WelcomeDemoSchema = z.object({
-  title: z.string().optional(),
-  accentColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  textColor: z.string().optional(),
-  animationSpeed: z.number().optional()
-});
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -50,22 +33,6 @@ export const RemotionRoot: React.FC = () => {
         id="Main"
         component={Comp}
         durationInFrames={90}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="BouncingBall"
-        component={BouncingBall}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="FloatingOrbs"
-        component={FloatingOrbs}
-        durationInFrames={240}
         fps={30}
         width={1920}
         height={1080}
@@ -82,14 +49,6 @@ export const RemotionRoot: React.FC = () => {
         id="GitHubProfileShowcaseEnhanced"
         component={GitHubProfileShowcaseEnhanced}
         durationInFrames={450}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="McpTestAnimation"
-        component={McpTestAnimation}
-        durationInFrames={180}
         fps={30}
         width={1920}
         height={1080}
@@ -158,7 +117,6 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-        schema={WelcomeAnimationSchema}
       />
       <Composition
         id="WelcomeDemo"
@@ -167,7 +125,6 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-        schema={WelcomeDemoSchema}
       />
     </>
   );

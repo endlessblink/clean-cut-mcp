@@ -61,8 +61,7 @@ COPY --from=builder /app/mcp-server/package.json ./mcp-server/package.json
 COPY start.js ./start.js
 COPY cleanup-service.js ./cleanup-service.js
 
-# Copy Remotion configuration, tsconfig, and prettier config to workspace
-COPY clean-cut-workspace/remotion.config.ts ./remotion.config.ts
+# Copy tsconfig and prettier config to workspace
 COPY clean-cut-workspace/tsconfig.json ./tsconfig.json
 COPY .prettierrc ./.prettierrc
 
