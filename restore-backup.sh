@@ -18,11 +18,11 @@ fi
 
 echo "🔄 Restoring from backup: $TIMESTAMP"
 
-# Restore files
-cp -r "$BACKUP_DIR/animations" clean-cut-workspace/assets/
-cp "$BACKUP_DIR/Root.tsx" clean-cut-workspace/
+# Restore files (updated for src/ structure)
+cp -r "$BACKUP_DIR/animations" clean-cut-workspace/src/assets/
+cp "$BACKUP_DIR/Root.tsx" clean-cut-workspace/src/
 cp "$BACKUP_DIR/remotion.config.ts" clean-cut-workspace/
-cp "$BACKUP_DIR/index.ts" clean-cut-workspace/
+cp "$BACKUP_DIR/index.ts" clean-cut-workspace/src/
 
 echo "✅ Restored successfully!"
 echo "🔄 Restarting container to apply changes..."

@@ -6,17 +6,20 @@ services:
       - "6970:6970"  # Remotion Studio (WORKING)
       - "6971:6971"  # Reserved for future HTTP MCP server
     volumes:
-      # Cross-platform export directory mounting (WORKING - tested)
-      # Videos exported from Remotion Studio appear in ./clean-cut-exports on your host
+      # Bind mount from WSL2 filesystem (eliminates Windows filesystem conflicts)
       - ./clean-cut-exports:/workspace/out
-      # Persistent workspace - animations survive container rebuilds (NEW - host-mounted for transparency)
+      # Bind mount from WSL2 filesystem (optimal performance)
       - ./clean-cut-workspace:/workspace
+      # Named volume for node_modules (avoids mount conflicts)
+      - clean-cut-node-modules:/workspace/node_modules
     environment:
       - NODE_ENV=production
       - DOCKER_CONTAINER=true
       - REMOTION_STUDIO_PORT=6970
       - REMOTION_NON_INTERACTIVE=1
       - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_HOST=127.0.0.1
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6970/"]
@@ -24,6 +27,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+volumes:
+  clean-cut-node-modules:
+    driver: local
 
 networks:
   default:

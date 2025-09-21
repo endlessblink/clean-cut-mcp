@@ -105,5 +105,5 @@ VOLUME ["/workspace/out"]
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -fsS http://localhost:6971/health || exit 1
 
-# Start both services: background cleanup + main Studio service
-CMD ["sh", "-c", "node /app/cleanup-service.js & node /app/start.js"]
+# Start main Studio service only (cleanup integrated into MCP delete tool)
+CMD ["sh", "-c", "node /app/start.js"]

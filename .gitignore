@@ -9,14 +9,16 @@ docs/debugging/
 # Personal test animations - Keep workspace clean for external users
 clean-cut-workspace/*.tsx
 !clean-cut-workspace/Composition.tsx
-!clean-cut-workspace/Root.tsx
+!clean-cut-workspace/src/Root.tsx
+!clean-cut-workspace/src/index.ts
+!clean-cut-workspace/src/assets/
 !clean-cut-workspace/index.ts
 clean-cut-workspace/*.types.ts
 
 # Node.js dependencies
 node_modules/
 clean-cut-workspace/node_modules/
-clean-cut-workspace/src/
+# clean-cut-workspace/src/ - Essential files now live here
 mcp-server/node_modules/
 package-lock.json
 *.log

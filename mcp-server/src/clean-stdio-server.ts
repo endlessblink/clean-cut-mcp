@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 // Configuration - Standardized to 6970/6971 ports
 const APP_ROOT = process.env.DOCKER_CONTAINER === 'true' ? '/app' : path.resolve(__dirname, '../..');
 const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'clean-cut-exports');
-const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace' : path.join(APP_ROOT, 'clean-cut-components');
+const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'clean-cut-components', 'src');
 const STUDIO_PORT = parseInt(process.env.REMOTION_STUDIO_PORT || '6970');
 
 // Safe stderr-only logging (no stdout pollution for STDIO)
@@ -2076,6 +2076,10 @@ export interface ${componentName}Props {
         const importRegex = new RegExp(`import\\s*\\{\\s*${componentName}\\s*\\}\\s*from\\s*['"\\.].*?['"];?\\s*\n?`, 'g');
         rootContent = rootContent.replace(importRegex, '');
 
+        // Remove schema definition (integrated from cleanup-service.js)
+        const schemaRegex = new RegExp(`const\\s+${componentName}Schema\\s*=\\s*z\\.object\\([^}]+\\}\\);\\n?`, 'gs');
+        rootContent = rootContent.replace(schemaRegex, '');
+
         // Remove composition
         const compositionRegex = new RegExp(
           `<Composition[^>]*id=["']${componentName}["'][^>]*component=\\{${componentName}\\}[^>]*>[^<]*</Composition>\\s*`,
@@ -2109,6 +2113,23 @@ export interface ${componentName}Props {
           results.errors.push(`Failed to delete file: ${error.message}`);
           if (!force) throw error;
         }
+      }
+
+      // FORCE CACHE CLEARING: Clear Remotion cache to trigger Studio refresh (same as auto_sync)
+      try {
+        const remotionCacheDir = path.join(SRC_DIR.replace('/src', ''), '.remotion');
+        const webpackCacheDir = path.join(SRC_DIR.replace('/src', ''), 'node_modules', '.cache');
+        await fs.rmdir(remotionCacheDir, { recursive: true }).catch(() => {});
+        await fs.rmdir(webpackCacheDir, { recursive: true }).catch(() => {});
+
+        // Touch index.ts to trigger webpack rebuild
+        const indexPath = path.join(SRC_DIR, 'index.ts');
+        const now = new Date();
+        await fs.utimes(indexPath, now, now).catch(() => {});
+
+        log('info', `Cleared Remotion cache after deleting ${componentName} - Studio will refresh`);
+      } catch (error) {
+        log('warn', `Cache clear failed after deletion: ${error.message}`);
       }
 
       const successMessage = [

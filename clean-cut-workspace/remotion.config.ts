@@ -1,7 +1,7 @@
 import { Config } from '@remotion/cli/config';
 
-// Explicitly set the entry point to workspace root
-Config.setEntryPoint('/workspace/index.ts');
+// Explicitly set the entry point to src directory (Remotion standard)
+Config.setEntryPoint('/workspace/src/index.ts');
 
 // Enable verbose logging for debugging
 Config.setLevel('verbose');

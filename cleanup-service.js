@@ -8,10 +8,12 @@ const path = require('path');
 
 const WORKSPACE = process.env.WORKSPACE_DIR || '/workspace';
 const SRC_DIR = path.join(WORKSPACE, 'src');
+const ANIMATIONS_DIR = path.join(SRC_DIR, 'assets', 'animations');
 const ROOT_PATH = path.join(SRC_DIR, 'Root.tsx');
 const POLL_INTERVAL = 5000; // 5 seconds - research-validated interval
 
 let knownComponents = new Set();
+let cleanupInterval = null;
 
 // Logging function (stderr only to avoid pollution)
 function log(level, message, data) {
@@ -21,6 +23,34 @@ function log(level, message, data) {
     console.error(JSON.stringify(data, null, 2));
   }
 }
+
+// Graceful shutdown handler
+function gracefulShutdown(signal) {
+  log('info', `Received ${signal}, shutting down gracefully...`);
+
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    log('info', 'Cleanup interval cleared');
+  }
+
+  log('info', 'Background Cleanup Service shutdown complete');
+  process.exit(0);
+}
+
+// Error handlers to prevent crashes
+process.on('unhandledRejection', (reason, promise) => {
+  log('error', 'Unhandled Promise Rejection', { reason, promise: promise.toString() });
+  // Don't exit - log and continue
+});
+
+process.on('uncaughtException', (error) => {
+  log('error', 'Uncaught Exception', { error: error.message, stack: error.stack });
+  // Don't exit - log and continue for cleanup service
+});
+
+// Signal handlers for graceful shutdown
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 async function fileExists(filePath) {
   try {
@@ -33,15 +63,17 @@ async function fileExists(filePath) {
 
 async function scanCurrentComponents() {
   try {
-    if (!(await fileExists(SRC_DIR))) {
+    // Scan the correct animations directory
+    if (!(await fileExists(ANIMATIONS_DIR))) {
+      log('warn', `Animations directory not found: ${ANIMATIONS_DIR}`);
       return new Set();
     }
 
-    const files = await fsp.readdir(SRC_DIR);
+    const files = await fsp.readdir(ANIMATIONS_DIR);
     const currentComponents = new Set();
 
     files
-      .filter(file => file.endsWith('.tsx') && file !== 'Root.tsx' && file !== 'Composition.tsx')
+      .filter(file => file.endsWith('.tsx'))
       .forEach(file => {
         const componentName = path.basename(file, '.tsx');
         currentComponents.add(componentName);
@@ -64,8 +96,8 @@ async function cleanupOrphanedReferences(componentName) {
     let rootContent = await fsp.readFile(ROOT_PATH, 'utf-8');
     const originalContent = rootContent;
 
-    // Verify component file doesn't exist before cleaning
-    const componentPath = path.join(SRC_DIR, `${componentName}.tsx`);
+    // Verify component file doesn't exist before cleaning (use correct animations directory)
+    const componentPath = path.join(ANIMATIONS_DIR, `${componentName}.tsx`);
     if (await fileExists(componentPath)) {
       log('info', `Component ${componentName} still exists - skipping cleanup`);
       return;
@@ -111,7 +143,17 @@ async function performPollingCheck() {
     for (const componentName of knownComponents) {
       if (!currentComponents.has(componentName)) {
         log('info', `DELETION DETECTED: ${componentName}.tsx - triggering cleanup`);
-        await cleanupOrphanedReferences(componentName);
+
+        // Run cleanup with timeout protection
+        try {
+          await Promise.race([
+            cleanupOrphanedReferences(componentName),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Cleanup timeout')), 10000))
+          ]);
+        } catch (cleanupError) {
+          log('error', `Cleanup failed for ${componentName} (non-fatal)`, { error: cleanupError.message });
+          // Continue with other components - don't crash the service
+        }
       }
     }
 
@@ -135,22 +177,11 @@ async function initializeCleanupService() {
 
   // Initial scan to populate known components
   knownComponents = await scanCurrentComponents();
-  log('info', `Initial scan found ${knownComponents.size} components`);
+  log('info', `Initial scan found ${knownComponents.size} components from ${ANIMATIONS_DIR}`);
 
-  // Start polling every 5 seconds
-  setInterval(performPollingCheck, POLL_INTERVAL);
+  // Start polling every 5 seconds (store interval ID for cleanup)
+  cleanupInterval = setInterval(performPollingCheck, POLL_INTERVAL);
   log('info', `Polling started - checking for deletions every ${POLL_INTERVAL/1000} seconds`);
-
-  // Keep service alive
-  process.on('SIGINT', () => {
-    log('info', 'Background Cleanup Service shutting down gracefully');
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', () => {
-    log('info', 'Background Cleanup Service terminated');
-    process.exit(0);
-  });
 
   log('info', 'Background Cleanup Service ready - external users can delete components seamlessly');
 }

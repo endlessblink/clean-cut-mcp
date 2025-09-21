@@ -22,31 +22,17 @@ async function ensureWorkspaceInitialized() {
   await ensureDir(WORKSPACE);
   const pkgJsonPath = path.join(WORKSPACE, 'package.json');
   const outDir = path.join(WORKSPACE, 'out');
-  const rootTsx = path.join(WORKSPACE, 'Root.tsx');
-  const compTsx = path.join(WORKSPACE, 'Composition.tsx');
-  const indexTs = path.join(WORKSPACE, 'index.ts');
+  const srcDir = path.join(WORKSPACE, 'src');
+  const rootTsx = path.join(srcDir, 'Root.tsx');
+  const compTsx = path.join(srcDir, 'Composition.tsx');
+  const indexTs = path.join(srcDir, 'index.ts');
 
   // Ensure export directory exists with proper permissions
   await ensureDir(outDir);
 
-  // UNIFIED WORKSPACE: Migrate from /workspace/src if needed
-  const srcDir = path.join(WORKSPACE, 'src');
-  if (await fileExists(srcDir)) {
-    console.error('[start.js] Migrating to unified workspace structure...');
-
-    // Copy all component files from src to workspace root
-    const srcFiles = await fsp.readdir(srcDir);
-    for (const file of srcFiles) {
-      if (file.endsWith('.tsx') || file.endsWith('.ts') || file === '.prettierrc' || file === 'remotion.config.ts' || file === 'tsconfig.json') {
-        const srcPath = path.join(srcDir, file);
-        const destPath = path.join(WORKSPACE, file);
-        if (!(await fileExists(destPath))) {
-          await fsp.copyFile(srcPath, destPath);
-          console.error(`[start.js] Migrated: ${file}`);
-        }
-      }
-    }
-  }
+  // Ensure src directory exists (Remotion standard structure)
+  await ensureDir(srcDir);
+  console.error('[start.js] Using Remotion standard src/ structure for Studio compatibility...');
 
   const needScaffold = !(await fileExists(pkgJsonPath));
 
@@ -76,8 +62,6 @@ async function ensureWorkspaceInitialized() {
     };
     await fsp.writeFile(pkgJsonPath, JSON.stringify(pkg, null, 2));
 
-    // DISABLED: Do not create src directory - use unified workspace structure
-    // await ensureDir(srcDir);
     const rootContent = `import {Composition} from 'remotion';
 import {Comp} from './Composition';
 

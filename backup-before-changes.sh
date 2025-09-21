@@ -9,11 +9,11 @@ BACKUP_DIR="./backups/backup_$TIMESTAMP"
 
 mkdir -p "$BACKUP_DIR"
 
-# Backup critical files
-cp -r clean-cut-workspace/assets/animations "$BACKUP_DIR/"
-cp clean-cut-workspace/Root.tsx "$BACKUP_DIR/"
+# Backup critical files (updated for src/ structure)
+cp -r clean-cut-workspace/src/assets/animations "$BACKUP_DIR/"
+cp clean-cut-workspace/src/Root.tsx "$BACKUP_DIR/"
 cp clean-cut-workspace/remotion.config.ts "$BACKUP_DIR/"
-cp clean-cut-workspace/index.ts "$BACKUP_DIR/"
+cp clean-cut-workspace/src/index.ts "$BACKUP_DIR/"
 
 echo "✅ Backup created in: $BACKUP_DIR"
 echo "📋 Files backed up:"
