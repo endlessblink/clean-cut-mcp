@@ -77,12 +77,12 @@ function Test-Prerequisites {
 }
 
 function Start-CleanCutMCP {
-    Write-UserMessage "🐳 Starting Clean-Cut-MCP container..." -Type Step
-    
+    Write-UserMessage "🐳 Building and starting Clean-Cut-MCP container..." -Type Step
+
     try {
         # Check if container exists and is running
         $containerStatus = wsl docker ps -a --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
-        
+
         if ($containerStatus -like "*Up*") {
             Write-UserMessage "✓ Container already running" -Type Success
             return $true
@@ -91,8 +91,20 @@ function Start-CleanCutMCP {
             Write-UserMessage "Starting existing container..." -Type Info
             wsl docker start clean-cut-mcp | Out-Null
         } else {
-            Write-UserMessage "Container not found. Please build/pull the clean-cut-mcp image first." -Type Error
-            return $false
+            # Container doesn't exist - build and start it
+            Write-UserMessage "Building container (this may take a few minutes)..." -Type Info
+
+            # Build and start from current directory using docker-compose
+            $currentDir = (Get-Location).Path
+            Write-UserMessage "Building from: $currentDir" -Type Info
+            $buildResult = wsl bash -c "cd '$($currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d')' && docker-compose up -d" 2>&1
+
+            if ($LASTEXITCODE -ne 0) {
+                Write-UserMessage "✗ Container build failed: $buildResult" -Type Error
+                return $false
+            }
+
+            Write-UserMessage "✓ Container built and started successfully" -Type Success
         }
         
         # Wait for container to be ready
@@ -120,17 +132,17 @@ function Find-WorkingConnection {
     Write-UserMessage "🔍 Finding best connection method..." -Type Step
     
     $methods = @(
-        @{Name = "Localhost"; Url = "http://localhost:6961"},
-        @{Name = "WSL2 IP"; Url = "http://$($(wsl hostname -I 2>$null).Trim()):6961"}
+        @{Name = "Localhost"; Url = "http://localhost:6970"},
+        @{Name = "WSL2 IP"; Url = "http://$($(wsl hostname -I 2>$null).Trim()):6970"}
     )
     
     foreach ($method in $methods) {
         Write-UserMessage "Testing $($method.Name)..." -Type Info
         
         try {
-            $response = Invoke-RestMethod "$($method.Url)/health" -TimeoutSec 5 -ErrorAction Stop
+            $response = Invoke-RestMethod "$($method.Url)/" -TimeoutSec 5 -ErrorAction Stop
             Write-UserMessage "✓ $($method.Name) works!" -Type Success
-            return "$($method.Url)/mcp"
+            return $method.Url
         } catch {
             Write-UserMessage "✗ $($method.Name) failed" -Type Warning
         }
@@ -167,7 +179,7 @@ hostAddressLoopback=true
         
         # Test if mirrored mode worked
         try {
-            Invoke-RestMethod "http://localhost:6961/health" -TimeoutSec 5 | Out-Null
+            Invoke-RestMethod "http://localhost:6970/" -TimeoutSec 5 | Out-Null
             Write-UserMessage "✓ Mirrored networking enabled successfully" -Type Success
             return $true
         } catch {
@@ -180,22 +192,22 @@ hostAddressLoopback=true
             Write-UserMessage "Setting up port forwarding to $wslIP..." -Type Info
             
             # Clear existing rules
-            netsh interface portproxy delete v4tov4 listenport=6961 listenaddress=127.0.0.1 2>$null
-            netsh interface portproxy delete v4tov4 listenport=6960 listenaddress=127.0.0.1 2>$null
-            
+            netsh interface portproxy delete v4tov4 listenport=6970 listenaddress=127.0.0.1 2>$null
+            netsh interface portproxy delete v4tov4 listenport=6971 listenaddress=127.0.0.1 2>$null
+
             # Add new rules
-            netsh interface portproxy add v4tov4 listenport=6961 listenaddress=127.0.0.1 connectport=6961 connectaddress=$wslIP
-            netsh interface portproxy add v4tov4 listenport=6960 listenaddress=127.0.0.1 connectport=6960 connectaddress=$wslIP
-            
+            netsh interface portproxy add v4tov4 listenport=6970 listenaddress=127.0.0.1 connectport=6970 connectaddress=$wslIP
+            netsh interface portproxy add v4tov4 listenport=6971 listenaddress=127.0.0.1 connectport=6971 connectaddress=$wslIP
+
             # Add firewall rules
-            New-NetFirewallRule -DisplayName "Clean-Cut-MCP-6961" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 6961 -ErrorAction SilentlyContinue
-            New-NetFirewallRule -DisplayName "Clean-Cut-MCP-6960" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 6960 -ErrorAction SilentlyContinue
+            New-NetFirewallRule -DisplayName "Clean-Cut-MCP-6970" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 6970 -ErrorAction SilentlyContinue
+            New-NetFirewallRule -DisplayName "Clean-Cut-MCP-6971" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 6971 -ErrorAction SilentlyContinue
             
             Start-Sleep -Seconds 3
             
             # Test port forwarding
             try {
-                Invoke-RestMethod "http://localhost:6961/health" -TimeoutSec 5 | Out-Null
+                Invoke-RestMethod "http://localhost:6970/" -TimeoutSec 5 | Out-Null
                 Write-UserMessage "✓ Port forwarding configured successfully" -Type Success
                 return $true
             } catch {
@@ -359,7 +371,7 @@ try {
         exit 1
     }
 
-    Write-UserMessage "✓ Container accessible - dual service architecture ready" -Type Success
+    Write-UserMessage "✓ Container accessible - Remotion Studio and MCP server ready" -Type Success
 
     # Step 4: Configure Claude Desktop for STDIO transport
     if (-not (Install-ClaudeConfiguration)) {
