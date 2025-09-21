@@ -3,9 +3,9 @@ import { Comp } from './Composition';
 import React from 'react';
 import { z } from 'zod';
 import { BouncingBall } from './assets/animations/BouncingBall';
-import { DreamyParticles } from './assets/animations/DreamyParticles';
 import { GitHubProfileShowcaseEnhanced } from './assets/animations/GitHubProfileShowcaseEnhanced';
 import { McpTestAnimation } from './assets/animations/McpTestAnimation';
+import { MorphingShapes } from './assets/animations/MorphingShapes';
 import { PacmanGameImproved } from './assets/animations/PacmanGameImproved';
 import { PacmanMazeRunnerWithProps } from './assets/animations/PacmanMazeRunnerWithProps';
 import { ParticleBurst } from './assets/animations/ParticleBurst';
@@ -20,11 +20,11 @@ import { TweetAnimation } from './assets/animations/TweetAnimation';
 import { WelcomeAnimation } from './assets/animations/WelcomeAnimation';
 import { WelcomeDemo } from './assets/animations/WelcomeDemo';
 
-const DreamyParticlesSchema = z.object({
+const MorphingShapesSchema = z.object({
   primaryColor: z.string().optional(),
   secondaryColor: z.string().optional(),
   backgroundColor: z.string().optional(),
-  particleCount: z.number().optional(),
+  title: z.string().optional(),
   animationSpeed: z.number().optional()
 });
 const PacmanMazeRunnerWithPropsSchema = z.object({
@@ -147,17 +147,7 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />
-      <Composition
-        id="DreamyParticles"
-        component={DreamyParticles}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={DreamyParticlesSchema}
-      />
-      <Composition
+      />      <Composition
         id="GitHubProfileShowcaseEnhanced"
         component={GitHubProfileShowcaseEnhanced}
         durationInFrames={450}
@@ -172,6 +162,15 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      <Composition
+        id="MorphingShapes"
+        component={MorphingShapes}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={MorphingShapesSchema}
       />
       <Composition
         id="PacmanGameImproved"
