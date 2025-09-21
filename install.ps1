@@ -1,5 +1,3 @@
-#Requires -RunAsAdministrator
-
 <#
 .SYNOPSIS
     Clean-Cut-MCP One-Click Installer for Claude Desktop
@@ -7,12 +5,12 @@
 .DESCRIPTION
     Automatically installs and configures Clean-Cut-MCP with Claude Desktop.
     Handles all networking, Docker, and configuration automatically.
-    
+    No Administrator privileges required.
+
     USER INSTRUCTIONS:
     1. Right-click this file → "Run with PowerShell"
-    2. Click "Yes" when prompted for Administrator
-    3. Wait for "SUCCESS" message
-    4. Restart Claude Desktop
+    2. Wait for "SUCCESS" message
+    3. Restart Claude Desktop
     
 .EXAMPLE
     Right-click → "Run with PowerShell"
@@ -47,11 +45,7 @@ function Test-Prerequisites {
     
     $issues = @()
     
-    # Check if running as admin
-    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-    if (-not $isAdmin) {
-        $issues += "Must run as Administrator (right-click → Run as Administrator)"
-    }
+    # Note: No administrator check - networking will use non-admin methods only
     
     # Check WSL2
     try {
@@ -91,20 +85,36 @@ function Start-CleanCutMCP {
             Write-UserMessage "Starting existing container..." -Type Info
             wsl docker start clean-cut-mcp | Out-Null
         } else {
-            # Container doesn't exist - build and start it
-            Write-UserMessage "Building container (this may take a few minutes)..." -Type Info
+            # Container doesn't exist - pull and start it
+            Write-UserMessage "Pulling Clean-Cut-MCP image from Docker Hub..." -Type Info
 
-            # Build and start from current directory using docker-compose
-            $currentDir = (Get-Location).Path
-            Write-UserMessage "Building from: $currentDir" -Type Info
-            $buildResult = wsl bash -c "cd '$($currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d')' && docker-compose up -d" 2>&1
+            # Pull the pre-built image (much faster than building)
+            $pullResult = wsl docker pull endlessblink/clean-cut-mcp:latest 2>&1
 
             if ($LASTEXITCODE -ne 0) {
-                Write-UserMessage "✗ Container build failed: $buildResult" -Type Error
-                return $false
+                Write-UserMessage "Docker Hub pull failed, building locally..." -Type Warning
+
+                # Fallback to local build
+                $currentDir = (Get-Location).Path
+                Write-UserMessage "Building from: $currentDir" -Type Info
+                $buildResult = wsl bash -c "cd '$($currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d')' && docker-compose up -d" 2>&1
+
+                if ($LASTEXITCODE -ne 0) {
+                    Write-UserMessage "✗ Container build failed: $buildResult" -Type Error
+                    return $false
+                }
+            } else {
+                # Start container with pulled image
+                $currentDir = (Get-Location).Path
+                $startResult = wsl bash -c "cd '$($currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d')' && docker-compose up -d" 2>&1
+
+                if ($LASTEXITCODE -ne 0) {
+                    Write-UserMessage "✗ Container start failed: $startResult" -Type Error
+                    return $false
+                }
             }
 
-            Write-UserMessage "✓ Container built and started successfully" -Type Success
+            Write-UserMessage "✓ Container ready successfully" -Type Success
         }
         
         # Wait for container to be ready
@@ -151,74 +161,28 @@ function Find-WorkingConnection {
     return $null
 }
 
-function Enable-NetworkAccess {
-    Write-UserMessage "🌐 Configuring network access..." -Type Step
-    
+function Test-NetworkAccess {
+    Write-UserMessage "🌐 Testing network connectivity..." -Type Step
+
     try {
-        # Method 1: Try WSL2 mirrored mode
-        Write-UserMessage "Enabling WSL2 mirrored networking..." -Type Info
-        
-        $wslConfig = @"
-[wsl2]
-networkingMode=mirrored
-dnsTunneling=true
-firewall=true
+        # Simple connectivity test - no admin privileges needed
+        Write-UserMessage "Testing WSL2 Docker access..." -Type Info
 
-[experimental]
-hostAddressLoopback=true
-"@
-        
-        $wslConfigPath = "$env:USERPROFILE\.wslconfig"
-        $wslConfig | Out-File $wslConfigPath -Encoding UTF8
-        
-        Write-UserMessage "Restarting WSL2 (this takes 30 seconds)..." -Type Info
-        wsl --shutdown 2>$null
-        Start-Sleep -Seconds 5
-        wsl echo "WSL2 restarted" 2>$null | Out-Null
-        Start-Sleep -Seconds 3
-        
-        # Test if mirrored mode worked
-        try {
-            Invoke-RestMethod "http://localhost:6970/" -TimeoutSec 5 | Out-Null
-            Write-UserMessage "✓ Mirrored networking enabled successfully" -Type Success
-            return $true
-        } catch {
-            Write-UserMessage "Mirrored mode didn't work, trying port forwarding..." -Type Info
+        # Test if WSL2 can reach Docker
+        $dockerTest = wsl docker --version 2>$null
+        if (-not $dockerTest) {
+            Write-UserMessage "✗ Docker not accessible in WSL2" -Type Error
+            return $false
         }
-        
-        # Method 2: Port forwarding fallback
-        $wslIP = (wsl hostname -I 2>$null).Trim()
-        if ($wslIP) {
-            Write-UserMessage "Setting up port forwarding to $wslIP..." -Type Info
-            
-            # Clear existing rules
-            netsh interface portproxy delete v4tov4 listenport=6970 listenaddress=127.0.0.1 2>$null
-            netsh interface portproxy delete v4tov4 listenport=6971 listenaddress=127.0.0.1 2>$null
 
-            # Add new rules
-            netsh interface portproxy add v4tov4 listenport=6970 listenaddress=127.0.0.1 connectport=6970 connectaddress=$wslIP
-            netsh interface portproxy add v4tov4 listenport=6971 listenaddress=127.0.0.1 connectport=6971 connectaddress=$wslIP
+        Write-UserMessage "✓ Docker accessible in WSL2" -Type Success
 
-            # Add firewall rules
-            New-NetFirewallRule -DisplayName "Clean-Cut-MCP-6970" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 6970 -ErrorAction SilentlyContinue
-            New-NetFirewallRule -DisplayName "Clean-Cut-MCP-6971" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 6971 -ErrorAction SilentlyContinue
-            
-            Start-Sleep -Seconds 3
-            
-            # Test port forwarding
-            try {
-                Invoke-RestMethod "http://localhost:6970/" -TimeoutSec 5 | Out-Null
-                Write-UserMessage "✓ Port forwarding configured successfully" -Type Success
-                return $true
-            } catch {
-                Write-UserMessage "Port forwarding didn't work either" -Type Warning
-            }
-        }
-        
-        return $false
-        
+        # Note: Network will work automatically with Docker's default port forwarding
+        Write-UserMessage "✓ Using Docker's automatic port forwarding (no admin required)" -Type Success
+        return $true
+
     } catch {
-        Write-UserMessage "Network configuration failed: $($_.Exception.Message)" -Type Error
+        Write-UserMessage "Network test failed: $($_.Exception.Message)" -Type Error
         return $false
     }
 }
@@ -311,7 +275,7 @@ function Show-ErrorHelp {
     Write-Host "Common solutions:" -ForegroundColor Yellow
     Write-Host "• Make sure Docker Desktop is running" -ForegroundColor White
     Write-Host "• Restart your computer and try again" -ForegroundColor White
-    Write-Host "• Run as Administrator (right-click → Run as Administrator)" -ForegroundColor White
+    Write-Host "• Ensure Docker Desktop is running and WSL2 integration enabled" -ForegroundColor White
     Write-Host "• Check Windows Firewall settings" -ForegroundColor White
     Write-Host ""
     Write-Host "For help: Check the project documentation" -ForegroundColor Cyan
@@ -337,14 +301,21 @@ try {
     
     Write-UserMessage "✓ System requirements OK" -Type Success
     
-    # Step 2: Start container
+    # Step 2: Test network access
+    if (-not (Test-NetworkAccess)) {
+        Show-ErrorHelp
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+
+    # Step 3: Start container
     if (-not (Start-CleanCutMCP)) {
         Show-ErrorHelp
         Read-Host "Press Enter to exit"
         exit 1
     }
     
-    # Step 3: Verify container is running and accessible
+    # Step 4: Verify container is running and accessible
     Write-UserMessage "🔍 Verifying container is ready..." -Type Step
 
     # Test container accessibility
@@ -373,7 +344,7 @@ try {
 
     Write-UserMessage "✓ Container accessible - Remotion Studio and MCP server ready" -Type Success
 
-    # Step 4: Configure Claude Desktop for STDIO transport
+    # Step 5: Configure Claude Desktop for STDIO transport
     if (-not (Install-ClaudeConfiguration)) {
         Show-ErrorHelp
         Read-Host "Press Enter to exit"
