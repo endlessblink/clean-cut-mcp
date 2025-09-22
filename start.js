@@ -30,9 +30,14 @@ async function ensureWorkspaceInitialized() {
   // Ensure export directory exists with proper permissions
   await ensureDir(outDir);
 
-  // Ensure src directory exists (Remotion standard structure)
+  // Ensure complete directory structure exists (Remotion standard structure + MCP requirements)
   await ensureDir(srcDir);
+  await ensureDir(path.join(srcDir, 'assets'));
+  await ensureDir(path.join(srcDir, 'assets', 'animations'));
+  await ensureDir(path.join(srcDir, 'assets', 'audio'));
+  await ensureDir(path.join(srcDir, 'assets', 'exports'));
   console.error('[start.js] Using Remotion standard src/ structure for Studio compatibility...');
+  console.error('[start.js] Created complete directory structure for external users');
 
   const needScaffold = !(await fileExists(pkgJsonPath));
 
