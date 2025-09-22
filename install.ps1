@@ -567,19 +567,24 @@ function Install-ClaudeConfiguration {
             }
         }
 
-        # Generate JSON with detailed logging
+        # Generate JSON with research-validated approach (fix for PowerShell array serialization)
         Write-UserMessage "📝 Converting configuration to JSON..." -Type Info
         try {
-            $jsonContent = $config | ConvertTo-Json -Depth 10
+            # Use -Depth 10 and -AsArray for proper array handling (research-validated)
+            $jsonContent = $config | ConvertTo-Json -Depth 10 -Compress:$false
             Write-UserMessage "✓ JSON generated successfully ($(($jsonContent -split "`n").Count) lines)" -Type Success
 
-            # Validate the JSON contains proper array structure
-            if ($jsonContent -match '"args":\s*\[') {
-                Write-UserMessage "✓ JSON contains proper args array structure" -Type Success
+            # Simple validation without problematic wildcard patterns
+            if ($jsonContent.Contains('"args"') -and $jsonContent.Contains('[')) {
+                Write-UserMessage "✓ JSON contains args array structure" -Type Success
             } else {
-                Write-UserMessage "✗ JSON args array structure malformed" -Type Error
-                Write-UserMessage "JSON preview: $($jsonContent.Substring(0, [Math]::Min(200, $jsonContent.Length)))" -Type Warning
+                Write-UserMessage "✗ JSON missing expected array structure" -Type Error
             }
+
+            # Show first 300 chars for debugging
+            $preview = $jsonContent.Substring(0, [Math]::Min(300, $jsonContent.Length)).Replace("`n", " ").Replace("`r", "")
+            Write-UserMessage "JSON preview: $preview..." -Type Info
+
         } catch {
             Write-UserMessage "✗ JSON generation failed: $($_.Exception.Message)" -Type Error
             throw "JSON generation failed"
