@@ -296,6 +296,175 @@ function Find-WorkingConnection {
     return $null
 }
 
+function Find-ClaudeDesktop {
+    Write-UserMessage "🔍 Detecting Claude Desktop installation..." -Type Step
+
+    $detectedPaths = @()
+
+    if ($script:IsWindows) {
+        # Windows: Registry and process detection
+        Write-UserMessage "Searching Windows registry and processes..." -Type Info
+
+        # Method 1: Registry search
+        try {
+            $registryPaths = @(
+                "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+                "HKLM:\SOFTWARE\Wow6432node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+                "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+            )
+
+            foreach ($regPath in $registryPaths) {
+                Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue |
+                Where-Object {$_.DisplayName -like "*Claude*"} |
+                ForEach-Object {
+                    if ($_.InstallLocation) {
+                        $detectedPaths += @{
+                            Type = "Installation"
+                            Path = $_.InstallLocation
+                            Version = $_.DisplayVersion
+                            Method = "Registry"
+                        }
+                    }
+                }
+            }
+        } catch {
+            Write-UserMessage "Registry search failed, continuing..." -Type Warning
+        }
+
+        # Method 2: Process detection
+        try {
+            Get-Process -Name "*Claude*" -ErrorAction SilentlyContinue | ForEach-Object {
+                $processPath = $_.Path
+                if ($processPath) {
+                    $installDir = Split-Path $processPath -Parent
+                    $detectedPaths += @{
+                        Type = "Process"
+                        Path = $installDir
+                        Version = "Running"
+                        Method = "Process"
+                    }
+                }
+            }
+        } catch {
+            Write-UserMessage "Process detection failed, continuing..." -Type Warning
+        }
+
+    } elseif ($script:IsLinux) {
+        # Linux: Binary and process detection
+        Write-UserMessage "Searching Linux directories and processes..." -Type Info
+
+        # Method 1: Common binary locations
+        $linuxPaths = @("/usr/bin", "/usr/local/bin", "/opt", "$env:HOME/.local/bin")
+        foreach ($path in $linuxPaths) {
+            if (Test-Path $path) {
+                Get-ChildItem -Path $path -ErrorAction SilentlyContinue |
+                Where-Object {$_.Name -like "*claude*"} |
+                ForEach-Object {
+                    $detectedPaths += @{
+                        Type = "Binary"
+                        Path = $_.DirectoryName
+                        Version = "Unknown"
+                        Method = "FileSystem"
+                    }
+                }
+            }
+        }
+
+        # Method 2: Process detection (if available)
+        try {
+            $processes = & ps aux 2>/dev/null | & grep -i claude 2>/dev/null
+            if ($processes) {
+                $detectedPaths += @{
+                    Type = "Process"
+                    Path = "Running"
+                    Version = "Detected"
+                    Method = "Process"
+                }
+            }
+        } catch {
+            # ps command might not be available, continue
+        }
+
+    } elseif ($script:IsMacOS) {
+        # macOS: Applications folder detection
+        Write-UserMessage "Searching macOS Applications folders..." -Type Info
+
+        $macPaths = @("/Applications", "$env:HOME/Applications")
+        foreach ($path in $macPaths) {
+            if (Test-Path $path) {
+                Get-ChildItem -Path $path -ErrorAction SilentlyContinue |
+                Where-Object {$_.Name -like "*Claude*"} |
+                ForEach-Object {
+                    $detectedPaths += @{
+                        Type = "Application"
+                        Path = $_.FullName
+                        Version = "Unknown"
+                        Method = "Applications"
+                    }
+                }
+            }
+        }
+    }
+
+    return $detectedPaths
+}
+
+function Get-ClaudeConfigPath {
+    Write-UserMessage "📍 Determining Claude Desktop config path..." -Type Step
+
+    # First, try to detect Claude Desktop installation
+    $installations = Find-ClaudeDesktop
+
+    if ($installations.Count -gt 0) {
+        Write-UserMessage "✓ Found $($installations.Count) Claude Desktop installation(s)" -Type Success
+
+        # Display detected installations
+        foreach ($install in $installations) {
+            Write-UserMessage "  $($install.Type): $($install.Path)" -Type Info
+        }
+    } else {
+        Write-UserMessage "No Claude Desktop installation detected, using standard paths" -Type Warning
+    }
+
+    # Determine config path based on OS and detection results
+    if ($script:IsWindows) {
+        # Try multiple Windows config locations
+        $configPaths = @(
+            "$env:APPDATA\Claude\claude_desktop_config.json",
+            "$env:LOCALAPPDATA\AnthropicClaude\config\claude_desktop_config.json",
+            "$env:USERPROFILE\.claude\claude_desktop_config.json"
+        )
+    } elseif ($script:IsLinux) {
+        # Try multiple Linux config locations
+        $configPaths = @(
+            "$env:HOME/.config/Claude/claude_desktop_config.json",
+            "$env:HOME/.claude/claude_desktop_config.json",
+            "$env:HOME/.config/claude-desktop/config.json"
+        )
+    } elseif ($script:IsMacOS) {
+        # Try multiple macOS config locations
+        $configPaths = @(
+            "$env:HOME/Library/Application Support/Claude/claude_desktop_config.json",
+            "$env:HOME/.config/Claude/claude_desktop_config.json",
+            "$env:HOME/.claude/claude_desktop_config.json"
+        )
+    }
+
+    # Find the first existing config directory or use the first path for creation
+    foreach ($configPath in $configPaths) {
+        $configDir = Split-Path $configPath -Parent
+        if (Test-Path $configDir) {
+            Write-UserMessage "✓ Found existing config directory: $configDir" -Type Success
+            return $configPath
+        }
+    }
+
+    # No existing directory found, return first path for creation
+    $primaryPath = $configPaths[0]
+    Write-UserMessage "Using primary config path: $primaryPath" -Type Info
+    return $primaryPath
+}
+
 function Test-NetworkAccess {
     Write-UserMessage "🌐 Testing network connectivity..." -Type Step
 
@@ -341,19 +510,14 @@ function Install-ClaudeConfiguration {
         }
         Start-Sleep -Seconds 2
 
-        # Platform-specific configuration paths
-        if ($script:IsWindows) {
-            $configPath = "$env:APPDATA\Claude\claude_desktop_config.json"
-        } elseif ($script:IsLinux) {
-            $configPath = "$env:HOME/.config/Claude/claude_desktop_config.json"
-        } elseif ($script:IsMacOS) {
-            $configPath = "$env:HOME/Library/Application Support/Claude/claude_desktop_config.json"
-        } else {
-            throw "Unsupported operating system"
+        # Use intelligent config path detection
+        $configPath = Get-ClaudeConfigPath
+        if (-not $configPath) {
+            throw "Could not determine Claude Desktop configuration path"
         }
 
         $configDir = Split-Path $configPath -Parent
-        Write-UserMessage "Using config path: $configPath" -Type Info
+        Write-UserMessage "Using detected config path: $configPath" -Type Success
         
         # Create directory if needed
         if (-not (Test-Path $configDir)) {
