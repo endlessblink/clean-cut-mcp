@@ -178,77 +178,68 @@ function Start-CleanCutMCP {
     Write-UserMessage "🐳 Building and starting Clean-Cut-MCP container..." -Type Step
 
     try {
-        # Check if container exists and is running (platform-specific)
-        $containerStatus = if ($script:IsWindows) {
-            wsl docker ps -a --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
+        # Always ensure we have the latest image - remove old container if exists
+        Write-UserMessage "Ensuring latest Clean-Cut-MCP image..." -Type Info
+
+        # Stop and remove existing container to get fresh installation
+        if ($script:IsWindows) {
+            wsl docker stop clean-cut-mcp 2>$null | Out-Null
+            wsl docker rm clean-cut-mcp 2>$null | Out-Null
         } else {
-            docker ps -a --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
+            docker stop clean-cut-mcp 2>$null | Out-Null
+            docker rm clean-cut-mcp 2>$null | Out-Null
         }
 
-        if ($containerStatus -like "*Up*") {
-            Write-UserMessage "✓ Container already running" -Type Success
-            return $true
-        } elseif ($containerStatus) {
-            # Container exists but stopped
-            Write-UserMessage "Starting existing container..." -Type Info
-            if ($script:IsWindows) {
-                wsl docker start clean-cut-mcp | Out-Null
-            } else {
-                docker start clean-cut-mcp | Out-Null
-            }
+        # Always pull latest image to ensure updates
+        Write-UserMessage "Pulling latest Clean-Cut-MCP image from Docker Hub..." -Type Info
+        $pullResult = if ($script:IsWindows) {
+            wsl docker pull endlessblink/clean-cut-mcp:latest 2>&1
         } else {
-            # Container doesn't exist - pull and start it
-            Write-UserMessage "Pulling Clean-Cut-MCP image from Docker Hub..." -Type Info
-
-            # Pull the pre-built image (platform-specific)
-            $pullResult = if ($script:IsWindows) {
-                wsl docker pull endlessblink/clean-cut-mcp:latest 2>&1
-            } else {
-                docker pull endlessblink/clean-cut-mcp:latest 2>&1
-            }
-
-            if ($LASTEXITCODE -ne 0) {
-                # Docker Hub pull failed - not supported for single-file installation
-                Write-UserMessage "✗ Docker Hub pull failed and local build not supported for single-file installation" -Type Error
-                Write-UserMessage "Please ensure Docker is running and has internet access to pull the image" -Type Error
-                return $false
-            } else {
-                # Start container with pulled image (self-contained for external users)
-                Write-UserMessage "Starting container with Docker Hub image..." -Type Info
-
-                # Create local directories for external users
-                $currentDir = (Get-Location).Path
-                $exportDir = Join-Path $currentDir "clean-cut-exports"
-                $workspaceDir = Join-Path $currentDir "clean-cut-workspace"
-
-                # Create directories if they don't exist
-                if (-not (Test-Path $exportDir)) {
-                    New-Item -ItemType Directory -Path $exportDir -Force | Out-Null
-                    Write-UserMessage "Created exports directory: $exportDir" -Type Info
-                }
-
-                if (-not (Test-Path $workspaceDir)) {
-                    New-Item -ItemType Directory -Path $workspaceDir -Force | Out-Null
-                    Write-UserMessage "Created workspace directory: $workspaceDir" -Type Info
-                }
-
-                if ($script:IsWindows) {
-                    # Windows: Use WSL paths for volume mounts
-                    $wslCurrentDir = $currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d'
-                    $startResult = wsl docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$wslCurrentDir/clean-cut-exports:/workspace/out" -v "$wslCurrentDir/clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
-                } else {
-                    # Linux/macOS: Direct volume mounts
-                    $startResult = docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$currentDir/clean-cut-exports:/workspace/out" -v "$currentDir/clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
-                }
-
-                if ($LASTEXITCODE -ne 0) {
-                    Write-UserMessage "✗ Container start failed: $startResult" -Type Error
-                    return $false
-                }
-            }
-
-            Write-UserMessage "✓ Container ready successfully" -Type Success
+            docker pull endlessblink/clean-cut-mcp:latest 2>&1
         }
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-UserMessage "✗ Failed to pull latest image: $pullResult" -Type Error
+            Write-UserMessage "Please ensure Docker is running and has internet access" -Type Error
+            return $false
+        }
+
+        Write-UserMessage "✓ Latest image pulled successfully" -Type Success
+
+        # Start container with latest image (self-contained for external users)
+        Write-UserMessage "Starting container with latest Docker Hub image..." -Type Info
+
+        # Create local directories for external users
+        $currentDir = (Get-Location).Path
+        $exportDir = Join-Path $currentDir "clean-cut-exports"
+        $workspaceDir = Join-Path $currentDir "clean-cut-workspace"
+
+        # Create directories if they don't exist
+        if (-not (Test-Path $exportDir)) {
+            New-Item -ItemType Directory -Path $exportDir -Force | Out-Null
+            Write-UserMessage "Created exports directory: $exportDir" -Type Info
+        }
+
+        if (-not (Test-Path $workspaceDir)) {
+            New-Item -ItemType Directory -Path $workspaceDir -Force | Out-Null
+            Write-UserMessage "Created workspace directory: $workspaceDir" -Type Info
+        }
+
+        if ($script:IsWindows) {
+            # Windows: Use WSL paths for volume mounts
+            $wslCurrentDir = $currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d'
+            $startResult = wsl docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$wslCurrentDir/clean-cut-exports:/workspace/out" -v "$wslCurrentDir/clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
+        } else {
+            # Linux/macOS: Direct volume mounts
+            $startResult = docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$currentDir/clean-cut-exports:/workspace/out" -v "$currentDir/clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
+        }
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-UserMessage "✗ Container start failed: $startResult" -Type Error
+            return $false
+        }
+
+        Write-UserMessage "✓ Container ready successfully" -Type Success
         
         # Wait for container to be ready (platform-specific)
         $attempts = 0
