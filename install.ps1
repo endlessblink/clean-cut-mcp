@@ -179,15 +179,22 @@ function Start-CleanCutMCP {
 
     try {
         # Always ensure we have the latest image - remove old container if exists
-        Write-UserMessage "Ensuring latest Clean-Cut-MCP image..." -Type Info
+        Write-UserMessage "🔄 FORCING FRESH INSTALLATION - Removing any existing containers..." -Type Step
 
         # Stop and remove existing container to get fresh installation
         if ($script:IsWindows) {
-            wsl docker stop clean-cut-mcp 2>$null | Out-Null
-            wsl docker rm clean-cut-mcp 2>$null | Out-Null
+            $stopResult = wsl docker stop clean-cut-mcp 2>&1
+            $removeResult = wsl docker rm clean-cut-mcp 2>&1
         } else {
-            docker stop clean-cut-mcp 2>$null | Out-Null
-            docker rm clean-cut-mcp 2>$null | Out-Null
+            $stopResult = docker stop clean-cut-mcp 2>&1
+            $removeResult = docker rm clean-cut-mcp 2>&1
+        }
+
+        if ($stopResult -notlike "*No such container*" -and $stopResult -notlike "*is not running*") {
+            Write-UserMessage "✓ Stopped existing container" -Type Success
+        }
+        if ($removeResult -notlike "*No such container*") {
+            Write-UserMessage "✓ Removed existing container" -Type Success
         }
 
         # Always pull latest image to ensure updates
@@ -204,7 +211,7 @@ function Start-CleanCutMCP {
             return $false
         }
 
-        Write-UserMessage "✓ Latest image pulled successfully" -Type Success
+        Write-UserMessage "✓ Latest Docker image pulled successfully - All fixes included!" -Type Success
 
         # Start container with latest image (self-contained for external users)
         Write-UserMessage "Starting container with latest Docker Hub image..." -Type Info
@@ -239,7 +246,7 @@ function Start-CleanCutMCP {
             return $false
         }
 
-        Write-UserMessage "✓ Container ready successfully" -Type Success
+        Write-UserMessage "✓ FRESH CONTAINER STARTED - Using latest Docker Hub image with all fixes!" -Type Success
         
         # Wait for container to be ready (platform-specific)
         $attempts = 0
