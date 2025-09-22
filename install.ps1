@@ -567,26 +567,27 @@ function Install-ClaudeConfiguration {
             }
         }
 
-        # Generate JSON with research-validated approach (fix for PowerShell array serialization)
-        Write-UserMessage "📝 Converting configuration to JSON..." -Type Info
+        # Manual JSON generation (fix for PowerShell array serialization issues)
+        Write-UserMessage "📝 Generating JSON configuration manually..." -Type Info
         try {
-            # Use -Depth 10 and -AsArray for proper array handling (research-validated)
-            $jsonContent = $config | ConvertTo-Json -Depth 10 -Compress:$false
-            Write-UserMessage "✓ JSON generated successfully ($(($jsonContent -split "`n").Count) lines)" -Type Success
+            # Manual JSON construction to ensure proper array format (research shows ConvertTo-Json can flatten arrays)
+            $argsJson = '["exec", "clean-cut-mcp", "sh", "-c", "cd /app && node mcp-server/dist/clean-stdio-server.js"]'
+            $jsonContent = @"
+{
+  "mcpServers": {
+    "clean-cut-mcp": {
+      "command": "docker",
+      "args": $argsJson
+    }
+  }
+}
+"@
 
-            # Simple validation without problematic wildcard patterns
-            if ($jsonContent.Contains('"args"') -and $jsonContent.Contains('[')) {
-                Write-UserMessage "✓ JSON contains args array structure" -Type Success
-            } else {
-                Write-UserMessage "✗ JSON missing expected array structure" -Type Error
-            }
-
-            # Show first 300 chars for debugging
-            $preview = $jsonContent.Substring(0, [Math]::Min(300, $jsonContent.Length)).Replace("`n", " ").Replace("`r", "")
-            Write-UserMessage "JSON preview: $preview..." -Type Info
+            Write-UserMessage "✓ JSON generated manually with guaranteed array structure" -Type Success
+            Write-UserMessage "✓ Args array: $argsJson" -Type Success
 
         } catch {
-            Write-UserMessage "✗ JSON generation failed: $($_.Exception.Message)" -Type Error
+            Write-UserMessage "✗ Manual JSON generation failed: $($_.Exception.Message)" -Type Error
             throw "JSON generation failed"
         }
         
