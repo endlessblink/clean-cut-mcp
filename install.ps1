@@ -521,22 +521,42 @@ function Install-ClaudeConfiguration {
         Write-UserMessage "Using detected config path: $configPath" -Type Success
         
         # Create directory if needed
+        Write-UserMessage "📁 Creating config directory: $configDir" -Type Info
         if (-not (Test-Path $configDir)) {
-            New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+            try {
+                New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+                Write-UserMessage "✓ Config directory created successfully" -Type Success
+            } catch {
+                Write-UserMessage "✗ Failed to create config directory: $($_.Exception.Message)" -Type Error
+                throw "Config directory creation failed"
+            }
+        } else {
+            Write-UserMessage "✓ Config directory already exists" -Type Info
         }
-        
+
         # Backup existing config
         if (Test-Path $configPath) {
-            $backupPath = "$configPath.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-            Copy-Item $configPath $backupPath -Force
-            Write-UserMessage "✓ Existing configuration backed up" -Type Info
+            try {
+                $backupPath = "$configPath.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+                Copy-Item $configPath $backupPath -Force
+                Write-UserMessage "✓ Existing configuration backed up to: $(Split-Path $backupPath -Leaf)" -Type Success
+            } catch {
+                Write-UserMessage "✗ Config backup failed: $($_.Exception.Message)" -Type Warning
+                Write-UserMessage "Continuing without backup..." -Type Warning
+            }
+        } else {
+            Write-UserMessage "No existing config found - creating new configuration" -Type Info
         }
         
         # Create new configuration - STDIO transport with working command path
-        $dockerCommand = "docker"
+        Write-UserMessage "🔧 Generating Claude Desktop configuration..." -Type Info
 
-        # Use the command structure that actually works in the container
+        $dockerCommand = "docker"
         $dockerArgs = @("exec", "clean-cut-mcp", "sh", "-c", "cd /app && node mcp-server/dist/clean-stdio-server.js")
+
+        Write-UserMessage "Command: $dockerCommand" -Type Info
+        Write-UserMessage "Args count: $($dockerArgs.Count)" -Type Info
+        Write-UserMessage "Args content: $($dockerArgs -join ' | ')" -Type Info
 
         $config = @{
             mcpServers = @{
@@ -546,9 +566,24 @@ function Install-ClaudeConfiguration {
                 }
             }
         }
-        
-        # Save configuration with proper encoding
-        $jsonContent = $config | ConvertTo-Json -Depth 10
+
+        # Generate JSON with detailed logging
+        Write-UserMessage "📝 Converting configuration to JSON..." -Type Info
+        try {
+            $jsonContent = $config | ConvertTo-Json -Depth 10
+            Write-UserMessage "✓ JSON generated successfully ($(($jsonContent -split "`n").Count) lines)" -Type Success
+
+            # Validate the JSON contains proper array structure
+            if ($jsonContent -like '*"args":*[*') {
+                Write-UserMessage "✓ JSON contains proper args array structure" -Type Success
+            } else {
+                Write-UserMessage "✗ JSON args array structure malformed" -Type Error
+                Write-UserMessage "JSON preview: $($jsonContent.Substring(0, [Math]::Min(200, $jsonContent.Length)))" -Type Warning
+            }
+        } catch {
+            Write-UserMessage "✗ JSON generation failed: $($_.Exception.Message)" -Type Error
+            throw "JSON generation failed"
+        }
         
         # Validate JSON (with fallback for older PowerShell versions)
         $jsonValid = $false
@@ -569,29 +604,64 @@ function Install-ClaudeConfiguration {
             throw "Generated configuration is invalid JSON"
         }
 
-        # Atomic save (temp file then move)
+        # Atomic save (temp file then move) with detailed logging
+        Write-UserMessage "💾 Writing configuration file..." -Type Info
         $tempFile = "$configPath.tmp"
-        $jsonContent | Out-File $tempFile -Encoding UTF8 -Force
 
-        # Validate temp file (with fallback)
+        try {
+            $jsonContent | Out-File $tempFile -Encoding UTF8 -Force
+            Write-UserMessage "✓ Temporary config file written: $(Split-Path $tempFile -Leaf)" -Type Success
+        } catch {
+            Write-UserMessage "✗ Failed to write temp config file: $($_.Exception.Message)" -Type Error
+            throw "Config file write failed"
+        }
+
+        # Validate temp file with detailed logging
+        Write-UserMessage "🔍 Validating written configuration..." -Type Info
         $tempValid = $false
         try {
             $tempValid = Test-Json -Path $tempFile -ErrorAction Stop
+            Write-UserMessage "✓ JSON validation successful (Test-Json)" -Type Success
         } catch {
+            Write-UserMessage "Test-Json not available, using fallback validation..." -Type Warning
             try {
-                Get-Content $tempFile | ConvertFrom-Json | Out-Null
-                $tempValid = $true
+                $testContent = Get-Content $tempFile | ConvertFrom-Json
+                if ($testContent.mcpServers."clean-cut-mcp".args.Count -eq 5) {
+                    Write-UserMessage "✓ JSON validation successful (ConvertFrom-Json)" -Type Success
+                    Write-UserMessage "✓ Args array has correct count: $($testContent.mcpServers."clean-cut-mcp".args.Count)" -Type Success
+                    $tempValid = $true
+                } else {
+                    Write-UserMessage "✗ Args array count wrong: $($testContent.mcpServers."clean-cut-mcp".args.Count)" -Type Error
+                    $tempValid = $false
+                }
             } catch {
+                Write-UserMessage "✗ JSON parsing failed: $($_.Exception.Message)" -Type Error
                 $tempValid = $false
             }
         }
 
         if ($tempValid) {
-            Move-Item $tempFile $configPath -Force
-            Write-UserMessage "✓ Claude Desktop configured successfully" -Type Success
-            return $true
+            try {
+                Move-Item $tempFile $configPath -Force
+                Write-UserMessage "✓ Configuration file moved to final location" -Type Success
+
+                # Final verification
+                if (Test-Path $configPath) {
+                    $finalSize = (Get-Item $configPath).Length
+                    Write-UserMessage "✓ Claude Desktop configured successfully ($finalSize bytes)" -Type Success
+                    Write-UserMessage "✓ Config location: $configPath" -Type Info
+                } else {
+                    throw "Config file disappeared after move"
+                }
+
+                return $true
+            } catch {
+                Write-UserMessage "✗ Failed to move config to final location: $($_.Exception.Message)" -Type Error
+                throw "Config file move failed"
+            }
         } else {
             Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+            Write-UserMessage "✗ Configuration validation failed - config not updated" -Type Error
             throw "Temporary configuration file is invalid"
         }
         

@@ -100,9 +100,9 @@ EXPOSE 6971
 # Volume mount point for cross-platform video exports
 VOLUME ["/workspace/out"]
 
-# Healthcheck for MCP server
+# Healthcheck for Remotion Studio (correct port)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -fsS http://localhost:6971/health || exit 1
+  CMD curl -fsS http://localhost:6970/ || exit 1
 
 # Start main Studio service only (cleanup integrated into MCP delete tool)
 CMD ["sh", "-c", "node /app/start.js"]
