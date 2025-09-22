@@ -534,16 +534,11 @@ function Install-ClaudeConfiguration {
             Write-UserMessage "✓ Existing configuration backed up" -Type Info
         }
         
-        # Create new configuration - STDIO transport (cross-platform)
-        if ($script:IsWindows) {
-            # Windows: Use Docker Desktop via WSL2
-            $dockerCommand = "docker"  # Docker Desktop makes docker command available in Windows
-            $dockerArgs = @("exec", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
-        } else {
-            # Linux/macOS: Use native Docker
-            $dockerCommand = "docker"
-            $dockerArgs = @("exec", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
-        }
+        # Create new configuration - STDIO transport with working command path
+        $dockerCommand = "docker"
+
+        # Use the command structure that actually works in the container
+        $dockerArgs = @("exec", "clean-cut-mcp", "sh", "-c", "cd /app && node mcp-server/dist/clean-stdio-server.js")
 
         $config = @{
             mcpServers = @{
