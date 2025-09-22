@@ -208,34 +208,37 @@ function Start-CleanCutMCP {
             }
 
             if ($LASTEXITCODE -ne 0) {
-                Write-UserMessage "Docker Hub pull failed, building locally..." -Type Warning
-
-                # Fallback to local build (platform-specific)
-                $currentDir = (Get-Location).Path
-                Write-UserMessage "Building from: $currentDir" -Type Info
-
-                if ($script:IsWindows) {
-                    $wslPath = $currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d'
-                    $buildResult = wsl bash -c "cd '$wslPath' && docker-compose up -d" 2>&1
-                } else {
-                    Set-Location $currentDir
-                    $buildResult = docker compose up -d 2>&1
-                }
-
-                if ($LASTEXITCODE -ne 0) {
-                    Write-UserMessage "✗ Container build failed: $buildResult" -Type Error
-                    return $false
-                }
+                # Docker Hub pull failed - not supported for single-file installation
+                Write-UserMessage "✗ Docker Hub pull failed and local build not supported for single-file installation" -Type Error
+                Write-UserMessage "Please ensure Docker is running and has internet access to pull the image" -Type Error
+                return $false
             } else {
-                # Start container with pulled image (platform-specific)
+                # Start container with pulled image (self-contained for external users)
+                Write-UserMessage "Starting container with Docker Hub image..." -Type Info
+
+                # Create local directories for external users
                 $currentDir = (Get-Location).Path
+                $exportDir = Join-Path $currentDir "clean-cut-exports"
+                $workspaceDir = Join-Path $currentDir "clean-cut-workspace"
+
+                # Create directories if they don't exist
+                if (-not (Test-Path $exportDir)) {
+                    New-Item -ItemType Directory -Path $exportDir -Force | Out-Null
+                    Write-UserMessage "Created exports directory: $exportDir" -Type Info
+                }
+
+                if (-not (Test-Path $workspaceDir)) {
+                    New-Item -ItemType Directory -Path $workspaceDir -Force | Out-Null
+                    Write-UserMessage "Created workspace directory: $workspaceDir" -Type Info
+                }
 
                 if ($script:IsWindows) {
-                    $wslPath = $currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d'
-                    $startResult = wsl bash -c "cd '$wslPath' && docker-compose up -d" 2>&1
+                    # Windows: Use WSL paths for volume mounts
+                    $wslCurrentDir = $currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d'
+                    $startResult = wsl docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$wslCurrentDir/clean-cut-exports:/workspace/out" -v "$wslCurrentDir/clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
                 } else {
-                    Set-Location $currentDir
-                    $startResult = docker compose up -d 2>&1
+                    # Linux/macOS: Direct volume mounts
+                    $startResult = docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$currentDir/clean-cut-exports:/workspace/out" -v "$currentDir/clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
                 }
 
                 if ($LASTEXITCODE -ne 0) {
