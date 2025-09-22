@@ -66,6 +66,21 @@ clean-cut-install.log
 exports/
 clean-cut-mcp.log
 
+# Exclude workspace and exports (large directories)
+clean-cut-workspace/
+clean-cut-exports/
+
+# Exclude documentation and debugging files
+docs/
+*.md
+README.md
+INSTALL_INSTRUCTIONS.md
+
+# Exclude git and development files
+.git/
+.github/
+backups/
+
 # Docker specific
 .dockerignore
 Dockerfile
