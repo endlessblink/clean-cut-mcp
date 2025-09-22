@@ -14,14 +14,94 @@
     
 .EXAMPLE
     Right-click → "Run with PowerShell"
+
+.PARAMETER Update
+    Download the latest version of this installer from GitHub
+
+.EXAMPLE
+    .\install.ps1 -Update
 #>
+
+param(
+    [switch]$Update
+)
+
+# Cross-platform OS detection for PowerShell Core compatibility
+if (-not (Get-Variable -Name 'IsWindows' -ErrorAction SilentlyContinue)) {
+    # Backwards compatibility for Windows PowerShell 5.1
+    $script:IsWindows = $true
+    $script:IsLinux = $false
+    $script:IsMacOS = $false
+} else {
+    # Use built-in variables for PowerShell Core 6+
+    $script:IsWindows = $IsWindows
+    $script:IsLinux = $IsLinux
+    $script:IsMacOS = $IsMacOS
+}
+
+# Platform-specific settings
+if ($script:IsWindows) {
+    $dockerCmd = "wsl docker"
+    $dockerComposeCmd = "wsl bash -c"
+    $useWSL = $true
+} else {
+    $dockerCmd = "docker"
+    $dockerComposeCmd = "bash -c"
+    $useWSL = $false
+}
 
 # Simple user interface
 Clear-Host
 Write-Host ""
 Write-Host "🎬 CLEAN-CUT-MCP INSTALLER" -ForegroundColor Cyan
-Write-Host "   One-Click Setup for Claude Desktop" -ForegroundColor Cyan
+Write-Host "   Cross-Platform Setup for Claude Desktop" -ForegroundColor Cyan
+if ($script:IsWindows) { Write-Host "   Platform: Windows + WSL2" -ForegroundColor Gray }
+elseif ($script:IsLinux) { Write-Host "   Platform: Linux" -ForegroundColor Gray }
+elseif ($script:IsMacOS) { Write-Host "   Platform: macOS" -ForegroundColor Gray }
 Write-Host ""
+
+# Handle update parameter first
+if ($Update) {
+    Write-Host ""
+    Write-Host "🔄 UPDATING CLEAN-CUT-MCP INSTALLER" -ForegroundColor Cyan
+    Write-Host ""
+
+    try {
+        $latestUrl = "https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install.ps1"
+        $currentScript = $MyInvocation.MyCommand.Path
+        $backupPath = "$currentScript.backup"
+
+        Write-Host "Downloading latest installer..." -ForegroundColor Yellow
+
+        # Backup current version
+        Copy-Item $currentScript $backupPath -Force
+
+        # Download latest version
+        if ($script:IsWindows) {
+            Invoke-WebRequest -Uri $latestUrl -OutFile $currentScript -UseBasicParsing
+        } else {
+            # Use curl on Linux/macOS as fallback
+            & curl -fsSL $latestUrl -o $currentScript
+        }
+
+        Write-Host "✓ Installer updated successfully!" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "Run the script again to install with latest version." -ForegroundColor Cyan
+        Write-Host ""
+
+    } catch {
+        Write-Host "✗ Update failed: $($_.Exception.Message)" -ForegroundColor Red
+
+        # Restore backup if download failed
+        if (Test-Path $backupPath) {
+            Copy-Item $backupPath $currentScript -Force
+            Remove-Item $backupPath -Force
+        }
+    }
+
+    Read-Host "Press Enter to exit"
+    exit
+}
 
 # Error handling for users
 $ErrorActionPreference = 'Continue'
@@ -42,31 +122,55 @@ function Write-UserMessage {
 
 function Test-Prerequisites {
     Write-UserMessage "🔍 Checking system requirements..." -Type Step
-    
+
     $issues = @()
-    
-    # Note: No administrator check - networking will use non-admin methods only
-    
-    # Check WSL2
-    try {
-        $wslVersion = wsl --status 2>$null
-        if (-not $wslVersion) {
-            $issues += "WSL2 not installed. Please install WSL2 first."
+
+    if ($script:IsWindows) {
+        # Windows-specific checks (WSL2 required)
+        try {
+            $wslVersion = wsl --status 2>$null
+            if (-not $wslVersion) {
+                $issues += "WSL2 not installed. Please install WSL2 first."
+            }
+        } catch {
+            $issues += "WSL2 not accessible. Please ensure WSL2 is installed."
         }
-    } catch {
-        $issues += "WSL2 not accessible. Please ensure WSL2 is installed."
-    }
-    
-    # Check Docker in WSL2
-    try {
-        $dockerStatus = wsl docker --version 2>$null
-        if (-not $dockerStatus) {
-            $issues += "Docker not installed in WSL2. Please install Docker Desktop."
+
+        # Check Docker in WSL2
+        try {
+            $dockerStatus = wsl docker --version 2>$null
+            if (-not $dockerStatus) {
+                $issues += "Docker not installed in WSL2. Please install Docker Desktop."
+            }
+        } catch {
+            $issues += "Docker not accessible in WSL2."
         }
-    } catch {
-        $issues += "Docker not accessible in WSL2."
+    } else {
+        # Linux/macOS checks (native Docker)
+        try {
+            $dockerStatus = docker --version 2>$null
+            if (-not $dockerStatus) {
+                if ($script:IsLinux) {
+                    $issues += "Docker not installed. Please install Docker using: 'sudo apt install docker.io' or equivalent."
+                } else {
+                    $issues += "Docker not installed. Please install Docker Desktop for Mac."
+                }
+            }
+        } catch {
+            $issues += "Docker not accessible. Please ensure Docker is running."
+        }
+
+        # Check docker-compose
+        try {
+            $composeStatus = docker compose version 2>$null
+            if (-not $composeStatus) {
+                $issues += "Docker Compose not available. Please ensure Docker Compose is installed."
+            }
+        } catch {
+            $issues += "Docker Compose not accessible."
+        }
     }
-    
+
     return $issues
 }
 
@@ -74,8 +178,12 @@ function Start-CleanCutMCP {
     Write-UserMessage "🐳 Building and starting Clean-Cut-MCP container..." -Type Step
 
     try {
-        # Check if container exists and is running
-        $containerStatus = wsl docker ps -a --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
+        # Check if container exists and is running (platform-specific)
+        $containerStatus = if ($script:IsWindows) {
+            wsl docker ps -a --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
+        } else {
+            docker ps -a --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
+        }
 
         if ($containerStatus -like "*Up*") {
             Write-UserMessage "✓ Container already running" -Type Success
@@ -83,30 +191,52 @@ function Start-CleanCutMCP {
         } elseif ($containerStatus) {
             # Container exists but stopped
             Write-UserMessage "Starting existing container..." -Type Info
-            wsl docker start clean-cut-mcp | Out-Null
+            if ($script:IsWindows) {
+                wsl docker start clean-cut-mcp | Out-Null
+            } else {
+                docker start clean-cut-mcp | Out-Null
+            }
         } else {
             # Container doesn't exist - pull and start it
             Write-UserMessage "Pulling Clean-Cut-MCP image from Docker Hub..." -Type Info
 
-            # Pull the pre-built image (much faster than building)
-            $pullResult = wsl docker pull endlessblink/clean-cut-mcp:latest 2>&1
+            # Pull the pre-built image (platform-specific)
+            $pullResult = if ($script:IsWindows) {
+                wsl docker pull endlessblink/clean-cut-mcp:latest 2>&1
+            } else {
+                docker pull endlessblink/clean-cut-mcp:latest 2>&1
+            }
 
             if ($LASTEXITCODE -ne 0) {
                 Write-UserMessage "Docker Hub pull failed, building locally..." -Type Warning
 
-                # Fallback to local build
+                # Fallback to local build (platform-specific)
                 $currentDir = (Get-Location).Path
                 Write-UserMessage "Building from: $currentDir" -Type Info
-                $buildResult = wsl bash -c "cd '$($currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d')' && docker-compose up -d" 2>&1
+
+                if ($script:IsWindows) {
+                    $wslPath = $currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d'
+                    $buildResult = wsl bash -c "cd '$wslPath' && docker-compose up -d" 2>&1
+                } else {
+                    Set-Location $currentDir
+                    $buildResult = docker compose up -d 2>&1
+                }
 
                 if ($LASTEXITCODE -ne 0) {
                     Write-UserMessage "✗ Container build failed: $buildResult" -Type Error
                     return $false
                 }
             } else {
-                # Start container with pulled image
+                # Start container with pulled image (platform-specific)
                 $currentDir = (Get-Location).Path
-                $startResult = wsl bash -c "cd '$($currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d')' && docker-compose up -d" 2>&1
+
+                if ($script:IsWindows) {
+                    $wslPath = $currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d'
+                    $startResult = wsl bash -c "cd '$wslPath' && docker-compose up -d" 2>&1
+                } else {
+                    Set-Location $currentDir
+                    $startResult = docker compose up -d 2>&1
+                }
 
                 if ($LASTEXITCODE -ne 0) {
                     Write-UserMessage "✗ Container start failed: $startResult" -Type Error
@@ -117,10 +247,15 @@ function Start-CleanCutMCP {
             Write-UserMessage "✓ Container ready successfully" -Type Success
         }
         
-        # Wait for container to be ready
+        # Wait for container to be ready (platform-specific)
         $attempts = 0
         while ($attempts -lt 15) {
-            $status = wsl docker ps --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
+            $status = if ($script:IsWindows) {
+                wsl docker ps --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
+            } else {
+                docker ps --filter "name=clean-cut-mcp" --format "{{.Status}}" 2>$null
+            }
+
             if ($status -like "*Up*") {
                 Write-UserMessage "✓ Container is running" -Type Success
                 return $true
@@ -165,19 +300,24 @@ function Test-NetworkAccess {
     Write-UserMessage "🌐 Testing network connectivity..." -Type Step
 
     try {
-        # Simple connectivity test - no admin privileges needed
-        Write-UserMessage "Testing WSL2 Docker access..." -Type Info
-
-        # Test if WSL2 can reach Docker
-        $dockerTest = wsl docker --version 2>$null
-        if (-not $dockerTest) {
-            Write-UserMessage "✗ Docker not accessible in WSL2" -Type Error
-            return $false
+        if ($script:IsWindows) {
+            Write-UserMessage "Testing WSL2 Docker access..." -Type Info
+            $dockerTest = wsl docker --version 2>$null
+            if (-not $dockerTest) {
+                Write-UserMessage "✗ Docker not accessible in WSL2" -Type Error
+                return $false
+            }
+            Write-UserMessage "✓ Docker accessible in WSL2" -Type Success
+        } else {
+            Write-UserMessage "Testing native Docker access..." -Type Info
+            $dockerTest = docker --version 2>$null
+            if (-not $dockerTest) {
+                Write-UserMessage "✗ Docker not accessible" -Type Error
+                return $false
+            }
+            Write-UserMessage "✓ Docker accessible natively" -Type Success
         }
 
-        Write-UserMessage "✓ Docker accessible in WSL2" -Type Success
-
-        # Note: Network will work automatically with Docker's default port forwarding
         Write-UserMessage "✓ Using Docker's automatic port forwarding (no admin required)" -Type Success
         return $true
 
@@ -318,11 +458,16 @@ try {
     # Step 4: Verify container is running and accessible
     Write-UserMessage "🔍 Verifying container is ready..." -Type Step
 
-    # Test container accessibility
+    # Test container accessibility (platform-specific)
     $containerRunning = $false
     for ($i = 1; $i -le 10; $i++) {
         try {
-            $result = docker exec clean-cut-mcp echo "Container accessible" 2>$null
+            $result = if ($script:IsWindows) {
+                wsl docker exec clean-cut-mcp echo "Container accessible" 2>$null
+            } else {
+                docker exec clean-cut-mcp echo "Container accessible" 2>$null
+            }
+
             if ($result -eq "Container accessible") {
                 $containerRunning = $true
                 break
