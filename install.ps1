@@ -328,17 +328,32 @@ function Test-NetworkAccess {
 }
 
 function Install-ClaudeConfiguration {
-    
+
     Write-UserMessage "📝 Configuring Claude Desktop..." -Type Step
-    
+
     try {
-        # Kill Claude Desktop if running
-        Get-Process -Name "Claude*" -ErrorAction SilentlyContinue | Stop-Process -Force
+        # Kill Claude Desktop if running (cross-platform)
+        if ($script:IsWindows) {
+            Get-Process -Name "Claude*" -ErrorAction SilentlyContinue | Stop-Process -Force
+        } else {
+            # Linux/macOS - kill Claude processes if running
+            & pkill -f "claude" 2>/dev/null | Out-Null
+        }
         Start-Sleep -Seconds 2
-        
-        # Prepare configuration
-        $configPath = "$env:APPDATA\Claude\claude_desktop_config.json"
+
+        # Platform-specific configuration paths
+        if ($script:IsWindows) {
+            $configPath = "$env:APPDATA\Claude\claude_desktop_config.json"
+        } elseif ($script:IsLinux) {
+            $configPath = "$env:HOME/.config/Claude/claude_desktop_config.json"
+        } elseif ($script:IsMacOS) {
+            $configPath = "$env:HOME/Library/Application Support/Claude/claude_desktop_config.json"
+        } else {
+            throw "Unsupported operating system"
+        }
+
         $configDir = Split-Path $configPath -Parent
+        Write-UserMessage "Using config path: $configPath" -Type Info
         
         # Create directory if needed
         if (-not (Test-Path $configDir)) {
@@ -352,12 +367,22 @@ function Install-ClaudeConfiguration {
             Write-UserMessage "✓ Existing configuration backed up" -Type Info
         }
         
-        # Create new configuration - STDIO transport for dual service architecture
+        # Create new configuration - STDIO transport (cross-platform)
+        if ($script:IsWindows) {
+            # Windows: Use Docker Desktop via WSL2
+            $dockerCommand = "docker"  # Docker Desktop makes docker command available in Windows
+            $dockerArgs = @("exec", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
+        } else {
+            # Linux/macOS: Use native Docker
+            $dockerCommand = "docker"
+            $dockerArgs = @("exec", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
+        }
+
         $config = @{
             mcpServers = @{
                 "clean-cut-mcp" = @{
-                    command = "docker"
-                    args = @("exec", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
+                    command = $dockerCommand
+                    args = $dockerArgs
                 }
             }
         }
@@ -365,16 +390,43 @@ function Install-ClaudeConfiguration {
         # Save configuration with proper encoding
         $jsonContent = $config | ConvertTo-Json -Depth 10
         
-        # Validate before saving
-        if (-not (Test-Json -Json $jsonContent)) {
-            throw "Generated configuration is invalid"
+        # Validate JSON (with fallback for older PowerShell versions)
+        $jsonValid = $false
+        try {
+            # Try Test-Json cmdlet (PowerShell 6.1+)
+            $jsonValid = Test-Json -Json $jsonContent -ErrorAction Stop
+        } catch {
+            # Fallback: Basic JSON validation by parsing
+            try {
+                $jsonContent | ConvertFrom-Json | Out-Null
+                $jsonValid = $true
+            } catch {
+                $jsonValid = $false
+            }
         }
-        
+
+        if (-not $jsonValid) {
+            throw "Generated configuration is invalid JSON"
+        }
+
         # Atomic save (temp file then move)
         $tempFile = "$configPath.tmp"
         $jsonContent | Out-File $tempFile -Encoding UTF8 -Force
-        
-        if (Test-Json -Path $tempFile) {
+
+        # Validate temp file (with fallback)
+        $tempValid = $false
+        try {
+            $tempValid = Test-Json -Path $tempFile -ErrorAction Stop
+        } catch {
+            try {
+                Get-Content $tempFile | ConvertFrom-Json | Out-Null
+                $tempValid = $true
+            } catch {
+                $tempValid = $false
+            }
+        }
+
+        if ($tempValid) {
             Move-Item $tempFile $configPath -Force
             Write-UserMessage "✓ Claude Desktop configured successfully" -Type Success
             return $true
@@ -413,10 +465,19 @@ function Show-ErrorHelp {
     Write-Host "❌ INSTALLATION FAILED" -ForegroundColor Red
     Write-Host ""
     Write-Host "Common solutions:" -ForegroundColor Yellow
-    Write-Host "• Make sure Docker Desktop is running" -ForegroundColor White
+    if ($script:IsWindows) {
+        Write-Host "• Make sure Docker Desktop is running" -ForegroundColor White
+        Write-Host "• Ensure WSL2 integration is enabled in Docker Desktop" -ForegroundColor White
+        Write-Host "• Check Windows Firewall settings" -ForegroundColor White
+    } elseif ($script:IsLinux) {
+        Write-Host "• Make sure Docker is running: sudo systemctl start docker" -ForegroundColor White
+        Write-Host "• Add user to docker group: sudo usermod -aG docker `$USER" -ForegroundColor White
+        Write-Host "• Install PowerShell Core: curl -sSL https://aka.ms/install-powershell.sh | sudo bash" -ForegroundColor White
+    } else {
+        Write-Host "• Make sure Docker Desktop is running" -ForegroundColor White
+        Write-Host "• Install PowerShell Core: brew install powershell" -ForegroundColor White
+    }
     Write-Host "• Restart your computer and try again" -ForegroundColor White
-    Write-Host "• Ensure Docker Desktop is running and WSL2 integration enabled" -ForegroundColor White
-    Write-Host "• Check Windows Firewall settings" -ForegroundColor White
     Write-Host ""
     Write-Host "For help: Check the project documentation" -ForegroundColor Cyan
     Write-Host ""
