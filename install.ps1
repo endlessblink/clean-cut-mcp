@@ -574,7 +574,7 @@ function Install-ClaudeConfiguration {
             Write-UserMessage "✓ JSON generated successfully ($(($jsonContent -split "`n").Count) lines)" -Type Success
 
             # Validate the JSON contains proper array structure
-            if ($jsonContent -like '*"args":*[*') {
+            if ($jsonContent -match '"args":\s*\[') {
                 Write-UserMessage "✓ JSON contains proper args array structure" -Type Success
             } else {
                 Write-UserMessage "✗ JSON args array structure malformed" -Type Error
