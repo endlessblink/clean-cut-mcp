@@ -1,68 +1,30 @@
-# Clean-Cut-MCP: Professional Video Generation with Claude Desktop
+# Clean-Cut-MCP: AI Video Generation for Claude Desktop
 
-**Transform natural language into professional video animations using Claude Desktop's visual workflow.**
+![Clean-Cut-MCP](clean-cut-cover.jpg)
 
-Create stunning Remotion-powered videos by simply describing what you want, drag images directly into Claude Desktop, and watch your ideas come to life in a persistent, professional studio environment.
+**Transform natural language into professional videos using Claude Desktop + Remotion.**
 
-![Clean-Cut-MCP Demo](https://img.shields.io/badge/Status-Working-green) ![Docker](https://img.shields.io/badge/Docker-Required-blue) ![MCP](https://img.shields.io/badge/MCP-Compatible-purple)
+Simply describe your animation, and watch Claude create stunning React-powered videos in a persistent studio environment.
 
-## What Makes This Different
+![Status](https://img.shields.io/badge/Status-Production%20Ready-green) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue) ![License](https://img.shields.io/badge/License-Remotion%20%2B%20MIT-orange)
 
-### Visual Workflow, Not Command Line
-- **Drag & Drop Images**: Paste images directly into Claude Desktop chat
-- **GUI-First**: Professional Remotion Studio interface, not terminal commands  
-- **Persistent Environment**: Studio stays running, iterate on animations seamlessly
-- **Real-time Preview**: See changes instantly in browser-based timeline
+## Quick Start
 
-### Professional Architecture
-- **Containerized Reliability**: Docker ensures consistent environment across all systems
-- **Port Management**: Smart port allocation, no conflicts with existing services
-- **Volume Persistence**: Videos automatically appear in your host filesystem
-- **Extensible Platform**: Ready for future audio APIs, effects, and integrations
-
-### Why Not Just Use Claude Code?
-Claude Code is excellent for developers who prefer terminal workflows. Clean-Cut-MCP offers:
-- **Visual interface** for non-developers
-- **Image integration** that command-line can't match
-- **Persistent studio** environment
-- **Professional video export** workflow
-
-*Prefer command-line? You can also generate Remotion videos directly with Claude Code + npm.*
-
-## Quick Demo
-
-```
-You: "Create a bouncing ball animation with my company logo"
-[Drag logo.png into chat]
-
-Claude: "I'll create that animation for you..."
-[Uses MCP tools to generate React component]
-
-Claude: "Animation ready at http://localhost:6970"
-[Opens Remotion Studio with your animation]
-
-You: Export video → MP4 appears in ./clean-cut-exports/
+**Windows:**
+```powershell
+# Download and run Windows installer
+iwr "https://github.com/endlessblink/clean-cut-mcp/releases/latest/download/install-windows.ps1" -o "install.ps1"
+.\install.ps1
 ```
 
-## Key Features
+**Linux/macOS:**
+```bash
+# Download and run Linux/macOS installer
+curl -L -o install.ps1 "https://github.com/endlessblink/clean-cut-mcp/releases/latest/download/install.ps1"
+pwsh ./install.ps1
+```
 
-### MCP Tools Available
-- **`create_animation`** - Generate new Remotion compositions from descriptions
-- **`update_composition`** - Modify existing animations with natural language
-- **`get_studio_url`** - Access persistent Remotion Studio interface  
-- **`get_export_directory`** - Find your rendered videos instantly
-
-### Supported Animation Types
-- **Text Animations**: Kinetic typography, reveals, transitions
-- **Logo Animations**: Spinning, scaling, entrance effects
-- **Data Visualizations**: Charts, graphs, progress bars
-- **Custom Components**: React-based animations from your descriptions
-
-### Professional Export Options
-- **MP4 Video**: Standard format for all platforms
-- **GIF Animations**: For web and social media
-- **PNG Sequences**: For advanced post-processing
-- **Custom Resolutions**: From social media to 4K
+**Result:** Remotion Studio at http://localhost:6970 + Claude Desktop integration
 
 ## Installation Overview
 
