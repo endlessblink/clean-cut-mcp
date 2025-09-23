@@ -769,7 +769,7 @@ function Show-ErrorHelp {
 # Main installation process
 try {
     # Step 1: Check prerequisites
-    Write-UserMessage "Starting Clean-Cut-MCP installation..." -Type Step
+    Write-UserMessage "[STEP 1/5] Starting Clean-Cut-MCP installation..." -Type Step
     $issues = Test-Prerequisites
    
     if ($issues.Count -gt 0) {
@@ -786,6 +786,7 @@ try {
     Write-UserMessage "✓ System requirements OK" -Type Success
    
     # Step 2: Test network access
+    Write-UserMessage "[STEP 2/5] Testing network connectivity..." -Type Step
     if (-not (Test-NetworkAccess)) {
         Show-ErrorHelp
         Read-Host "Press Enter to exit"
@@ -793,6 +794,7 @@ try {
     }
 
     # Step 3: Start container
+    Write-UserMessage "[STEP 3/5] Setting up Docker container..." -Type Step
     if (-not (Start-CleanCutMCP)) {
         Show-ErrorHelp
         Read-Host "Press Enter to exit"
@@ -800,7 +802,7 @@ try {
     }
    
     # Step 4: Verify container is running and accessible
-    Write-UserMessage "🔍 Verifying container is ready..." -Type Step
+    Write-UserMessage "[STEP 4/5] Verifying container is ready..." -Type Step
 
     # Test container accessibility (platform-specific)
     $containerRunning = $false
@@ -834,6 +836,7 @@ try {
     Write-UserMessage "✓ Container accessible - Remotion Studio and MCP server ready" -Type Success
 
     # Step 5: Configure Claude Desktop for STDIO transport
+    Write-UserMessage "[STEP 5/5] Configuring Claude Desktop..." -Type Step
     if (-not (Install-ClaudeConfiguration)) {
         Show-ErrorHelp
         Read-Host "Press Enter to exit"
