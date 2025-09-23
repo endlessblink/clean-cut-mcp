@@ -6,15 +6,16 @@
   "scripts": {
     "start": "remotion studio",
     "render": "remotion render",
-    "upgrade": "remotion upgrade"
+    "upgrade": "remotion upgrade",
+    "prettier": "prettier",
+    "format": "prettier --write ."
   },
   "dependencies": {
-    "@remotion/cli": "^4.0.350",
+    "@remotion/cli": "^4.0.0",
     "@remotion/player": "^4.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "remotion": "^4.0.350",
-    "zod": "^3.22.3"
+    "remotion": "^4.0.0"
   },
   "devDependencies": {
     "prettier": "^3.6.2"

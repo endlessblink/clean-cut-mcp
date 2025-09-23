@@ -1,4 +1,3 @@
-import React from 'react';
 import {useCurrentFrame, AbsoluteFill, interpolate} from 'remotion';
 
 export const Comp: React.FC = () => {
