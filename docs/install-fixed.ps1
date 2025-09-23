@@ -587,33 +587,59 @@ function Install-ClaudeConfiguration {
             }
         }
 
-        # Create or update configuration
-        if ($existingConfig -and $existingConfig.mcpServers) {
-            # Update existing config
-            $config = $existingConfig
-            $config.mcpServers."clean-cut-mcp" = @{
-                command = $dockerCommand
-                args = $dockerArgs
-            }
-            Write-UserMessage "✓ Updated existing configuration with clean-cut-mcp" -Type Success
+        # Create or update configuration using SAFE MANUAL JSON GENERATION
+        Write-UserMessage "📝 Generating JSON configuration safely..." -Type Info
+
+        # Build JSON manually to ensure existing servers are preserved
+        $cleanCutArgsJson = if ($script:IsWindows -and $useWSL) {
+            '["docker", "exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js"]'
         } else {
-            # Create new config
-            $config = @{
-                mcpServers = @{
-                    "clean-cut-mcp" = @{
-                        command = $dockerCommand
-                        args = $dockerArgs
-                    }
+            '["exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js"]'
+        }
+
+        if ($existingConfig -and $existingConfig.mcpServers) {
+            # PRESERVE existing servers by manually building JSON
+            $existingServersJson = ""
+            $serverCount = 0
+            foreach ($serverName in $existingConfig.mcpServers.PSObject.Properties.Name) {
+                if ($serverName -ne "clean-cut-mcp") {  # Don't duplicate clean-cut-mcp
+                    $server = $existingConfig.mcpServers.$serverName
+                    $serverJson = $server | ConvertTo-Json -Depth 10 -Compress:$false
+                    $existingServersJson += "`"$serverName`": $serverJson,"
+                    $serverCount++
                 }
             }
-            Write-UserMessage "✓ Created new configuration" -Type Success
+
+            $jsonContent = @"
+{
+  "mcpServers": {
+    $existingServersJson
+    "clean-cut-mcp": {
+      "command": "$dockerCommand",
+      "args": $cleanCutArgsJson
+    }
+  }
+}
+"@
+            Write-UserMessage "✓ Preserved $serverCount existing MCP servers + added clean-cut-mcp" -Type Success
+        } else {
+            # Create new config
+            $jsonContent = @"
+{
+  "mcpServers": {
+    "clean-cut-mcp": {
+      "command": "$dockerCommand",
+      "args": $cleanCutArgsJson
+    }
+  }
+}
+"@
+            Write-UserMessage "✓ Created new configuration with clean-cut-mcp" -Type Success
         }
 
         # Generate JSON with proper array handling
-        Write-UserMessage "📝 Converting configuration to JSON..." -Type Info
+        Write-UserMessage "📝 JSON configuration generated manually for safety..." -Type Info
         try {
-            # Use -Depth 10 for proper nested object handling
-            $jsonContent = $config | ConvertTo-Json -Depth 10 -Compress:$false
             Write-UserMessage "✓ JSON generated successfully ($(($jsonContent -split "`n").Count) lines)" -Type Success
 
             # Validation
