@@ -24,8 +24,8 @@ package-lock.json
 *.log
 npm-debug.log*
 
-# MCP server build artifacts (keep source, exclude compiled)
-mcp-server/dist/
+# MCP server build artifacts (keep source, but built dist/ might be needed for distribution)
+# mcp-server/dist/ - REMOVED: Built files might be needed for Docker Hub image
 mcp-server/clean-cut-workspace/
 
 # Remotion cache and build artifacts
@@ -106,3 +106,26 @@ kill-claude-*.ps1
 # Old configuration files
 claude_desktop_config_*FINAL*.json
 *_FIXED_FINAL.json
+
+# Docker runtime artifacts (external users might encounter)
+/mnt/wsl/docker-desktop-bind-mounts/
+docker-desktop-data/
+.docker/
+
+# Video files (user-generated content)
+*.mp4
+*.mov
+*.webm
+*.avi
+*.gif
+
+# PowerShell execution artifacts
+*.ps1.tmp
+powershell-*.log
+
+# Claude Desktop backups (system-generated)
+claude_desktop_config.json.backup-*
+
+# Additional runtime files
+*.pid
+*.lock
