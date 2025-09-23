@@ -6,14 +6,16 @@ archive/
 extrenal-mcp-bmad/
 docs/debugging/
 
-# Personal test animations - Keep workspace clean for external users
-clean-cut-workspace/*.tsx
-!clean-cut-workspace/Composition.tsx
+# User-generated animations - Keep workspace clean for external users
+clean-cut-workspace/src/assets/animations/*.tsx
+clean-cut-workspace/src/assets/animations/*.ts
+clean-cut-workspace/*.types.ts
+
+# Keep essential workspace structure files
 !clean-cut-workspace/src/Root.tsx
 !clean-cut-workspace/src/index.ts
-!clean-cut-workspace/src/assets/
 !clean-cut-workspace/index.ts
-clean-cut-workspace/*.types.ts
+!clean-cut-workspace/Composition.tsx
 
 # Node.js dependencies
 node_modules/
