@@ -11,7 +11,7 @@
     1. Right-click this file → "Run with PowerShell"
     2. Wait for "SUCCESS" message
     3. Restart Claude Desktop
-   
+    
 .EXAMPLE
     Right-click → "Run with PowerShell"
 
@@ -25,53 +25,6 @@
 param(
     [switch]$Update
 )
-
-# Version information with multiple expansion methods for reliability
-$Global:INSTALLER_VERSION = "v2.1.0-MCP-PRESERVATION-FIX"
-$Global:INSTALLER_DATE = "2025-09-23"
-
-function Show-InstallerHeader {
-    # Multiple fallback methods for version display (research-based solutions)
-    $version = "v2.1.0-MCP-PRESERVATION-FIX"
-    $date = "2025-09-23"
-
-    # Method 1: Direct string formatting (most reliable)
-    $header1 = "🎬 CLEAN-CUT-MCP INSTALLER {0}" -f $version
-    $header2 = "   Cross-Platform Setup for Claude Desktop ({0})" -f $date
-
-    # Method 2: Here-string with forced expansion
-    $headerHereString = @"
-🎬 CLEAN-CUT-MCP INSTALLER $version
-   Cross-Platform Setup for Claude Desktop ($date)
-"@
-
-    # Method 3: ExecutionContext expansion (research-validated)
-    $template1 = '🎬 CLEAN-CUT-MCP INSTALLER $version'
-    $template2 = '   Cross-Platform Setup for Claude Desktop ($date)'
-
-    try {
-        # Try ExecutionContext method first (most robust for downloaded scripts)
-        $expanded1 = $ExecutionContext.InvokeCommand.ExpandString($template1)
-        $expanded2 = $ExecutionContext.InvokeCommand.ExpandString($template2)
-        Write-Host $expanded1 -ForegroundColor Cyan
-        Write-Host $expanded2 -ForegroundColor Cyan
-    } catch {
-        try {
-            # Fallback to string formatting
-            Write-Host $header1 -ForegroundColor Cyan
-            Write-Host $header2 -ForegroundColor Cyan
-        } catch {
-            try {
-                # Fallback to here-string
-                Write-Host $headerHereString -ForegroundColor Cyan
-            } catch {
-                # Final fallback - hardcoded
-                Write-Host "🎬 CLEAN-CUT-MCP INSTALLER v2.1.0-MCP-PRESERVATION-FIX" -ForegroundColor Cyan
-                Write-Host "   Cross-Platform Setup for Claude Desktop (2025-09-23)" -ForegroundColor Cyan
-            }
-        }
-    }
-}
 
 # Cross-platform OS detection for PowerShell Core compatibility
 if (-not (Get-Variable -Name 'IsWindows' -ErrorAction SilentlyContinue)) {
@@ -100,31 +53,11 @@ if ($script:IsWindows) {
 # Simple user interface
 Clear-Host
 Write-Host ""
-
-# Display header with multiple fallback methods
-Show-InstallerHeader
-
-# Platform information
+Write-Host "🎬 CLEAN-CUT-MCP INSTALLER" -ForegroundColor Cyan
+Write-Host "   Cross-Platform Setup for Claude Desktop" -ForegroundColor Cyan
 if ($script:IsWindows) { Write-Host "   Platform: Windows + WSL2" -ForegroundColor Gray }
 elseif ($script:IsLinux) { Write-Host "   Platform: Linux" -ForegroundColor Gray }
 elseif ($script:IsMacOS) { Write-Host "   Platform: macOS" -ForegroundColor Gray }
-
-# Diagnostic information (hidden by default, can be enabled for debugging)
-if ($env:DEBUG_INSTALLER -eq "1") {
-    Write-Host ""
-    Write-Host "=== DIAGNOSTIC INFORMATION ===" -ForegroundColor Yellow
-    Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)" -ForegroundColor Gray
-    Write-Host "Execution Policy: $(Get-ExecutionPolicy)" -ForegroundColor Gray
-    Write-Host "Script Path: $($MyInvocation.MyCommand.Path)" -ForegroundColor Gray
-    Write-Host "Global Version: [$($Global:INSTALLER_VERSION)]" -ForegroundColor Gray
-    $ScriptContent = Get-Content $MyInvocation.MyCommand.Path -Raw
-    $HasVersionText = $ScriptContent -match 'v2\.1\.0-MCP-PRESERVATION-FIX'
-    Write-Host "File contains version text: $HasVersionText" -ForegroundColor Gray
-    $LastModified = (Get-Item $MyInvocation.MyCommand.Path).LastWriteTime
-    Write-Host "Script downloaded at: $LastModified" -ForegroundColor Gray
-    Write-Host "===============================" -ForegroundColor Yellow
-}
-
 Write-Host ""
 
 # Handle update parameter first
@@ -175,15 +108,15 @@ $ErrorActionPreference = 'Continue'
 
 function Write-UserMessage {
     param([string]$Message, [string]$Type = "Info")
-   
+    
     $colors = @{
         "Info" = "White"
-        "Success" = "Green"
+        "Success" = "Green" 
         "Warning" = "Yellow"
         "Error" = "Red"
         "Step" = "Cyan"
     }
-   
+    
     Write-Host $Message -ForegroundColor $colors[$Type]
 }
 
@@ -314,7 +247,7 @@ function Start-CleanCutMCP {
         }
 
         Write-UserMessage "✓ FRESH CONTAINER STARTED - Using latest Docker Hub image with all fixes!" -Type Success
-       
+        
         # Wait for container to be ready (platform-specific)
         $attempts = 0
         while ($attempts -lt 15) {
@@ -331,10 +264,10 @@ function Start-CleanCutMCP {
             Start-Sleep -Seconds 2
             $attempts++
         }
-       
+        
         Write-UserMessage "✗ Container failed to start properly" -Type Error
         return $false
-       
+        
     } catch {
         Write-UserMessage "✗ Failed to start container: $($_.Exception.Message)" -Type Error
         return $false
@@ -343,15 +276,15 @@ function Start-CleanCutMCP {
 
 function Find-WorkingConnection {
     Write-UserMessage "🔍 Finding best connection method..." -Type Step
-   
+    
     $methods = @(
         @{Name = "Localhost"; Url = "http://localhost:6970"},
         @{Name = "WSL2 IP"; Url = "http://$($(wsl hostname -I 2>$null).Trim()):6970"}
     )
-   
+    
     foreach ($method in $methods) {
         Write-UserMessage "Testing $($method.Name)..." -Type Info
-       
+        
         try {
             $response = Invoke-RestMethod "$($method.Url)/" -TimeoutSec 5 -ErrorAction Stop
             Write-UserMessage "✓ $($method.Name) works!" -Type Success
@@ -360,7 +293,7 @@ function Find-WorkingConnection {
             Write-UserMessage "✗ $($method.Name) failed" -Type Warning
         }
     }
-   
+    
     return $null
 }
 
@@ -586,7 +519,7 @@ function Install-ClaudeConfiguration {
 
         $configDir = Split-Path $configPath -Parent
         Write-UserMessage "Using detected config path: $configPath" -Type Success
-       
+        
         # Create directory if needed
         Write-UserMessage "📁 Creating config directory: $configDir" -Type Info
         if (-not (Test-Path $configDir)) {
@@ -614,131 +547,61 @@ function Install-ClaudeConfiguration {
         } else {
             Write-UserMessage "No existing config found - creating new configuration" -Type Info
         }
-       
-        # Create new configuration - STDIO transport with FIXED command for cross-platform compatibility
+        
+        # Create new configuration - STDIO transport with working command path
         Write-UserMessage "🔧 Generating Claude Desktop configuration..." -Type Info
 
-        # FIXED: Use the correct docker exec format with -i flag for STDIO
         $dockerCommand = "docker"
-       
-        # Platform-specific configuration
-        if ($script:IsWindows) {
-            # Windows: Use WSL docker if needed
-            $dockerCommand = if ($useWSL) { "wsl" } else { "docker" }
-            $dockerArgs = if ($useWSL) {
-                @("docker", "exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
-            } else {
-                @("exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
-            }
-        } else {
-            # Linux/macOS: Native docker with -i flag for STDIO communication
-            $dockerCommand = "docker"
-            $dockerArgs = @("exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
-        }
+        $dockerArgs = @("exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
 
-        if ($script:IsWindows) {
-            Write-UserMessage "Platform: Windows" -Type Info
-        } elseif ($script:IsLinux) {
-            Write-UserMessage "Platform: Linux" -Type Info
-        } else {
-            Write-UserMessage "Platform: macOS" -Type Info
-        }
         Write-UserMessage "Command: $dockerCommand" -Type Info
         Write-UserMessage "Args count: $($dockerArgs.Count)" -Type Info
         Write-UserMessage "Args content: $($dockerArgs -join ' | ')" -Type Info
 
-        # Read existing config to preserve other MCP servers
-        $existingConfig = $null
-        if (Test-Path $configPath) {
-            try {
-                $existingConfigContent = Get-Content $configPath -Raw
-                $existingConfig = $existingConfigContent | ConvertFrom-Json
-                Write-UserMessage "✓ Existing configuration loaded" -Type Success
-            } catch {
-                Write-UserMessage "✗ Failed to parse existing config, creating new one" -Type Warning
-                $existingConfig = $null
-            }
-        }
-
-        # Create or update configuration using DESKTOP COMMANDER APPROACH
-        Write-UserMessage "📝 Configuring Claude Desktop (Desktop Commander method)..." -Type Info
-
-        # Use Desktop Commander's proven approach for safe configuration merging
-        if ($existingConfig) {
-            # Ensure mcpServers object exists
-            if (-not $existingConfig.mcpServers) {
-                $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{} -Force
-            }
-
-            # Remove any old "clean-cut-mcp" entry (like Desktop Commander removes old entries)
-            if ($existingConfig.mcpServers."clean-cut-mcp") {
-                $existingConfig.mcpServers.PSObject.Properties.Remove("clean-cut-mcp")
-                Write-UserMessage "✓ Removed old clean-cut-mcp configuration" -Type Info
-            }
-
-            # Add new clean-cut-mcp server configuration (Desktop Commander pattern)
-            $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "clean-cut-mcp" -Value @{
-                command = $dockerCommand
-                args = $dockerArgs
-            } -Force
-
-            $config = $existingConfig
-            $existingCount = ($existingConfig.mcpServers.PSObject.Properties | Where-Object {$_.Name -ne "clean-cut-mcp"}).Count
-            Write-UserMessage "✓ Preserved $existingCount existing MCP servers + added clean-cut-mcp" -Type Success
-        } else {
-            # Create new config (no existing config found)
-            $config = @{
-                mcpServers = @{
-                    "clean-cut-mcp" = @{
-                        command = $dockerCommand
-                        args = $dockerArgs
-                    }
+        $config = @{
+            mcpServers = @{
+                "clean-cut-mcp" = @{
+                    command = $dockerCommand
+                    args = $dockerArgs
                 }
             }
-            Write-UserMessage "✓ Created new configuration with clean-cut-mcp" -Type Success
         }
 
-        # Generate JSON using PowerShell's native converter (Desktop Commander approach)
-        Write-UserMessage "📝 Converting to JSON using Desktop Commander method..." -Type Info
+        # Manual JSON generation (fix for PowerShell array serialization issues)
+        Write-UserMessage "📝 Generating JSON configuration manually..." -Type Info
         try {
-            $jsonContent = $config | ConvertTo-Json -Depth 10 -Compress:$false
-            Write-UserMessage "✓ JSON generated successfully ($(($jsonContent -split "`n").Count) lines)" -Type Success
+            # Manual JSON construction to ensure proper array format (research shows ConvertTo-Json can flatten arrays)
+            $argsJson = '["exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js"]'
+            $jsonContent = @"
+{
+  "mcpServers": {
+    "clean-cut-mcp": {
+      "command": "docker",
+      "args": $argsJson
+    }
+  }
+}
+"@
 
-            # Validation
-            if ($jsonContent.Contains('"args"') -and $jsonContent.Contains('[')) {
-                Write-UserMessage "✓ JSON contains args array structure" -Type Success
-            } else {
-                Write-UserMessage "✗ JSON missing expected array structure" -Type Error
-            }
-
-            # Show first 300 chars for debugging
-            $preview = $jsonContent.Substring(0, [Math]::Min(300, $jsonContent.Length)).Replace("`n", " ").Replace("`r", "")
-            Write-UserMessage "JSON preview: $preview..." -Type Info
+            Write-UserMessage "✓ JSON generated manually with guaranteed array structure" -Type Success
+            Write-UserMessage "✓ Args array: $argsJson" -Type Success
 
         } catch {
-            Write-UserMessage "✗ JSON generation failed: $($_.Exception.Message)" -Type Error
+            Write-UserMessage "✗ Manual JSON generation failed: $($_.Exception.Message)" -Type Error
             throw "JSON generation failed"
         }
-       
-        # Validate JSON
+        
+        # Validate JSON (with fallback for older PowerShell versions)
         $jsonValid = $false
         try {
+            # Try Test-Json cmdlet (PowerShell 6.1+)
             $jsonValid = Test-Json -Json $jsonContent -ErrorAction Stop
-            Write-UserMessage "✓ JSON validation successful (Test-Json)" -Type Success
         } catch {
+            # Fallback: Basic JSON validation by parsing
             try {
-                $testContent = $jsonContent | ConvertFrom-Json
-                $expectedArgCount = if ($script:IsWindows -and $useWSL) { 6 } else { 5 }
-                if ($testContent.mcpServers."clean-cut-mcp".args.Count -eq $expectedArgCount) {
-                    Write-UserMessage "✓ JSON validation successful (ConvertFrom-Json)" -Type Success
-                    Write-UserMessage "✓ Args array has correct count: $($testContent.mcpServers."clean-cut-mcp".args.Count)" -Type Success
-                    $jsonValid = $true
-                } else {
-                    Write-UserMessage "✗ Args array count wrong: Expected $expectedArgCount, got $($testContent.mcpServers."clean-cut-mcp".args.Count)" -Type Error
-                    $jsonValid = $false
-                }
+                $jsonContent | ConvertFrom-Json | Out-Null
+                $jsonValid = $true
             } catch {
-                Write-UserMessage "✗ JSON parsing failed: $($_.Exception.Message)" -Type Error
                 $jsonValid = $false
             }
         }
@@ -747,45 +610,67 @@ function Install-ClaudeConfiguration {
             throw "Generated configuration is invalid JSON"
         }
 
-        # Atomic save (temp file then move)
+        # Atomic save (temp file then move) with detailed logging
         Write-UserMessage "💾 Writing configuration file..." -Type Info
         $tempFile = "$configPath.tmp"
 
         try {
             $jsonContent | Out-File $tempFile -Encoding UTF8 -Force
-            Write-UserMessage "✓ Temporary config file written" -Type Success
+            Write-UserMessage "✓ Temporary config file written: $(Split-Path $tempFile -Leaf)" -Type Success
         } catch {
             Write-UserMessage "✗ Failed to write temp config file: $($_.Exception.Message)" -Type Error
             throw "Config file write failed"
         }
 
-        # Final validation and move
+        # Validate temp file with detailed logging
+        Write-UserMessage "🔍 Validating written configuration..." -Type Info
+        $tempValid = $false
         try {
-            $finalTest = Get-Content $tempFile | ConvertFrom-Json
-            if ($finalTest.mcpServers."clean-cut-mcp".command -eq $dockerCommand) {
+            $tempValid = Test-Json -Path $tempFile -ErrorAction Stop
+            Write-UserMessage "✓ JSON validation successful (Test-Json)" -Type Success
+        } catch {
+            Write-UserMessage "Test-Json not available, using fallback validation..." -Type Warning
+            try {
+                $testContent = Get-Content $tempFile | ConvertFrom-Json
+                if ($testContent.mcpServers."clean-cut-mcp".args.Count -eq 5) {
+                    Write-UserMessage "✓ JSON validation successful (ConvertFrom-Json)" -Type Success
+                    Write-UserMessage "✓ Args array has correct count: $($testContent.mcpServers."clean-cut-mcp".args.Count)" -Type Success
+                    $tempValid = $true
+                } else {
+                    Write-UserMessage "✗ Args array count wrong: $($testContent.mcpServers."clean-cut-mcp".args.Count)" -Type Error
+                    $tempValid = $false
+                }
+            } catch {
+                Write-UserMessage "✗ JSON parsing failed: $($_.Exception.Message)" -Type Error
+                $tempValid = $false
+            }
+        }
+
+        if ($tempValid) {
+            try {
                 Move-Item $tempFile $configPath -Force
-                Write-UserMessage "✓ Configuration file saved successfully" -Type Success
-               
+                Write-UserMessage "✓ Configuration file moved to final location" -Type Success
+
                 # Final verification
                 if (Test-Path $configPath) {
                     $finalSize = (Get-Item $configPath).Length
                     Write-UserMessage "✓ Claude Desktop configured successfully ($finalSize bytes)" -Type Success
                     Write-UserMessage "✓ Config location: $configPath" -Type Info
-                    Write-UserMessage "✓ STDIO transport with -i flag configured for proper MCP communication" -Type Success
                 } else {
                     throw "Config file disappeared after move"
                 }
 
                 return $true
-            } else {
-                throw "Final validation failed - command mismatch"
+            } catch {
+                Write-UserMessage "✗ Failed to move config to final location: $($_.Exception.Message)" -Type Error
+                throw "Config file move failed"
             }
-        } catch {
+        } else {
             Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-            Write-UserMessage "✗ Final validation failed: $($_.Exception.Message)" -Type Error
-            throw "Configuration validation failed"
+            Write-UserMessage "✗ Configuration validation failed - config not updated" -Type Error
+            throw "Temporary configuration file is invalid"
         }
-       
+        
     } catch {
         Write-UserMessage "✗ Claude configuration failed: $($_.Exception.Message)" -Type Error
         return $false
@@ -795,10 +680,6 @@ function Install-ClaudeConfiguration {
 function Show-UserInstructions {
     Write-Host ""
     Write-Host "🎉 INSTALLATION COMPLETE!" -ForegroundColor Green
-
-    # Use string formatting for reliable version display
-    $successMessage = "   Clean-Cut-MCP {0} installed successfully" -f "v2.1.0-MCP-PRESERVATION-FIX"
-    Write-Host $successMessage -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "1. Start Claude Desktop" -ForegroundColor White
@@ -841,9 +722,9 @@ function Show-ErrorHelp {
 # Main installation process
 try {
     # Step 1: Check prerequisites
-    Write-UserMessage "[STEP 1/5] Starting Clean-Cut-MCP installation..." -Type Step
+    Write-UserMessage "Starting Clean-Cut-MCP installation..." -Type Step
     $issues = Test-Prerequisites
-   
+    
     if ($issues.Count -gt 0) {
         Write-UserMessage "❌ System requirements not met:" -Type Error
         foreach ($issue in $issues) {
@@ -854,11 +735,10 @@ try {
         Read-Host "Press Enter to exit"
         exit 1
     }
-   
+    
     Write-UserMessage "✓ System requirements OK" -Type Success
-   
+    
     # Step 2: Test network access
-    Write-UserMessage "[STEP 2/5] Testing network connectivity..." -Type Step
     if (-not (Test-NetworkAccess)) {
         Show-ErrorHelp
         Read-Host "Press Enter to exit"
@@ -866,15 +746,14 @@ try {
     }
 
     # Step 3: Start container
-    Write-UserMessage "[STEP 3/5] Setting up Docker container..." -Type Step
     if (-not (Start-CleanCutMCP)) {
         Show-ErrorHelp
         Read-Host "Press Enter to exit"
         exit 1
     }
-   
+    
     # Step 4: Verify container is running and accessible
-    Write-UserMessage "[STEP 4/5] Verifying container is ready..." -Type Step
+    Write-UserMessage "🔍 Verifying container is ready..." -Type Step
 
     # Test container accessibility (platform-specific)
     $containerRunning = $false
@@ -908,21 +787,19 @@ try {
     Write-UserMessage "✓ Container accessible - Remotion Studio and MCP server ready" -Type Success
 
     # Step 5: Configure Claude Desktop for STDIO transport
-    Write-UserMessage "[STEP 5/5] Configuring Claude Desktop..." -Type Step
     if (-not (Install-ClaudeConfiguration)) {
         Show-ErrorHelp
         Read-Host "Press Enter to exit"
         exit 1
     }
-   
+    
     # Success!
     Show-UserInstructions
-   
+    
 } catch {
     Write-UserMessage "💥 Unexpected error: $($_.Exception.Message)" -Type Error
     Show-ErrorHelp
 } finally {
     Write-Host "Press Enter to close..." -ForegroundColor Gray
     Read-Host
-}e
-
+}

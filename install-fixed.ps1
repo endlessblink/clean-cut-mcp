@@ -636,13 +636,7 @@ function Install-ClaudeConfiguration {
             $dockerArgs = @("exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js")
         }
 
-        if ($script:IsWindows) {
-            Write-UserMessage "Platform: Windows" -Type Info
-        } elseif ($script:IsLinux) {
-            Write-UserMessage "Platform: Linux" -Type Info
-        } else {
-            Write-UserMessage "Platform: macOS" -Type Info
-        }
+        Write-UserMessage "Platform: $($script:IsWindows ? 'Windows' : $script:IsLinux ? 'Linux' : 'macOS')" -Type Info
         Write-UserMessage "Command: $dockerCommand" -Type Info
         Write-UserMessage "Args count: $($dockerArgs.Count)" -Type Info
         Write-UserMessage "Args content: $($dockerArgs -join ' | ')" -Type Info
