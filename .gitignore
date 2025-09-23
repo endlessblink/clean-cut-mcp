@@ -129,3 +129,6 @@ claude_desktop_config.json.backup-*
 # Additional runtime files
 *.pid
 *.lock
+
+# Claude Desktop personal instructions (not for external users)
+CLAUDE.md
