@@ -591,59 +591,48 @@ function Install-ClaudeConfiguration {
             }
         }
 
-        # Create or update configuration using SAFE MANUAL JSON GENERATION
-        Write-UserMessage "📝 Generating JSON configuration safely..." -Type Info
+        # Create or update configuration using DESKTOP COMMANDER APPROACH
+        Write-UserMessage "📝 Configuring Claude Desktop (Desktop Commander method)..." -Type Info
 
-        # Build JSON manually to ensure existing servers are preserved
-        $cleanCutArgsJson = if ($script:IsWindows -and $useWSL) {
-            '["docker", "exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js"]'
-        } else {
-            '["exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js"]'
-        }
-
-        if ($existingConfig -and $existingConfig.mcpServers) {
-            # PRESERVE existing servers by manually building JSON
-            $existingServersJson = ""
-            $serverCount = 0
-            foreach ($serverName in $existingConfig.mcpServers.PSObject.Properties.Name) {
-                if ($serverName -ne "clean-cut-mcp") {  # Don't duplicate clean-cut-mcp
-                    $server = $existingConfig.mcpServers.$serverName
-                    $serverJson = $server | ConvertTo-Json -Depth 10 -Compress:$false
-                    $existingServersJson += "`"$serverName`": $serverJson,"
-                    $serverCount++
-                }
+        # Use Desktop Commander's proven approach for safe configuration merging
+        if ($existingConfig) {
+            # Ensure mcpServers object exists
+            if (-not $existingConfig.mcpServers) {
+                $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{} -Force
             }
 
-            $jsonContent = @"
-{
-  "mcpServers": {
-    $existingServersJson
-    "clean-cut-mcp": {
-      "command": "$dockerCommand",
-      "args": $cleanCutArgsJson
-    }
-  }
-}
-"@
-            Write-UserMessage "✓ Preserved $serverCount existing MCP servers + added clean-cut-mcp" -Type Success
+            # Remove any old "clean-cut-mcp" entry (like Desktop Commander removes old entries)
+            if ($existingConfig.mcpServers."clean-cut-mcp") {
+                $existingConfig.mcpServers.PSObject.Properties.Remove("clean-cut-mcp")
+                Write-UserMessage "✓ Removed old clean-cut-mcp configuration" -Type Info
+            }
+
+            # Add new clean-cut-mcp server configuration (Desktop Commander pattern)
+            $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "clean-cut-mcp" -Value @{
+                command = $dockerCommand
+                args = $dockerArgs
+            } -Force
+
+            $config = $existingConfig
+            $existingCount = ($existingConfig.mcpServers.PSObject.Properties | Where-Object {$_.Name -ne "clean-cut-mcp"}).Count
+            Write-UserMessage "✓ Preserved $existingCount existing MCP servers + added clean-cut-mcp" -Type Success
         } else {
-            # Create new config
-            $jsonContent = @"
-{
-  "mcpServers": {
-    "clean-cut-mcp": {
-      "command": "$dockerCommand",
-      "args": $cleanCutArgsJson
-    }
-  }
-}
-"@
+            # Create new config (no existing config found)
+            $config = @{
+                mcpServers = @{
+                    "clean-cut-mcp" = @{
+                        command = $dockerCommand
+                        args = $dockerArgs
+                    }
+                }
+            }
             Write-UserMessage "✓ Created new configuration with clean-cut-mcp" -Type Success
         }
 
-        # Generate JSON with proper array handling
-        Write-UserMessage "📝 JSON configuration generated manually for safety..." -Type Info
+        # Generate JSON using PowerShell's native converter (Desktop Commander approach)
+        Write-UserMessage "📝 Converting to JSON using Desktop Commander method..." -Type Info
         try {
+            $jsonContent = $config | ConvertTo-Json -Depth 10 -Compress:$false
             Write-UserMessage "✓ JSON generated successfully ($(($jsonContent -split "`n").Count) lines)" -Type Success
 
             # Validation
