@@ -567,65 +567,60 @@ function Install-ClaudeConfiguration {
             }
         }
 
-        # Read existing config to preserve other MCP servers (Desktop Commander approach)
-        $existingConfig = $null
+        # Desktop Commander's PROVEN approach - Deep copy preservation
+        Write-UserMessage "[CONFIG] Using Desktop Commander's proven JSON method..." -Type Info
+
+        $config = @{}
         if (Test-Path $configPath) {
             try {
-                $existingConfigContent = Get-Content $configPath -Raw
-                $existingConfig = $existingConfigContent | ConvertFrom-Json
-                Write-UserMessage "[OK] Existing configuration loaded" -Type Success
-            } catch {
-                Write-UserMessage "[ERROR] Failed to parse existing config, creating new one" -Type Warning
-                $existingConfig = $null
-            }
-        }
+                $jsonContent = Get-Content $configPath -Raw | ConvertFrom-Json
 
-        # Safe JSON generation using PowerShell objects (Windows PowerShell 5.1 compatible)
-        Write-UserMessage "[CONFIG] Generating JSON configuration safely..." -Type Info
-        try {
-            # Use Desktop Commander's proven approach for safe configuration merging
-            if ($existingConfig -and $existingConfig.mcpServers) {
-                # Ensure mcpServers object exists
-                if (-not $existingConfig.mcpServers) {
-                    $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{} -Force
-                }
-
-                # Remove any old clean-cut-mcp entry
-                if ($existingConfig.mcpServers."clean-cut-mcp") {
-                    $existingConfig.mcpServers.PSObject.Properties.Remove("clean-cut-mcp")
-                    Write-UserMessage "[OK] Removed old clean-cut-mcp configuration" -Type Info
-                }
-
-                # Add new clean-cut-mcp server configuration
-                $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "clean-cut-mcp" -Value @{
-                    command = $dockerCommand
-                    args = $dockerArgs
-                } -Force
-
-                $config = $existingConfig
-                $existingCount = ($existingConfig.mcpServers.PSObject.Properties | Where-Object {$_.Name -ne "clean-cut-mcp"}).Count
-                Write-UserMessage "[OK] Preserved $existingCount existing MCP servers + added clean-cut-mcp" -Type Success
-            } else {
-                # Create new config
-                $config = @{
-                    mcpServers = @{
-                        "clean-cut-mcp" = @{
-                            command = $dockerCommand
-                            args = $dockerArgs
+                # Deep copy all existing properties (Desktop Commander method)
+                foreach ($property in $jsonContent.PSObject.Properties) {
+                    if ($property.Name -eq "mcpServers" -and $property.Value) {
+                        # Preserve existing MCP servers
+                        $config.mcpServers = @{}
+                        foreach ($serverProperty in $property.Value.PSObject.Properties) {
+                            $serverConfig = @{
+                                command = $serverProperty.Value.command
+                            }
+                            if ($serverProperty.Value.args) {
+                                $serverConfig.args = @($serverProperty.Value.args)
+                            }
+                            if ($serverProperty.Value.env) {
+                                $serverConfig.env = @{}
+                                foreach ($envProperty in $serverProperty.Value.env.PSObject.Properties) {
+                                    $serverConfig.env[$envProperty.Name] = $envProperty.Value
+                                }
+                            }
+                            $config.mcpServers[$serverProperty.Name] = $serverConfig
                         }
+                        Write-UserMessage "[OK] Preserved $($property.Value.PSObject.Properties.Count) existing MCP servers" -Type Success
+                    } else {
+                        $config[$property.Name] = $property.Value
                     }
                 }
-                Write-UserMessage "[OK] Created new configuration with clean-cut-mcp" -Type Success
+            } catch {
+                Write-UserMessage "[ERROR] Failed to parse existing config, creating new one" -Type Warning
+                $config = @{}
             }
-
-            # Generate JSON using PowerShell's native converter (safe for Windows PowerShell 5.1)
-            $jsonContent = $config | ConvertTo-Json -Depth 10 -Compress:$false
-            Write-UserMessage "[OK] JSON generated using native PowerShell ConvertTo-Json" -Type Success
-
-        } catch {
-            Write-UserMessage "[ERROR] JSON generation failed: $($_.Exception.Message)" -Type Error
-            throw "JSON generation failed"
         }
+
+        # Ensure mcpServers exists
+        if (-not $config.mcpServers) {
+            $config.mcpServers = @{}
+        }
+
+        # Add/update clean-cut-mcp using Desktop Commander's direct assignment method
+        $config.mcpServers["clean-cut-mcp"] = @{
+            command = $dockerCommand
+            args = $dockerArgs
+        }
+        Write-UserMessage "[OK] Added clean-cut-mcp configuration" -Type Success
+
+        # Generate JSON using Desktop Commander's exact method
+        $jsonContent = $config | ConvertTo-Json -Depth 10
+        Write-UserMessage "[OK] JSON generated using Desktop Commander method" -Type Success
         
         # Validate JSON (with fallback for older PowerShell versions)
         $jsonValid = $false
@@ -646,65 +641,38 @@ function Install-ClaudeConfiguration {
             throw "Generated configuration is invalid JSON"
         }
 
-        # Atomic save (temp file then move) with detailed logging
-        Write-UserMessage "[SAVE] Writing configuration file..." -Type Info
-        $tempFile = "$configPath.tmp"
+        # Desktop Commander's proven file writing method
+        Write-UserMessage "[SAVE] Writing configuration using Desktop Commander method..." -Type Info
 
         try {
-            $jsonContent | Out-File $tempFile -Encoding UTF8 -Force
-            Write-UserMessage "[OK] Temporary config file written: $(Split-Path $tempFile -Leaf)" -Type Success
+            # Use Desktop Commander's exact method: System.IO.File.WriteAllText with UTF8 no BOM
+            [System.IO.File]::WriteAllText($configPath, $jsonContent, [System.Text.UTF8Encoding]::new($false))
+            Write-UserMessage "[OK] Configuration saved using System.IO.File method" -Type Success
         } catch {
-            Write-UserMessage "[ERROR] Failed to write temp config file: $($_.Exception.Message)" -Type Error
+            Write-UserMessage "[ERROR] Failed to write config file: $($_.Exception.Message)" -Type Error
             throw "Config file write failed"
         }
 
-        # Validate temp file with detailed logging
-        Write-UserMessage "[CHECK] Validating written configuration..." -Type Info
-        $tempValid = $false
-        try {
-            $tempValid = Test-Json -Path $tempFile -ErrorAction Stop
-            Write-UserMessage "[OK] JSON validation successful (Test-Json)" -Type Success
-        } catch {
-            Write-UserMessage "Test-Json not available, using fallback validation..." -Type Warning
+        # Final verification (Desktop Commander approach)
+        if (Test-Path $configPath) {
             try {
-                $testContent = Get-Content $tempFile | ConvertFrom-Json
-                if ($testContent.mcpServers."clean-cut-mcp".args.Count -eq 5) {
-                    Write-UserMessage "[OK] JSON validation successful (ConvertFrom-Json)" -Type Success
-                    Write-UserMessage "[OK] Args array has correct count: $($testContent.mcpServers."clean-cut-mcp".args.Count)" -Type Success
-                    $tempValid = $true
-                } else {
-                    Write-UserMessage "[ERROR] Args array count wrong: $($testContent.mcpServers."clean-cut-mcp".args.Count)" -Type Error
-                    $tempValid = $false
-                }
-            } catch {
-                Write-UserMessage "[ERROR] JSON parsing failed: $($_.Exception.Message)" -Type Error
-                $tempValid = $false
-            }
-        }
-
-        if ($tempValid) {
-            try {
-                Move-Item $tempFile $configPath -Force
-                Write-UserMessage "[OK] Configuration file moved to final location" -Type Success
-
-                # Final verification
-                if (Test-Path $configPath) {
+                # Verify written config can be parsed
+                $verifyContent = Get-Content $configPath -Raw | ConvertFrom-Json
+                if ($verifyContent.mcpServers."clean-cut-mcp".command -eq $dockerCommand) {
                     $finalSize = (Get-Item $configPath).Length
                     Write-UserMessage "[OK] Claude Desktop configured successfully ($finalSize bytes)" -Type Success
                     Write-UserMessage "[OK] Config location: $configPath" -Type Info
+                    Write-UserMessage "[OK] clean-cut-mcp MCP server added with STDIO transport" -Type Success
+                    return $true
                 } else {
-                    throw "Config file disappeared after move"
+                    throw "Configuration verification failed - clean-cut-mcp not found"
                 }
-
-                return $true
             } catch {
-                Write-UserMessage "[ERROR] Failed to move config to final location: $($_.Exception.Message)" -Type Error
-                throw "Config file move failed"
+                Write-UserMessage "[ERROR] Configuration verification failed: $($_.Exception.Message)" -Type Error
+                throw "Written configuration is invalid"
             }
         } else {
-            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-            Write-UserMessage "[ERROR] Configuration validation failed - config not updated" -Type Error
-            throw "Temporary configuration file is invalid"
+            throw "Configuration file was not created"
         }
         
     } catch {
