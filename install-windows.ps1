@@ -108,16 +108,50 @@ $ErrorActionPreference = 'Continue'
 
 function Write-UserMessage {
     param([string]$Message, [string]$Type = "Info")
-    
+
     $colors = @{
         "Info" = "White"
-        "Success" = "Green" 
+        "Success" = "Green"
         "Warning" = "Yellow"
         "Error" = "Red"
         "Step" = "Cyan"
     }
-    
+
     Write-Host $Message -ForegroundColor $colors[$Type]
+}
+
+function Backup-Configuration {
+    param([string]$SourcePath)
+
+    try {
+        # Create backup directory if it doesn't exist
+        $BackupPath = "$env:APPDATA\Claude\Backups"
+        if (-not (Test-Path $BackupPath)) {
+            New-Item -Path $BackupPath -ItemType Directory -Force | Out-Null
+            Write-UserMessage "[BACKUP] Created backup directory: $BackupPath" -Type Info
+        }
+
+        # Generate timestamped backup filename
+        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $backupFile = Join-Path $BackupPath "claude_desktop_config_backup_$timestamp.json"
+
+        # Copy original file to backup location
+        Copy-Item -Path $SourcePath -Destination $backupFile -Force
+        Write-UserMessage "[OK] Configuration backed up to: $(Split-Path $backupFile -Leaf)" -Type Success
+
+        # Keep only last 10 backups
+        $backups = Get-ChildItem -Path $BackupPath -Filter "*backup*.json" | Sort-Object CreationTime -Descending
+        if ($backups.Count -gt 10) {
+            $backups[10..($backups.Count-1)] | Remove-Item -Force
+            Write-UserMessage "[OK] Cleaned up old backups, keeping last 10" -Type Info
+        }
+
+        return $backupFile
+    }
+    catch {
+        Write-UserMessage "[ERROR] Failed to create backup: $($_.Exception.Message)" -Type Error
+        return $null
+    }
 }
 
 function Test-Prerequisites {
@@ -534,18 +568,17 @@ function Install-ClaudeConfiguration {
             Write-UserMessage "[OK] Config directory already exists" -Type Info
         }
 
-        # Backup existing config
+        # Create comprehensive backup using enhanced backup system
         if (Test-Path $configPath) {
-            try {
-                $backupPath = "$configPath.backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-                Copy-Item $configPath $backupPath -Force
-                Write-UserMessage "[OK] Existing configuration backed up to: $(Split-Path $backupPath -Leaf)" -Type Success
-            } catch {
-                Write-UserMessage "[ERROR] Config backup failed: $($_.Exception.Message)" -Type Warning
-                Write-UserMessage "Continuing without backup..." -Type Warning
+            Write-UserMessage "[BACKUP] Creating safety backup before configuration changes..." -Type Info
+            $backupFile = Backup-Configuration -SourcePath $configPath
+            if (-not $backupFile) {
+                Write-UserMessage "[ERROR] Failed to create safety backup - aborting for safety" -Type Error
+                throw "Safety backup creation failed"
             }
         } else {
             Write-UserMessage "No existing config found - creating new configuration" -Type Info
+            $backupFile = $null
         }
         
         # Create new configuration - STDIO transport with working command path
@@ -669,14 +702,36 @@ function Install-ClaudeConfiguration {
                 }
             } catch {
                 Write-UserMessage "[ERROR] Configuration verification failed: $($_.Exception.Message)" -Type Error
+
+                # Auto-restore from backup if available
+                if ($backupFile -and (Test-Path $backupFile)) {
+                    Write-UserMessage "[RESTORE] Attempting to restore from backup..." -Type Warning
+                    try {
+                        Copy-Item $backupFile $configPath -Force
+                        Write-UserMessage "[OK] Configuration restored from backup" -Type Success
+                    } catch {
+                        Write-UserMessage "[ERROR] Failed to restore from backup: $($_.Exception.Message)" -Type Error
+                    }
+                }
                 throw "Written configuration is invalid"
             }
         } else {
             throw "Configuration file was not created"
         }
-        
+
     } catch {
         Write-UserMessage "[ERROR] Claude configuration failed: $($_.Exception.Message)" -Type Error
+
+        # Final safety: attempt to restore from backup
+        if ($backupFile -and (Test-Path $backupFile)) {
+            Write-UserMessage "[RESTORE] Emergency restore from backup..." -Type Warning
+            try {
+                Copy-Item $backupFile $configPath -Force
+                Write-UserMessage "[OK] Claude Desktop config restored from backup for safety" -Type Success
+            } catch {
+                Write-UserMessage "[ERROR] Emergency restore failed: $($_.Exception.Message)" -Type Error
+            }
+        }
         return $false
     }
 }
