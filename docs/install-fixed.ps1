@@ -26,6 +26,10 @@ param(
     [switch]$Update
 )
 
+# Version information
+$INSTALLER_VERSION = "v2.1.0-MCP-PRESERVATION-FIX"
+$INSTALLER_DATE = "2025-09-23"
+
 # Cross-platform OS detection for PowerShell Core compatibility
 if (-not (Get-Variable -Name 'IsWindows' -ErrorAction SilentlyContinue)) {
     # Backwards compatibility for Windows PowerShell 5.1
@@ -53,8 +57,8 @@ if ($script:IsWindows) {
 # Simple user interface
 Clear-Host
 Write-Host ""
-Write-Host "🎬 CLEAN-CUT-MCP INSTALLER" -ForegroundColor Cyan
-Write-Host "   Cross-Platform Setup for Claude Desktop" -ForegroundColor Cyan
+Write-Host "🎬 CLEAN-CUT-MCP INSTALLER $INSTALLER_VERSION" -ForegroundColor Cyan
+Write-Host "   Cross-Platform Setup for Claude Desktop ($INSTALLER_DATE)" -ForegroundColor Cyan
 if ($script:IsWindows) { Write-Host "   Platform: Windows + WSL2" -ForegroundColor Gray }
 elseif ($script:IsLinux) { Write-Host "   Platform: Linux" -ForegroundColor Gray }
 elseif ($script:IsMacOS) { Write-Host "   Platform: macOS" -ForegroundColor Gray }
@@ -733,6 +737,7 @@ function Install-ClaudeConfiguration {
 function Show-UserInstructions {
     Write-Host ""
     Write-Host "🎉 INSTALLATION COMPLETE!" -ForegroundColor Green
+    Write-Host "   Clean-Cut-MCP $INSTALLER_VERSION installed successfully" -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "1. Start Claude Desktop" -ForegroundColor White
