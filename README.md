@@ -163,7 +163,16 @@ Clean-Cut-MCP is open source and welcomes contributions:
 
 ## License
 
-MIT License - Build amazing things with this tool!
+**This project uses Remotion**, which has special licensing requirements:
+
+- **Free for**: Individuals, organizations ≤3 employees, non-profits, evaluation
+- **Company license required**: For-profit organizations >3 employees
+- **Details**: Check [remotion.pro](https://remotion.pro) for complete licensing terms
+
+**Clean-Cut-MCP container/MCP server code**: MIT License
+**Remotion dependency**: Subject to Remotion's license terms
+
+Please review Remotion's licensing requirements before commercial use.
 
 ---
 
