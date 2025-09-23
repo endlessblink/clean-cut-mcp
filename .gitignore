@@ -91,3 +91,18 @@ docs/debugging/*.jpg
 build.log
 error.log
 debug.log
+
+# Prevent future duplicate installer accumulation
+install-*test*.ps1
+install-*fixed*.ps1
+install-*backup*.ps1
+install-bulletproof*.ps1
+
+# Development utility patterns
+cleanup-installation.ps1
+kill-claude-*.ps1
+*-clean-cut.sh
+
+# Old configuration files
+claude_desktop_config_*FINAL*.json
+*_FIXED_FINAL.json
