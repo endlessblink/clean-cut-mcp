@@ -26,9 +26,52 @@ param(
     [switch]$Update
 )
 
-# Version information (use Global scope for reliable expansion)
+# Version information with multiple expansion methods for reliability
 $Global:INSTALLER_VERSION = "v2.1.0-MCP-PRESERVATION-FIX"
 $Global:INSTALLER_DATE = "2025-09-23"
+
+function Show-InstallerHeader {
+    # Multiple fallback methods for version display (research-based solutions)
+    $version = "v2.1.0-MCP-PRESERVATION-FIX"
+    $date = "2025-09-23"
+
+    # Method 1: Direct string formatting (most reliable)
+    $header1 = "🎬 CLEAN-CUT-MCP INSTALLER {0}" -f $version
+    $header2 = "   Cross-Platform Setup for Claude Desktop ({0})" -f $date
+
+    # Method 2: Here-string with forced expansion
+    $headerHereString = @"
+🎬 CLEAN-CUT-MCP INSTALLER $version
+   Cross-Platform Setup for Claude Desktop ($date)
+"@
+
+    # Method 3: ExecutionContext expansion (research-validated)
+    $template1 = '🎬 CLEAN-CUT-MCP INSTALLER $version'
+    $template2 = '   Cross-Platform Setup for Claude Desktop ($date)'
+
+    try {
+        # Try ExecutionContext method first (most robust for downloaded scripts)
+        $expanded1 = $ExecutionContext.InvokeCommand.ExpandString($template1)
+        $expanded2 = $ExecutionContext.InvokeCommand.ExpandString($template2)
+        Write-Host $expanded1 -ForegroundColor Cyan
+        Write-Host $expanded2 -ForegroundColor Cyan
+    } catch {
+        try {
+            # Fallback to string formatting
+            Write-Host $header1 -ForegroundColor Cyan
+            Write-Host $header2 -ForegroundColor Cyan
+        } catch {
+            try {
+                # Fallback to here-string
+                Write-Host $headerHereString -ForegroundColor Cyan
+            } catch {
+                # Final fallback - hardcoded
+                Write-Host "🎬 CLEAN-CUT-MCP INSTALLER v2.1.0-MCP-PRESERVATION-FIX" -ForegroundColor Cyan
+                Write-Host "   Cross-Platform Setup for Claude Desktop (2025-09-23)" -ForegroundColor Cyan
+            }
+        }
+    }
+}
 
 # Cross-platform OS detection for PowerShell Core compatibility
 if (-not (Get-Variable -Name 'IsWindows' -ErrorAction SilentlyContinue)) {
@@ -57,11 +100,31 @@ if ($script:IsWindows) {
 # Simple user interface
 Clear-Host
 Write-Host ""
-Write-Host "🎬 CLEAN-CUT-MCP INSTALLER v2.1.0-MCP-PRESERVATION-FIX" -ForegroundColor Cyan
-Write-Host "   Cross-Platform Setup for Claude Desktop (2025-09-23)" -ForegroundColor Cyan
+
+# Display header with multiple fallback methods
+Show-InstallerHeader
+
+# Platform information
 if ($script:IsWindows) { Write-Host "   Platform: Windows + WSL2" -ForegroundColor Gray }
 elseif ($script:IsLinux) { Write-Host "   Platform: Linux" -ForegroundColor Gray }
 elseif ($script:IsMacOS) { Write-Host "   Platform: macOS" -ForegroundColor Gray }
+
+# Diagnostic information (hidden by default, can be enabled for debugging)
+if ($env:DEBUG_INSTALLER -eq "1") {
+    Write-Host ""
+    Write-Host "=== DIAGNOSTIC INFORMATION ===" -ForegroundColor Yellow
+    Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)" -ForegroundColor Gray
+    Write-Host "Execution Policy: $(Get-ExecutionPolicy)" -ForegroundColor Gray
+    Write-Host "Script Path: $($MyInvocation.MyCommand.Path)" -ForegroundColor Gray
+    Write-Host "Global Version: [$($Global:INSTALLER_VERSION)]" -ForegroundColor Gray
+    $ScriptContent = Get-Content $MyInvocation.MyCommand.Path -Raw
+    $HasVersionText = $ScriptContent -match 'v2\.1\.0-MCP-PRESERVATION-FIX'
+    Write-Host "File contains version text: $HasVersionText" -ForegroundColor Gray
+    $LastModified = (Get-Item $MyInvocation.MyCommand.Path).LastWriteTime
+    Write-Host "Script downloaded at: $LastModified" -ForegroundColor Gray
+    Write-Host "===============================" -ForegroundColor Yellow
+}
+
 Write-Host ""
 
 # Handle update parameter first
@@ -726,7 +789,10 @@ function Install-ClaudeConfiguration {
 function Show-UserInstructions {
     Write-Host ""
     Write-Host "🎉 INSTALLATION COMPLETE!" -ForegroundColor Green
-    Write-Host "   Clean-Cut-MCP v2.1.0-MCP-PRESERVATION-FIX installed successfully" -ForegroundColor Green
+
+    # Use string formatting for reliable version display
+    $successMessage = "   Clean-Cut-MCP {0} installed successfully" -f "v2.1.0-MCP-PRESERVATION-FIX"
+    Write-Host $successMessage -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "1. Start Claude Desktop" -ForegroundColor White
