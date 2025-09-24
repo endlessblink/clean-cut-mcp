@@ -608,7 +608,11 @@ function Install-ClaudeConfiguration {
         try {
             $jsonContent = $config | ConvertTo-Json -Depth 10
             Write-UserMessage "✓ JSON generated using Desktop Commander method" -Type Success
-        
+        } catch {
+            Write-UserMessage "✗ JSON generation failed: $($_.Exception.Message)" -Type Error
+            throw "JSON generation failed"
+        }
+
         # Validate JSON (with fallback for older PowerShell versions)
         $jsonValid = $false
         try {
