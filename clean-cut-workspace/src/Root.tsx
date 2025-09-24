@@ -13,16 +13,19 @@ import { PulseCircle } from './assets/animations/PulseCircle';
 import { PulsingOrb } from './assets/animations/PulsingOrb';
 import { PulsingSphere } from './assets/animations/PulsingSphere';
 import { QuickFlash } from './assets/animations/QuickFlash';
+import { QuickPulse } from './assets/animations/QuickPulse';
 import { RefreshTest } from './assets/animations/RefreshTest';
 import { RisingSun } from './assets/animations/RisingSun';
 import { RisingSunEnhanced } from './assets/animations/RisingSunEnhanced';
 import { SecondTest } from './assets/animations/SecondTest';
 import { SeedreamGracefulTransitions } from './assets/animations/SeedreamGracefulTransitions';
 import { SimpleBounceBall } from './assets/animations/SimpleBounceBall';
+import { SnowFall } from './assets/animations/SnowFall';
 import { SocialMediaFeed } from './assets/animations/SocialMediaFeed';
 import { SpinningStar } from './assets/animations/SpinningStar';
 import { SundownSerenity } from './assets/animations/SundownSerenity';
 import { TweetAnimation } from './assets/animations/TweetAnimation';
+import { VisibleSnow } from './assets/animations/VisibleSnow';
 import { WelcomeAnimation } from './assets/animations/WelcomeAnimation';
 import { WelcomeDemo } from './assets/animations/WelcomeDemo';
 import { Zzzz } from './assets/animations/Zzzz';
@@ -76,6 +79,12 @@ const QuickFlashSchema = z.object({
   accentColor: z.string().optional(),
   text: z.string().optional(),
   intensity: z.number().optional()
+});
+const QuickPulseSchema = z.object({
+  accentColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  pulseSize: z.number().optional(),
+  title: z.string().optional()
 });
 const RisingSunSchema = z.object({
   sunColor: z.string().optional(),
@@ -145,12 +154,35 @@ const SimpleBounceBallSchema = z.object({
   backgroundColor: z.string().optional(),
   bounceHeight: z.number().optional()
 });
+const SnowFallSchema = z.object({
+  backgroundColor: z.string().optional(),
+  snowColor: z.string().optional(),
+  snowflakeCount: z.number().optional(),
+  windStrength: z.number().optional(),
+  snowSize: z.number().optional()
+});
 const SpinningStarSchema = z.object({
   starColor: z.string().optional(),
   backgroundColor: z.string().optional(),
   rotationSpeed: z.number().optional(),
   starSize: z.number().optional(),
   glowIntensity: z.number().optional()
+});
+const VisibleSnowSchema = z.object({
+  backgroundColor: z.string().optional(),
+  snowColor: z.string().optional(),
+  snowflakeCount: z.number().optional(),
+  windStrength: z.number().optional(),
+  snowSize: z.number().optional(),
+  fallSpeed: z.number().optional(),
+  swayAmount: z.number().optional(),
+  rotationEnabled: z.boolean().optional(),
+  groundSnow: z.boolean().optional(),
+  snowOpacity: z.number().optional(),
+  glowEffect: z.boolean().optional(),
+  snowShape: z.enum(['circle', 'square', 'diamond']).optional(),
+  windDirection: z.enum(['left', 'right', 'none']).optional(),
+  heaviness: z.enum(['light', 'medium', 'heavy']).optional()
 });
 const WelcomeAnimationSchema = z.object({
   title: z.string().optional(),
@@ -288,6 +320,15 @@ export const RemotionRoot: React.FC = () => {
         schema={QuickFlashSchema}
       />
       <Composition
+        id="QuickPulse"
+        component={QuickPulse}
+        durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={QuickPulseSchema}
+      />
+      <Composition
         id="RefreshTest"
         component={RefreshTest}
         durationInFrames={180}
@@ -339,6 +380,15 @@ export const RemotionRoot: React.FC = () => {
         schema={SimpleBounceBallSchema}
       />
       <Composition
+        id="SnowFall"
+        component={SnowFall}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={SnowFallSchema}
+      />
+      <Composition
         id="SocialMediaFeed"
         component={SocialMediaFeed}
         durationInFrames={240}
@@ -370,6 +420,15 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      <Composition
+        id="VisibleSnow"
+        component={VisibleSnow}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={VisibleSnowSchema}
       />
       <Composition
         id="WelcomeAnimation"
