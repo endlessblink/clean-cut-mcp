@@ -561,6 +561,22 @@ function Install-ClaudeConfiguration {
         # DESKTOP COMMANDER APPROACH: Safe configuration merging that preserves existing MCP servers
         Write-UserMessage "📝 Configuring Claude Desktop (Desktop Commander method - preserves existing MCPs)..." -Type Info
 
+        # Load existing configuration if it exists
+        $existingConfig = $null
+        if (Test-Path $configPath) {
+            Write-UserMessage "✓ Found existing Claude Desktop configuration" -Type Info
+            try {
+                $existingContent = Get-Content $configPath -Raw
+                $existingConfig = $existingContent | ConvertFrom-Json
+                Write-UserMessage "✓ Parsed existing configuration successfully" -Type Success
+            } catch {
+                Write-UserMessage "⚠️ Could not parse existing config, will create backup and start fresh" -Type Warning
+                $existingConfig = $null
+            }
+        } else {
+            Write-UserMessage "✓ No existing config found - will create new configuration" -Type Info
+        }
+
         # Load existing configuration or create new one
         if ($existingConfig) {
             Write-UserMessage "✓ Found existing configuration, preserving other MCP servers..." -Type Info
