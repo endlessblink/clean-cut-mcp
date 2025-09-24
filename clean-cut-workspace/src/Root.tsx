@@ -1,99 +1,11 @@
 import { Composition } from 'remotion';
 import { Comp } from './Composition';
 import { z } from 'zod';
-import { BouncingBall } from './assets/animations/BouncingBall';
 import { GitHubProfileShowcaseEnhanced } from './assets/animations/GitHubProfileShowcaseEnhanced';
-import { McpTestAnimation } from './assets/animations/McpTestAnimation';
-import { MorphingShapes } from './assets/animations/MorphingShapes';
 import { PacmanGameImproved } from './assets/animations/PacmanGameImproved';
-import { PacmanMazeRunnerWithProps } from './assets/animations/PacmanMazeRunnerWithProps';
-import { ParticleBurst } from './assets/animations/ParticleBurst';
-import { ProductShowcase } from './assets/animations/ProductShowcase';
-import { PulseCircle } from './assets/animations/PulseCircle';
-import { PulsingOrb } from './assets/animations/PulsingOrb';
-import { PulsingSphere } from './assets/animations/PulsingSphere';
-import { QuickFlash } from './assets/animations/QuickFlash';
-import { QuickPulse } from './assets/animations/QuickPulse';
-import { RefreshTest } from './assets/animations/RefreshTest';
-import { RisingSun } from './assets/animations/RisingSun';
 import { RisingSunEnhanced } from './assets/animations/RisingSunEnhanced';
-import { SecondTest } from './assets/animations/SecondTest';
 import { SeedreamGracefulTransitions } from './assets/animations/SeedreamGracefulTransitions';
-import { SimpleBounceBall } from './assets/animations/SimpleBounceBall';
-import { SnowFall } from './assets/animations/SnowFall';
 import { SocialMediaFeed } from './assets/animations/SocialMediaFeed';
-import { SpinningStar } from './assets/animations/SpinningStar';
-import { SundownSerenity } from './assets/animations/SundownSerenity';
-import { TweetAnimation } from './assets/animations/TweetAnimation';
-import { VisibleSnow } from './assets/animations/VisibleSnow';
-import { WelcomeAnimation } from './assets/animations/WelcomeAnimation';
-import { WelcomeDemo } from './assets/animations/WelcomeDemo';
-import { Zzzz } from './assets/animations/Zzzz';
-
-const MorphingShapesSchema = z.object({
-  primaryColor: z.string().optional(),
-  secondaryColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  title: z.string().optional(),
-  animationSpeed: z.number().optional()
-});
-const PacmanMazeRunnerWithPropsSchema = z.object({
-  pacmanSpeed: z.number().optional(),
-  pacmanColor: z.string().optional(),
-  showGhosts: z.boolean().optional(),
-  showDots: z.boolean().optional(),
-  backgroundColor: z.string().optional(),
-  gameTheme: z.enum(['classic', 'neon', 'retro', 'modern']).optional(),
-  ghostSpeed: z.number().optional(),
-  mazeScale: z.number().optional(),
-  showUI: z.boolean().optional()
-});
-const ParticleBurstSchema = z.object({
-  particleCount: z.number().optional(),
-  primaryColor: z.string().optional(),
-  secondaryColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  centerText: z.string().optional(),
-  animationSpeed: z.number().optional()
-});
-const PulseCircleSchema = z.object({
-  backgroundColor: z.string().optional(),
-  circleColor: z.string().optional(),
-  pulseColor: z.string().optional(),
-  title: z.string().optional(),
-  size: z.number().optional()
-});
-const PulsingOrbSchema = z.object({
-  accentColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  pulseSpeed: z.number().optional()
-});
-const PulsingSphereSchema = z.object({
-  accentColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  title: z.string().optional(),
-  pulseIntensity: z.number().optional()
-});
-const QuickFlashSchema = z.object({
-  backgroundColor: z.string().optional(),
-  accentColor: z.string().optional(),
-  text: z.string().optional(),
-  intensity: z.number().optional()
-});
-const QuickPulseSchema = z.object({
-  accentColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  pulseSize: z.number().optional(),
-  title: z.string().optional()
-});
-const RisingSunSchema = z.object({
-  sunColor: z.string().optional(),
-  skyGradientStart: z.string().optional(),
-  skyGradientEnd: z.string().optional(),
-  cloudColor: z.string().optional(),
-  animationSpeed: z.number().optional(),
-  title: z.string().optional()
-});
 const RisingSunEnhancedSchema = z.object({
   sunColor: z.string().optional(),
   sunSize: z.number().optional(),
@@ -149,61 +61,6 @@ const RisingSunEnhancedSchema = z.object({
   vintageEffect: z.boolean().optional(),
   bloomEffect: z.boolean().optional()
 });
-const SimpleBounceBallSchema = z.object({
-  ballColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  bounceHeight: z.number().optional()
-});
-const SnowFallSchema = z.object({
-  backgroundColor: z.string().optional(),
-  snowColor: z.string().optional(),
-  snowflakeCount: z.number().optional(),
-  windStrength: z.number().optional(),
-  snowSize: z.number().optional()
-});
-const SpinningStarSchema = z.object({
-  starColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  rotationSpeed: z.number().optional(),
-  starSize: z.number().optional(),
-  glowIntensity: z.number().optional()
-});
-const VisibleSnowSchema = z.object({
-  backgroundColor: z.string().optional(),
-  snowColor: z.string().optional(),
-  snowflakeCount: z.number().optional(),
-  windStrength: z.number().optional(),
-  snowSize: z.number().optional(),
-  fallSpeed: z.number().optional(),
-  swayAmount: z.number().optional(),
-  rotationEnabled: z.boolean().optional(),
-  groundSnow: z.boolean().optional(),
-  snowOpacity: z.number().optional(),
-  glowEffect: z.boolean().optional(),
-  snowShape: z.enum(['circle', 'square', 'diamond']).optional(),
-  windDirection: z.enum(['left', 'right', 'none']).optional(),
-  heaviness: z.enum(['light', 'medium', 'heavy']).optional()
-});
-const WelcomeAnimationSchema = z.object({
-  title: z.string().optional(),
-  accentColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  textColor: z.string().optional(),
-  animationSpeed: z.number().optional()
-});
-const WelcomeDemoSchema = z.object({
-  title: z.string().optional(),
-  accentColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  textColor: z.string().optional(),
-  animationSpeed: z.number().optional()
-});
-const ZzzzSchema = z.object({
-  textColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  animationSpeed: z.number().optional(),
-  zCount: z.number().optional()
-});
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -215,137 +72,21 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />
-      <Composition
-        id="BouncingBall"
-        component={BouncingBall}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
+      />      <Composition
         id="GitHubProfileShowcaseEnhanced"
         component={GitHubProfileShowcaseEnhanced}
         durationInFrames={450}
         fps={30}
         width={1920}
         height={1080}
-      />
-      <Composition
-        id="McpTestAnimation"
-        component={McpTestAnimation}
-        durationInFrames={180}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="MorphingShapes"
-        component={MorphingShapes}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={MorphingShapesSchema}
-      />
-      <Composition
+      />      <Composition
         id="PacmanGameImproved"
         component={PacmanGameImproved}
         durationInFrames={360}
         fps={30}
         width={1920}
         height={1080}
-      />
-      <Composition
-        id="PacmanMazeRunnerWithProps"
-        component={PacmanMazeRunnerWithProps}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={PacmanMazeRunnerWithPropsSchema}
-      />
-      <Composition
-        id="ParticleBurst"
-        component={ParticleBurst}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={ParticleBurstSchema}
-      />
-      <Composition
-        id="ProductShowcase"
-        component={ProductShowcase}
-        durationInFrames={450}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="PulseCircle"
-        component={PulseCircle}
-        durationInFrames={120}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={PulseCircleSchema}
-      />
-      <Composition
-        id="PulsingOrb"
-        component={PulsingOrb}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={PulsingOrbSchema}
-      />
-      <Composition
-        id="PulsingSphere"
-        component={PulsingSphere}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={PulsingSphereSchema}
-      />
-      <Composition
-        id="QuickFlash"
-        component={QuickFlash}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={QuickFlashSchema}
-      />
-      <Composition
-        id="QuickPulse"
-        component={QuickPulse}
-        durationInFrames={120}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={QuickPulseSchema}
-      />
-      <Composition
-        id="RefreshTest"
-        component={RefreshTest}
-        durationInFrames={180}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="RisingSun"
-        component={RisingSun}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={RisingSunSchema}
-      />
-      <Composition
+      />      <Composition
         id="RisingSunEnhanced"
         component={RisingSunEnhanced}
         durationInFrames={240}
@@ -353,110 +94,20 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         schema={RisingSunEnhancedSchema}
-      />
-      <Composition
-        id="SecondTest"
-        component={SecondTest}
-        durationInFrames={180}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
+      />      <Composition
         id="SeedreamGracefulTransitions"
         component={SeedreamGracefulTransitions}
         durationInFrames={240}
         fps={30}
         width={1920}
         height={1080}
-      />
-      <Composition
-        id="SimpleBounceBall"
-        component={SimpleBounceBall}
-        durationInFrames={120}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={SimpleBounceBallSchema}
-      />
-      <Composition
-        id="SnowFall"
-        component={SnowFall}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={SnowFallSchema}
-      />
-      <Composition
+      />      <Composition
         id="SocialMediaFeed"
         component={SocialMediaFeed}
         durationInFrames={240}
         fps={30}
         width={1920}
         height={1080}
-      />
-      <Composition
-        id="SpinningStar"
-        component={SpinningStar}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={SpinningStarSchema}
-      />
-      <Composition
-        id="SundownSerenity"
-        component={SundownSerenity}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="TweetAnimation"
-        component={TweetAnimation}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-      />
-      <Composition
-        id="VisibleSnow"
-        component={VisibleSnow}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={VisibleSnowSchema}
-      />
-      <Composition
-        id="WelcomeAnimation"
-        component={WelcomeAnimation}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={WelcomeAnimationSchema}
-      />
-      <Composition
-        id="WelcomeDemo"
-        component={WelcomeDemo}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={WelcomeDemoSchema}
-      />
-      <Composition
-        id="Zzzz"
-        component={Zzzz}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={ZzzzSchema}
-      />
-    </>
+      />    </>
   );
 };
