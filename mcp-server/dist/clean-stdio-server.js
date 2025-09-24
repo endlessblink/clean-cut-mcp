@@ -17,6 +17,9 @@ const APP_ROOT = process.env.DOCKER_CONTAINER === 'true' ? '/app' : path.resolve
 const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'clean-cut-exports');
 const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'clean-cut-components', 'src');
 const STUDIO_PORT = parseInt(process.env.REMOTION_STUDIO_PORT || '6970');
+const PID_FILE = process.env.DOCKER_CONTAINER === 'true' ? '/tmp/clean-cut-mcp.pid' : path.join(__dirname, 'clean-cut-mcp.pid');
+// Validation system configuration (optional, non-breaking)
+const ENABLE_VALIDATION = process.env.ENABLE_ANIMATION_VALIDATION === 'true' || false;
 // Safe stderr-only logging (no stdout pollution for STDIO)
 const log = (level, message, data) => {
     const timestamp = new Date().toISOString();
@@ -30,6 +33,7 @@ class TrueAiStdioMcpServer {
     rootFileWatcher = null;
     workspaceWatcher = null;
     lastRootContent = '';
+    validator = null; // Animation validator instance
     constructor() {
         this.server = new Server({
             name: 'clean-cut-mcp',
@@ -43,6 +47,68 @@ class TrueAiStdioMcpServer {
         this.setupErrorHandling();
         this.setupFileWatcher();
         this.setupWorkspaceWatcher();
+        this.initializeValidation();
+    }
+    /**
+     * Initialize animation validation system (optional, non-breaking)
+     */
+    async initializeValidation() {
+        if (!ENABLE_VALIDATION) {
+            log('info', 'Animation validation disabled');
+            return;
+        }
+        try {
+            const { AnimationValidator } = await import('./animation-validator.js');
+            this.validator = new AnimationValidator();
+            log('info', 'Animation validation system enabled and ready');
+        }
+        catch (error) {
+            log('error', 'Failed to initialize animation validator, proceeding without validation', {
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            this.validator = null;
+        }
+    }
+    /**
+     * Validate animation code before writing to file (optional safety layer)
+     */
+    async validateAnimationCode(code, componentName) {
+        const result = { isValid: true, warnings: [] };
+        // If validation disabled or not available, pass through
+        if (!ENABLE_VALIDATION || !this.validator) {
+            return result;
+        }
+        try {
+            const validation = await this.validator.validateAnimationCode(code, componentName);
+            if (!validation.isValid) {
+                // If validation failed but we have a fix, use it
+                if (validation.fixedCode) {
+                    result.fixedCode = validation.fixedCode;
+                    result.warnings.push('🔧 Auto-fixed syntax errors in animation code');
+                    result.warnings.push(...validation.suggestions);
+                    log('info', 'Animation validation auto-fixed errors', { componentName, errors: validation.errors.length });
+                }
+                else {
+                    // Validation failed and no fix available - warn but don't block
+                    result.warnings.push('⚠️  Animation validation found issues but proceeding anyway:');
+                    result.warnings.push(...validation.errors.map(e => `   • ${e.message}`));
+                    result.warnings.push(...validation.suggestions);
+                    log('warn', 'Animation validation found unfixable issues', { componentName, errors: validation.errors.length });
+                }
+            }
+            else {
+                log('info', 'Animation validation passed', { componentName });
+                result.warnings.push(...validation.suggestions);
+            }
+        }
+        catch (error) {
+            log('error', 'Animation validation failed, proceeding without validation', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                componentName
+            });
+            result.warnings.push('⚠️  Validation system error - animation created without pre-validation');
+        }
+        return result;
     }
     setupErrorHandling() {
         this.server.onerror = (error) => {
@@ -651,7 +717,15 @@ class TrueAiStdioMcpServer {
         // Write Claude's generated code with SMART export pattern fixing
         const fixedCode = this.fixComponentExports(code, validComponentName);
         // INTERPOLATE VALIDATION: Detect and fix unsafe interpolate patterns
-        const safeCode = this.validateAndFixInterpolate(fixedCode);
+        let safeCode = this.validateAndFixInterpolate(fixedCode);
+        // ANIMATION VALIDATION: Pre-validate TypeScript syntax and auto-fix common errors (optional)
+        const validationResult = await this.validateAnimationCode(safeCode, validComponentName);
+        if (validationResult.fixedCode) {
+            safeCode = validationResult.fixedCode;
+            log('info', 'Applied validation fixes to animation code', { componentName: validComponentName });
+        }
+        // Store validation warnings to include in response
+        const validationWarnings = validationResult.warnings;
         // ROBUST FILE CREATION: With error recovery for external users
         try {
             await fs.writeFile(componentPath, safeCode);
@@ -694,6 +768,9 @@ class TrueAiStdioMcpServer {
         }
         const collisionInfo = nameValidation.requestedName !== validComponentName ?
             `\\n[COLLISION RESOLVED] Requested "${nameValidation.requestedName}" → Using "${validComponentName}"` : '';
+        // Include validation warnings in response if any
+        const validationInfo = validationWarnings.length > 0 ?
+            `\\n\\n[VALIDATION FEEDBACK]\\n${validationWarnings.join('\\n')}` : '';
         return {
             content: [{
                     type: 'text',
@@ -701,7 +778,7 @@ class TrueAiStdioMcpServer {
                         `[FILE] ${validComponentName}.tsx\\n` +
                         `[DURATION] ${duration} seconds\\n` +
                         `[AUTO-REGISTERED] Component added to Root.tsx automatically\\n` +
-                        `[STUDIO] Ready at http://localhost:${STUDIO_PORT}${collisionInfo}\\n\\n` +
+                        `[STUDIO] Ready at http://localhost:${STUDIO_PORT}${collisionInfo}${validationInfo}\\n\\n` +
                         `[SUCCESS] Animation created and synced - immediately visible in Studio!`
                 }]
         };
