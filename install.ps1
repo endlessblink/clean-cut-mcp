@@ -558,38 +558,56 @@ function Install-ClaudeConfiguration {
         Write-UserMessage "Args count: $($dockerArgs.Count)" -Type Info
         Write-UserMessage "Args content: $($dockerArgs -join ' | ')" -Type Info
 
-        $config = @{
-            mcpServers = @{
-                "clean-cut-mcp" = @{
-                    command = $dockerCommand
-                    args = $dockerArgs
+        # DESKTOP COMMANDER APPROACH: Safe configuration merging that preserves existing MCP servers
+        Write-UserMessage "📝 Configuring Claude Desktop (Desktop Commander method - preserves existing MCPs)..." -Type Info
+
+        # Load existing configuration or create new one
+        if ($existingConfig) {
+            Write-UserMessage "✓ Found existing configuration, preserving other MCP servers..." -Type Info
+
+            # Ensure mcpServers object exists
+            if (-not $existingConfig.mcpServers) {
+                $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{} -Force
+                Write-UserMessage "✓ Created mcpServers section in existing config" -Type Info
+            }
+
+            # Count existing servers before modification
+            $existingServerNames = @($existingConfig.mcpServers.PSObject.Properties.Name | Where-Object {$_ -ne "clean-cut-mcp"})
+            $existingCount = $existingServerNames.Count
+
+            # Remove any old "clean-cut-mcp" entry (Desktop Commander pattern: remove then add)
+            if ($existingConfig.mcpServers."clean-cut-mcp") {
+                $existingConfig.mcpServers.PSObject.Properties.Remove("clean-cut-mcp")
+                Write-UserMessage "✓ Removed old clean-cut-mcp configuration" -Type Info
+            }
+
+            # Add new clean-cut-mcp server configuration (Desktop Commander pattern)
+            $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "clean-cut-mcp" -Value @{
+                command = $dockerCommand
+                args = $dockerArgs
+            } -Force
+
+            $config = $existingConfig
+            Write-UserMessage "✓ Preserved $existingCount existing MCP servers: $($existingServerNames -join ', ')" -Type Success
+            Write-UserMessage "✓ Added clean-cut-mcp with validation system" -Type Success
+
+        } else {
+            # Create new configuration (no existing config found)
+            $config = @{
+                mcpServers = @{
+                    "clean-cut-mcp" = @{
+                        command = $dockerCommand
+                        args = $dockerArgs
+                    }
                 }
             }
+            Write-UserMessage "✓ Created new configuration with clean-cut-mcp" -Type Success
         }
 
-        # Manual JSON generation (fix for PowerShell array serialization issues)
-        Write-UserMessage "📝 Generating JSON configuration manually..." -Type Info
+        # Generate JSON using Desktop Commander's exact method (PowerShell native conversion)
         try {
-            # Manual JSON construction to ensure proper array format (research shows ConvertTo-Json can flatten arrays)
-            $argsJson = '["exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js"]'
-            $jsonContent = @"
-{
-  "mcpServers": {
-    "clean-cut-mcp": {
-      "command": "docker",
-      "args": $argsJson
-    }
-  }
-}
-"@
-
-            Write-UserMessage "✓ JSON generated manually with guaranteed array structure" -Type Success
-            Write-UserMessage "✓ Args array: $argsJson" -Type Success
-
-        } catch {
-            Write-UserMessage "✗ Manual JSON generation failed: $($_.Exception.Message)" -Type Error
-            throw "JSON generation failed"
-        }
+            $jsonContent = $config | ConvertTo-Json -Depth 10
+            Write-UserMessage "✓ JSON generated using Desktop Commander method" -Type Success
         
         # Validate JSON (with fallback for older PowerShell versions)
         $jsonValid = $false

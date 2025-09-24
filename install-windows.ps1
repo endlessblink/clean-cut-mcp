@@ -639,17 +639,43 @@ function Install-ClaudeConfiguration {
             }
         }
 
-        # Ensure mcpServers exists
-        if (-not $config.mcpServers) {
-            $config.mcpServers = @{}
-        }
+        # DESKTOP COMMANDER PRESERVATION: Ensure existing MCP servers are preserved
+        if ($config -and $config.mcpServers) {
+            # Count existing servers before modification
+            $existingServerNames = @($config.mcpServers.PSObject.Properties.Name | Where-Object {$_ -ne "clean-cut-mcp"})
+            $existingCount = $existingServerNames.Count
 
-        # Add/update clean-cut-mcp using Desktop Commander's direct assignment method
-        $config.mcpServers["clean-cut-mcp"] = @{
-            command = $dockerCommand
-            args = $dockerArgs
+            if ($existingCount -gt 0) {
+                Write-UserMessage "[PRESERVE] Found $existingCount existing MCP servers: $($existingServerNames -join ', ')" -Type Success
+            }
+
+            # Remove any old "clean-cut-mcp" entry (Desktop Commander pattern: remove then add)
+            if ($config.mcpServers."clean-cut-mcp") {
+                $config.mcpServers.PSObject.Properties.Remove("clean-cut-mcp")
+                Write-UserMessage "[OK] Removed old clean-cut-mcp configuration" -Type Info
+            }
+
+            # Add new clean-cut-mcp server configuration (Desktop Commander pattern)
+            $config.mcpServers | Add-Member -MemberType NoteProperty -Name "clean-cut-mcp" -Value @{
+                command = $dockerCommand
+                args = $dockerArgs
+            } -Force
+
+            Write-UserMessage "[OK] Preserved $existingCount existing MCP servers + added clean-cut-mcp with validation" -Type Success
+        } else {
+            # Ensure mcpServers exists for new configs
+            if (-not $config.mcpServers) {
+                $config | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{} -Force
+            }
+
+            # Add clean-cut-mcp to new config
+            $config.mcpServers | Add-Member -MemberType NoteProperty -Name "clean-cut-mcp" -Value @{
+                command = $dockerCommand
+                args = $dockerArgs
+            } -Force
+
+            Write-UserMessage "[OK] Created new configuration with clean-cut-mcp" -Type Success
         }
-        Write-UserMessage "[OK] Added clean-cut-mcp configuration" -Type Success
 
         # Generate JSON using Desktop Commander's exact method
         $jsonContent = $config | ConvertTo-Json -Depth 10
