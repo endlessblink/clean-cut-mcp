@@ -144,11 +144,11 @@ start_mcp() {
 
     docker exec ${CONTAINER_NAME} touch ${LOCK_FILE}
 
-    # Start new MCP server
-    log "Starting MCP server..."
+    # Start new MCP server with validation enabled
+    log "Starting MCP server with validation enabled..."
     local pid=$(docker exec -d ${CONTAINER_NAME} sh -c "
-        # Write PID to file and start server
-        echo \$\$ > ${PID_FILE} && exec ${MCP_SERVER_CMD}
+        # Write PID to file and start server with validation
+        echo \$\$ > ${PID_FILE} && ENABLE_ANIMATION_VALIDATION=true exec ${MCP_SERVER_CMD}
     ")
 
     # Wait a moment for startup
