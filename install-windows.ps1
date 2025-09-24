@@ -53,7 +53,7 @@ if ($script:IsWindows) {
 # Simple user interface
 Clear-Host
 Write-Host ""
-Write-Host "[SETUP] CLEAN-CUT-MCP INSTALLER v2.1.0-WINDOWS" -ForegroundColor Cyan
+Write-Host "[SETUP] CLEAN-CUT-MCP INSTALLER v2.1.0-VALIDATION-WINDOWS" -ForegroundColor Cyan
 Write-Host "   Cross-Platform Setup for Claude Desktop" -ForegroundColor Cyan
 if ($script:IsWindows) { Write-Host "   Platform: Windows + WSL2" -ForegroundColor Gray }
 elseif ($script:IsLinux) { Write-Host "   Platform: Linux" -ForegroundColor Gray }
@@ -736,14 +736,221 @@ function Install-ClaudeConfiguration {
     }
 }
 
+function Install-ManagementUtilities {
+    Write-UserMessage "[UTILS] Installing management utilities..." -Type Step
+
+    try {
+        $currentDir = Get-Location
+
+        # Install MCP Manager Script
+        $mcpManagerContent = @'
+#!/bin/bash
+# MCP Server Process Manager - Ensures only one instance runs with validation enabled
+# Usage: ./mcp-manager.sh [start|stop|status|restart]
+
+set -euo pipefail
+
+# Configuration
+CONTAINER_NAME="clean-cut-mcp"
+PID_FILE="/tmp/clean-cut-mcp.pid"
+MCP_SERVER_CMD="node /app/mcp-server/dist/clean-stdio-server.js"
+LOCK_FILE="/tmp/clean-cut-mcp.lock"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+log() { echo -e "${GREEN}[MCP-MANAGER]${NC} $1"; }
+warn() { echo -e "${YELLOW}[MCP-MANAGER]${NC} $1"; }
+error() { echo -e "${RED}[MCP-MANAGER]${NC} $1"; }
+
+# Check if container is running
+check_container() {
+    if ! docker ps --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
+        error "Container ${CONTAINER_NAME} is not running"
+        exit 1
+    fi
+}
+
+# Get all MCP processes in container
+get_mcp_processes() {
+    docker exec ${CONTAINER_NAME} ps aux 2>/dev/null | grep "clean-stdio-server.js" | grep -v grep || true
+}
+
+# Get PID from PID file inside container
+get_stored_pid() {
+    docker exec ${CONTAINER_NAME} cat ${PID_FILE} 2>/dev/null || echo ""
+}
+
+# Enhanced safety check for MCP processes
+is_mcp_process_running() {
+    local pid=$1
+    if ! [[ "$pid" =~ ^[0-9]+$ ]] || [ "$pid" -lt 1 ] || [ "$pid" -gt 65535 ]; then
+        return 1
+    fi
+    docker exec ${CONTAINER_NAME} ps -p ${pid} -o comm= 2>/dev/null | grep -q "^node$" || return 1
+    local cmdline=$(docker exec ${CONTAINER_NAME} ps -p ${pid} -o args= 2>/dev/null)
+    [[ "$cmdline" == *"clean-stdio-server.js"* ]] || return 1
+    [[ "$cmdline" == *"/app/mcp-server/dist/"* ]] || return 1
+    return 0
+}
+
+# Start MCP server with validation enabled
+start_mcp() {
+    check_container
+    log "Starting MCP server with validation enabled..."
+    docker exec -d ${CONTAINER_NAME} sh -c "echo \$\$ > ${PID_FILE} && ENABLE_ANIMATION_VALIDATION=true exec ${MCP_SERVER_CMD}"
+    sleep 2
+    local actual_pid=$(get_stored_pid)
+    if [[ -n "$actual_pid" ]] && is_mcp_process_running "$actual_pid"; then
+        log "MCP server started successfully (PID: $actual_pid) with validation active"
+    else
+        error "Failed to start MCP server"
+        exit 1
+    fi
+}
+
+# Show status
+status_mcp() {
+    check_container
+    local stored_pid=$(get_stored_pid)
+    if [[ -n "$stored_pid" ]] && is_mcp_process_running "$stored_pid"; then
+        log "MCP server is running (PID: $stored_pid) with validation enabled"
+    else
+        log "MCP server is not running"
+    fi
+}
+
+# Main command handling
+case "${1:-status}" in
+    start) start_mcp ;;
+    status) status_mcp ;;
+    restart)
+        docker exec ${CONTAINER_NAME} pkill -f "clean-stdio-server.js" 2>/dev/null || true
+        sleep 1
+        start_mcp
+        ;;
+    stop)
+        docker exec ${CONTAINER_NAME} pkill -f "clean-stdio-server.js" 2>/dev/null || true
+        docker exec ${CONTAINER_NAME} rm -f ${PID_FILE} ${LOCK_FILE} 2>/dev/null || true
+        log "MCP server stopped"
+        ;;
+    *) echo "Usage: $0 [start|stop|status|restart]"; exit 1 ;;
+esac
+'@
+
+        $mcpManagerPath = Join-Path $currentDir "mcp-manager.sh"
+        Set-Content -Path $mcpManagerPath -Value $mcpManagerContent -Encoding UTF8
+
+        # Make executable (works on WSL2)
+        if ($script:IsWindows) {
+            wsl chmod +x "./mcp-manager.sh" 2>$null
+        } else {
+            chmod +x $mcpManagerPath
+        }
+
+        Write-UserMessage "[OK] Installed mcp-manager.sh for process management" -Type Success
+
+        # Install Kill Claude Utility (Windows only)
+        if ($script:IsWindows) {
+            $killClaudeContent = @'
+#!/usr/bin/env pwsh
+# Kill All Claude Desktop Instances + Clear Cache
+# Clean restart for MCP configuration reload
+
+Write-Host "Kill Claude Desktop + Clear Cache" -ForegroundColor Cyan
+Write-Host "=================================" -ForegroundColor Cyan
+
+# Kill all Claude Desktop processes
+$claudeProcesses = @("Claude", "claude", "Claude Desktop", "claude-desktop", "ClaudeDesktop")
+$killedAny = $false
+
+foreach ($processName in $claudeProcesses) {
+    try {
+        $processes = Get-Process -Name $processName -ErrorAction SilentlyContinue
+        if ($processes) {
+            Write-Host "Found $($processes.Count) instance(s) of '$processName'" -ForegroundColor Yellow
+            foreach ($process in $processes) {
+                try {
+                    Stop-Process -Id $process.Id -Force -ErrorAction Stop
+                    $killedAny = $true
+                    Write-Host "Killed PID $($process.Id)" -ForegroundColor Green
+                } catch {
+                    Write-Host "Failed to kill PID $($process.Id)" -ForegroundColor Red
+                }
+            }
+        }
+    } catch {}
+}
+
+if (-not $killedAny) {
+    Write-Host "No Claude Desktop instances found running" -ForegroundColor Green
+} else {
+    Write-Host "Waiting 3 seconds for processes to terminate..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 3
+    Write-Host "All Claude Desktop instances terminated" -ForegroundColor Green
+}
+
+# Clear Claude Desktop Cache and Logs
+Write-Host ""
+Write-Host "Clearing Claude Desktop Cache..." -ForegroundColor Yellow
+
+$cacheLocations = @(
+    "$env:LOCALAPPDATA\Claude\Logs",
+    "$env:LOCALAPPDATA\Claude\Cache",
+    "$env:LOCALAPPDATA\Claude\Local Storage",
+    "$env:LOCALAPPDATA\Claude\Session Storage",
+    "$env:LOCALAPPDATA\Claude\IndexedDB"
+)
+
+foreach ($location in $cacheLocations) {
+    if (Test-Path $location) {
+        try {
+            Write-Host "Clearing: $location" -ForegroundColor Yellow
+            Remove-Item -Path "$location\*" -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "Cleared cache at: $location" -ForegroundColor Green
+        } catch {}
+    }
+}
+
+Write-Host ""
+Write-Host "COMPLETE! Cache cleared and processes killed." -ForegroundColor Green
+Write-Host "You can now restart Claude Desktop." -ForegroundColor Cyan
+'@
+
+            $killClaudePath = Join-Path $currentDir "kill-claude-clean.ps1"
+            Set-Content -Path $killClaudePath -Value $killClaudeContent -Encoding UTF8
+            Write-UserMessage "[OK] Installed kill-claude-clean.ps1 for cache clearing" -Type Success
+        }
+
+        Write-UserMessage "[OK] Management utilities installed successfully" -Type Success
+
+    } catch {
+        Write-UserMessage "[WARNING] Utility installation failed, but main installation completed" -Type Warning
+        Write-UserMessage "You can manually download utilities from GitHub" -Type Info
+    }
+}
+
 function Show-UserInstructions {
     Write-Host ""
     Write-Host "[SUCCESS] INSTALLATION COMPLETE!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "1. Start Claude Desktop" -ForegroundColor White
-    Write-Host "2. Open a new conversation" -ForegroundColor White  
+    Write-Host "2. Open a new conversation" -ForegroundColor White
     Write-Host "3. Look for 'clean-cut-mcp' in available tools" -ForegroundColor White
+    Write-Host ""
+    Write-Host "NEW v2.1.0 Features:" -ForegroundColor Yellow
+    Write-Host "• Animation validation system (prevents syntax errors)" -ForegroundColor White
+    Write-Host "• MCP singleton management (no process conflicts)" -ForegroundColor White
+    Write-Host "• Automatic error fixing (React.FC type issues)" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Management Utilities:" -ForegroundColor Yellow
+    Write-Host "• ./mcp-manager.sh status   - Check MCP server status" -ForegroundColor White
+    Write-Host "• ./mcp-manager.sh restart  - Restart MCP server" -ForegroundColor White
+    Write-Host "• ./kill-claude-clean.ps1   - Clear Claude cache (if issues)" -ForegroundColor White
     Write-Host "4. Test with: 'Create a bouncing ball animation'" -ForegroundColor White
     Write-Host ""
     Write-Host "[STUDIO] Remotion Studio: http://localhost:6970" -ForegroundColor Yellow
@@ -852,6 +1059,9 @@ try {
         exit 1
     }
     
+    # Install management utilities
+    Install-ManagementUtilities
+
     # Success!
     Show-UserInstructions
     
