@@ -20,6 +20,7 @@ const APP_ROOT = process.env.DOCKER_CONTAINER === 'true' ? '/app' : path.resolve
 const EXPORTS_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/out' : path.join(APP_ROOT, 'clean-cut-exports');
 const SRC_DIR = process.env.DOCKER_CONTAINER === 'true' ? '/workspace/src' : path.join(APP_ROOT, 'clean-cut-components', 'src');
 const STUDIO_PORT = parseInt(process.env.REMOTION_STUDIO_PORT || '6970');
+const PID_FILE = process.env.DOCKER_CONTAINER === 'true' ? '/tmp/clean-cut-mcp.pid' : path.join(__dirname, 'clean-cut-mcp.pid');
 
 // Safe stderr-only logging (no stdout pollution for STDIO)
 const log = (level: string, message: string, data?: any) => {

@@ -1,6 +1,5 @@
 import { Composition } from 'remotion';
 import { Comp } from './Composition';
-import React from 'react';
 import { z } from 'zod';
 import { BouncingBall } from './assets/animations/BouncingBall';
 import { GitHubProfileShowcaseEnhanced } from './assets/animations/GitHubProfileShowcaseEnhanced';
@@ -10,15 +9,23 @@ import { PacmanGameImproved } from './assets/animations/PacmanGameImproved';
 import { PacmanMazeRunnerWithProps } from './assets/animations/PacmanMazeRunnerWithProps';
 import { ParticleBurst } from './assets/animations/ParticleBurst';
 import { ProductShowcase } from './assets/animations/ProductShowcase';
+import { PulseCircle } from './assets/animations/PulseCircle';
+import { PulsingOrb } from './assets/animations/PulsingOrb';
+import { PulsingSphere } from './assets/animations/PulsingSphere';
+import { QuickFlash } from './assets/animations/QuickFlash';
+import { RefreshTest } from './assets/animations/RefreshTest';
 import { RisingSun } from './assets/animations/RisingSun';
 import { RisingSunEnhanced } from './assets/animations/RisingSunEnhanced';
+import { SecondTest } from './assets/animations/SecondTest';
 import { SeedreamGracefulTransitions } from './assets/animations/SeedreamGracefulTransitions';
 import { SimpleBounceBall } from './assets/animations/SimpleBounceBall';
 import { SocialMediaFeed } from './assets/animations/SocialMediaFeed';
+import { SpinningStar } from './assets/animations/SpinningStar';
 import { SundownSerenity } from './assets/animations/SundownSerenity';
 import { TweetAnimation } from './assets/animations/TweetAnimation';
 import { WelcomeAnimation } from './assets/animations/WelcomeAnimation';
 import { WelcomeDemo } from './assets/animations/WelcomeDemo';
+import { Zzzz } from './assets/animations/Zzzz';
 
 const MorphingShapesSchema = z.object({
   primaryColor: z.string().optional(),
@@ -45,6 +52,30 @@ const ParticleBurstSchema = z.object({
   backgroundColor: z.string().optional(),
   centerText: z.string().optional(),
   animationSpeed: z.number().optional()
+});
+const PulseCircleSchema = z.object({
+  backgroundColor: z.string().optional(),
+  circleColor: z.string().optional(),
+  pulseColor: z.string().optional(),
+  title: z.string().optional(),
+  size: z.number().optional()
+});
+const PulsingOrbSchema = z.object({
+  accentColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  pulseSpeed: z.number().optional()
+});
+const PulsingSphereSchema = z.object({
+  accentColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  title: z.string().optional(),
+  pulseIntensity: z.number().optional()
+});
+const QuickFlashSchema = z.object({
+  backgroundColor: z.string().optional(),
+  accentColor: z.string().optional(),
+  text: z.string().optional(),
+  intensity: z.number().optional()
 });
 const RisingSunSchema = z.object({
   sunColor: z.string().optional(),
@@ -114,6 +145,13 @@ const SimpleBounceBallSchema = z.object({
   backgroundColor: z.string().optional(),
   bounceHeight: z.number().optional()
 });
+const SpinningStarSchema = z.object({
+  starColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  rotationSpeed: z.number().optional(),
+  starSize: z.number().optional(),
+  glowIntensity: z.number().optional()
+});
 const WelcomeAnimationSchema = z.object({
   title: z.string().optional(),
   accentColor: z.string().optional(),
@@ -127,6 +165,12 @@ const WelcomeDemoSchema = z.object({
   backgroundColor: z.string().optional(),
   textColor: z.string().optional(),
   animationSpeed: z.number().optional()
+});
+const ZzzzSchema = z.object({
+  textColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  animationSpeed: z.number().optional(),
+  zCount: z.number().optional()
 });
 
 export const RemotionRoot: React.FC = () => {
@@ -147,7 +191,8 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />      <Composition
+      />
+      <Composition
         id="GitHubProfileShowcaseEnhanced"
         component={GitHubProfileShowcaseEnhanced}
         durationInFrames={450}
@@ -207,6 +252,50 @@ export const RemotionRoot: React.FC = () => {
         height={1080}
       />
       <Composition
+        id="PulseCircle"
+        component={PulseCircle}
+        durationInFrames={120}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={PulseCircleSchema}
+      />
+      <Composition
+        id="PulsingOrb"
+        component={PulsingOrb}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={PulsingOrbSchema}
+      />
+      <Composition
+        id="PulsingSphere"
+        component={PulsingSphere}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={PulsingSphereSchema}
+      />
+      <Composition
+        id="QuickFlash"
+        component={QuickFlash}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={QuickFlashSchema}
+      />
+      <Composition
+        id="RefreshTest"
+        component={RefreshTest}
+        durationInFrames={180}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
         id="RisingSun"
         component={RisingSun}
         durationInFrames={240}
@@ -223,6 +312,14 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         schema={RisingSunEnhancedSchema}
+      />
+      <Composition
+        id="SecondTest"
+        component={SecondTest}
+        durationInFrames={180}
+        fps={30}
+        width={1920}
+        height={1080}
       />
       <Composition
         id="SeedreamGracefulTransitions"
@@ -248,6 +345,15 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      <Composition
+        id="SpinningStar"
+        component={SpinningStar}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={SpinningStarSchema}
       />
       <Composition
         id="SundownSerenity"
@@ -282,6 +388,15 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         schema={WelcomeDemoSchema}
+      />
+      <Composition
+        id="Zzzz"
+        component={Zzzz}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={ZzzzSchema}
       />
     </>
   );
