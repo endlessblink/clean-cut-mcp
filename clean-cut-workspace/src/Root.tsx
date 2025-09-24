@@ -1,11 +1,30 @@
 import { Composition } from 'remotion';
 import { Comp } from './Composition';
 import { z } from 'zod';
+import { FloatingOrbs } from './assets/animations/FloatingOrbs';
+import { FloatingParticles } from './assets/animations/FloatingParticles';
 import { GitHubProfileShowcaseEnhanced } from './assets/animations/GitHubProfileShowcaseEnhanced';
 import { PacmanGameImproved } from './assets/animations/PacmanGameImproved';
 import { RisingSunEnhanced } from './assets/animations/RisingSunEnhanced';
 import { SeedreamGracefulTransitions } from './assets/animations/SeedreamGracefulTransitions';
 import { SocialMediaFeed } from './assets/animations/SocialMediaFeed';
+
+const FloatingOrbsSchema = z.object({
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  orbCount: z.number().optional(),
+  animationSpeed: z.number().optional()
+});
+const FloatingParticlesSchema = z.object({
+  particleCount: z.number().optional(),
+  primaryColor: z.string().optional(),
+  secondaryColor: z.string().optional(),
+  accentColor: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  animationSpeed: z.number().optional(),
+  pulseIntensity: z.number().optional()
+});
 const RisingSunEnhancedSchema = z.object({
   sunColor: z.string().optional(),
   sunSize: z.number().optional(),
@@ -72,21 +91,42 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />      <Composition
+      />
+      <Composition
+        id="FloatingOrbs"
+        component={FloatingOrbs}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={FloatingOrbsSchema}
+      />
+      <Composition
+        id="FloatingParticles"
+        component={FloatingParticles}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={FloatingParticlesSchema}
+      />
+      <Composition
         id="GitHubProfileShowcaseEnhanced"
         component={GitHubProfileShowcaseEnhanced}
         durationInFrames={450}
         fps={30}
         width={1920}
         height={1080}
-      />      <Composition
+      />
+      <Composition
         id="PacmanGameImproved"
         component={PacmanGameImproved}
         durationInFrames={360}
         fps={30}
         width={1920}
         height={1080}
-      />      <Composition
+      />
+      <Composition
         id="RisingSunEnhanced"
         component={RisingSunEnhanced}
         durationInFrames={240}
@@ -94,20 +134,23 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
         schema={RisingSunEnhancedSchema}
-      />      <Composition
+      />
+      <Composition
         id="SeedreamGracefulTransitions"
         component={SeedreamGracefulTransitions}
         durationInFrames={240}
         fps={30}
         width={1920}
         height={1080}
-      />      <Composition
+      />
+      <Composition
         id="SocialMediaFeed"
         component={SocialMediaFeed}
         durationInFrames={240}
         fps={30}
         width={1920}
         height={1080}
-      />    </>
+      />
+    </>
   );
 };

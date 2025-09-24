@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 # Kill All Claude Desktop Instances + Clear Cache
 # Clean restart for MCP configuration reload
 
@@ -14,7 +14,6 @@ foreach ($processName in $claudeProcesses) {
         $processes = Get-Process -Name $processName -ErrorAction SilentlyContinue
         if ($processes) {
             Write-Host "Found $($processes.Count) instance(s) of '$processName'" -ForegroundColor Yellow
-
             foreach ($process in $processes) {
                 try {
                     Stop-Process -Id $process.Id -Force -ErrorAction Stop
@@ -25,9 +24,7 @@ foreach ($processName in $claudeProcesses) {
                 }
             }
         }
-    } catch {
-        # Process name not found, continue
-    }
+    } catch {}
 }
 
 if (-not $killedAny) {
@@ -50,35 +47,16 @@ $cacheLocations = @(
     "$env:LOCALAPPDATA\Claude\IndexedDB"
 )
 
-$clearedAny = $false
-
 foreach ($location in $cacheLocations) {
     if (Test-Path $location) {
         try {
             Write-Host "Clearing: $location" -ForegroundColor Yellow
             Remove-Item -Path "$location\*" -Recurse -Force -ErrorAction SilentlyContinue
-            $clearedAny = $true
             Write-Host "Cleared cache at: $location" -ForegroundColor Green
-        } catch {
-            Write-Host "Could not clear: $location" -ForegroundColor Yellow
-        }
+        } catch {}
     }
-}
-
-# Clear MCP logs specifically
-$mcpLogs = Get-ChildItem -Path "$env:LOCALAPPDATA\Claude\Logs\mcp*.log" -ErrorAction SilentlyContinue
-if ($mcpLogs) {
-    Write-Host "Clearing MCP logs..." -ForegroundColor Yellow
-    $mcpLogs | Remove-Item -Force -ErrorAction SilentlyContinue
-    Write-Host "Cleared MCP logs" -ForegroundColor Green
-    $clearedAny = $true
-}
-
-if (-not $clearedAny) {
-    Write-Host "No cache files found to clear" -ForegroundColor Green
 }
 
 Write-Host ""
 Write-Host "COMPLETE! Cache cleared and processes killed." -ForegroundColor Green
 Write-Host "You can now restart Claude Desktop." -ForegroundColor Cyan
-Write-Host "Enhanced clean-cut-mcp tools will be available." -ForegroundColor Cyan
