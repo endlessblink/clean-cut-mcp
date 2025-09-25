@@ -6,22 +6,26 @@
 
 Simply describe your animation, and watch Claude create stunning React-powered videos in a persistent studio environment.
 
+## 🆕 NEW in v2.1.0
+- **🛡️ Animation Validation System**: Prevents syntax errors in generated code
+- **🔧 MCP Singleton Management**: No more duplicate processes or conflicts
+- **📝 Config Preservation**: Safely preserves existing MCP servers during installation
+- **🎯 Auto-Fix System**: Automatically corrects common TypeScript issues
+
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-green) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue) ![License](https://img.shields.io/badge/License-Remotion%20%2B%20MIT-orange)
 
 ## Quick Start
 
 **Windows:**
 ```powershell
-# Download and run Windows installer
-iwr "https://github.com/endlessblink/clean-cut-mcp/releases/latest/download/install-windows.ps1" -o "install.ps1"
-.\install.ps1
+# Download and run Windows installer (one-line command)
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install-windows.ps1" -OutFile "install-windows.ps1" -UseBasicParsing; .\install-windows.ps1
 ```
 
 **Linux/macOS:**
 ```bash
-# Download and run Linux/macOS installer
-curl -L -o install.ps1 "https://github.com/endlessblink/clean-cut-mcp/releases/latest/download/install.ps1"
-pwsh ./install.ps1
+# Download and run Linux/macOS installer (one-line command)
+curl -fsSL https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install.ps1 -o install.ps1; pwsh install.ps1
 ```
 
 **Result:** Remotion Studio at http://localhost:6970 + Claude Desktop integration
