@@ -267,9 +267,9 @@ function Start-CleanCutMCP {
         }
 
         if ($script:IsWindows) {
-            # Windows: Use WSL paths for volume mounts
-            $wslCurrentDir = $currentDir -replace '\\', '/' -replace 'C:', '/mnt/c' -replace 'D:', '/mnt/d'
-            $startResult = wsl docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$wslCurrentDir/clean-cut-exports:/workspace/out" -v "$wslCurrentDir/clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
+            # Windows: Use native Windows paths for proper volume mount sync (FIXED: was using problematic WSL paths)
+            # Research shows Windows native paths work better with Docker Desktop WSL2 backend
+            $startResult = docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$currentDir\clean-cut-exports:/workspace/out" -v "$currentDir\clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
         } else {
             # Linux/macOS: Direct volume mounts
             $startResult = docker run -d --name clean-cut-mcp -p 6970:6970 -p 6971:6971 -v "$currentDir/clean-cut-exports:/workspace/out" -v "$currentDir/clean-cut-workspace:/workspace" --restart unless-stopped endlessblink/clean-cut-mcp:latest 2>&1
