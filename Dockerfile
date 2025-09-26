@@ -39,9 +39,17 @@ RUN apt-get update && \
         libxcursor1 \
         libgtk-3-0 \
         xdg-utils \
-        w3m && \
+        w3m \
+        fonts-noto-color-emoji \
+        fonts-noto-emoji \
+        fontconfig && \
     rm -rf /var/lib/apt/lists/* && \
+    fc-cache -fv && \
     ffmpeg -version
+
+# Configure environment for proper emoji rendering in Chrome headless (research-validated)
+ENV FONTCONFIG_PATH=/etc/fonts
+ENV PUPPETEER_ARGS="--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --font-render-hinting=none --disable-font-subpixel-positioning --enable-font-antialiasing"
 
 # Install Remotion CLI globally, prettier, and ensure Chrome Headless Shell is installed
 RUN npm install -g @remotion/cli@4.0.347 remotion@4.0.347 prettier@3.6.2 && \
