@@ -1,7 +1,6 @@
 import { Composition } from 'remotion';
 import { Comp } from './Composition';
 import { z } from 'zod';
-import { BouncingBallAnimation } from './assets/animations/BouncingBallAnimation';
 import { BouncingBallTest } from './assets/animations/BouncingBallTest';
 import { EndlessBlinkExtended } from './assets/animations/EndlessBlinkExtended';
 import { FloatingOrbs } from './assets/animations/FloatingOrbs';
@@ -15,13 +14,6 @@ import { SimpleCircle } from './assets/animations/SimpleCircle';
 import { SocialMediaFeed } from './assets/animations/SocialMediaFeed';
 import { StarBurstTest } from './assets/animations/StarBurstTest';
 
-const BouncingBallAnimationSchema = z.object({
-  ballColor: z.string().optional(),
-  backgroundColor: z.string().optional(),
-  ballSize: z.number().optional(),
-  bounceHeight: z.number().optional(),
-  animationSpeed: z.number().optional()
-});
 const BouncingBallTestSchema = z.object({
   ballColor: z.string().optional(),
   backgroundColor: z.string().optional(),
@@ -151,15 +143,6 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-      />
-      <Composition
-        id="BouncingBallAnimation"
-        component={BouncingBallAnimation}
-        durationInFrames={240}
-        fps={30}
-        width={1920}
-        height={1080}
-        schema={BouncingBallAnimationSchema}
       />
       <Composition
         id="BouncingBallTest"
