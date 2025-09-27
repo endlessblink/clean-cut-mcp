@@ -29,20 +29,7 @@ Config.overrideWebpackConfig((config) => {
   return config;
 });
 
-// EMOJI FONT FIX: Configure Chrome headless for proper emoji rendering in video exports
-// Research-validated solution for Docker container emoji support
+// EMOJI FONT FIX: Emoji fonts installed in Docker image (fonts-noto-color-emoji)
+// Chrome headless will use system fonts automatically for emoji rendering
 Config.setChromiumOpenGlRenderer('egl');
 Config.setConcurrency(1);
-
-// Configure Chrome flags for emoji font access (based on Perplexity research)
-Config.setChromiumOptions({
-  args: [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage',
-    '--font-render-hinting=none',
-    '--disable-font-subpixel-positioning',
-    '--enable-font-antialiasing',
-    '--force-color-profile=srgb'
-  ]
-});

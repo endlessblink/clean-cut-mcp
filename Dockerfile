@@ -41,7 +41,6 @@ RUN apt-get update && \
         xdg-utils \
         w3m \
         fonts-noto-color-emoji \
-        fonts-noto-emoji \
         fontconfig && \
     rm -rf /var/lib/apt/lists/* && \
     fc-cache -fv && \
