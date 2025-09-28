@@ -76,7 +76,8 @@ const ImageShowcaseSchema = z.object({
   title: z.string().optional(),
   backgroundColor: z.string().optional(),
   accentColor: z.string().optional(),
-  animationSpeed: z.number().optional()
+  animationSpeed: z.number().optional(),
+  imagePath: z.string().optional()
 });
 const RisingSunEnhancedSchema = z.object({
   sunColor: z.string().optional(),
