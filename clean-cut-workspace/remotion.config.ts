@@ -31,5 +31,4 @@ Config.overrideWebpackConfig((config) => {
 
 // EMOJI FONT FIX: Emoji fonts installed in Docker image (fonts-noto-color-emoji)
 // Chrome headless will use system fonts automatically for emoji rendering
-Config.setChromiumOpenGlRenderer('egl');
-Config.setConcurrency(1);
+// Font support enabled via Dockerfile: fonts-noto-color-emoji + fontconfig
