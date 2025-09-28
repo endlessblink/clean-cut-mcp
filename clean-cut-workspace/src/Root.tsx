@@ -8,6 +8,7 @@ import { FloatingOrbs } from './assets/animations/FloatingOrbs';
 import { FloatingOrbsAnimation } from './assets/animations/FloatingOrbsAnimation';
 import { FloatingParticles } from './assets/animations/FloatingParticles';
 import { GitHubProfileShowcaseEnhanced } from './assets/animations/GitHubProfileShowcaseEnhanced';
+import { ImageShowcase } from './assets/animations/ImageShowcase';
 import { PacmanGameImproved } from './assets/animations/PacmanGameImproved';
 import { RisingSunEnhanced } from './assets/animations/RisingSunEnhanced';
 import { SeedreamGracefulTransitions } from './assets/animations/SeedreamGracefulTransitions';
@@ -70,6 +71,12 @@ const FloatingParticlesSchema = z.object({
   backgroundColor: z.string().optional(),
   animationSpeed: z.number().optional(),
   pulseIntensity: z.number().optional()
+});
+const ImageShowcaseSchema = z.object({
+  title: z.string().optional(),
+  backgroundColor: z.string().optional(),
+  accentColor: z.string().optional(),
+  animationSpeed: z.number().optional()
 });
 const RisingSunEnhancedSchema = z.object({
   sunColor: z.string().optional(),
@@ -213,6 +220,15 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      <Composition
+        id="ImageShowcase"
+        component={ImageShowcase}
+        durationInFrames={450}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={ImageShowcaseSchema}
       />
       <Composition
         id="PacmanGameImproved"

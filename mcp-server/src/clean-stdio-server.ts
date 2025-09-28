@@ -11,6 +11,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -187,6 +188,25 @@ class TrueAiStdioMcpServer {
      - Custom smooth: Easing.bezier(0.25, 0.1, 0.25, 1)
    ❌ BROKEN Complex Easing: Easing.out(Easing.cubic), Easing.inOut(Easing.ease)
    ❌ BROKEN Recursion: safeInterpolate calling itself instead of interpolate
+
+6. USING PUBLIC ASSETS (Images, Logos, Fonts, Audio):
+   ✅ CORRECT Way to use public assets:
+     - Import: import { staticFile, Img, Audio } from 'remotion'
+     - Images/Logos: <Img src={staticFile('images/logo.png')} />
+     - Audio: <Audio src={staticFile('audio/music.mp3')} />
+     - Fonts: @font-face { src: url(staticFile('fonts/custom.ttf')) }
+   ❌ WRONG Ways (will cause loading errors):
+     - Don't use: <img src="/public/images/logo.png" />
+     - Don't use: <img src="http://localhost:6970/public/..." />
+     - Don't use: Direct paths without staticFile() helper
+
+   📁 Available Asset Categories:
+     - images/ - User images, photos, graphics
+     - logos/ - Brand logos and icons
+     - fonts/ - Custom fonts for text
+     - audio/ - Music, sound effects, voiceovers
+
+   💡 Users place assets manually in clean-cut-workspace/public/ folders
 
 ⚡ AUTOMATIC FEATURES: This tool automatically calls auto_sync to register the animation in Root.tsx with proper Zod schema generation.`,
             inputSchema: {
@@ -386,6 +406,66 @@ class TrueAiStdioMcpServer {
               },
               additionalProperties: false
             }
+          },
+          {
+            name: 'upload_asset',
+            description: 'Upload user asset (image, logo, font, audio) to public directory for use in animations',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                filePath: {
+                  type: 'string',
+                  description: 'Path to the asset file on user\'s system (Windows/Linux path)'
+                },
+                category: {
+                  type: 'string',
+                  enum: ['images', 'logos', 'fonts', 'audio'],
+                  description: 'Asset category (images, logos, fonts, audio)'
+                },
+                filename: {
+                  type: 'string',
+                  description: 'Optional custom filename (defaults to original filename)'
+                }
+              },
+              required: ['filePath', 'category'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'list_assets',
+            description: 'List all available user assets by category for use in animations',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                category: {
+                  type: 'string',
+                  enum: ['images', 'logos', 'fonts', 'audio', 'all'],
+                  description: 'Filter by category or show all assets',
+                  default: 'all'
+                }
+              },
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'delete_asset',
+            description: 'Delete a user asset from public directory',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                category: {
+                  type: 'string',
+                  enum: ['images', 'logos', 'fonts', 'audio'],
+                  description: 'Asset category'
+                },
+                filename: {
+                  type: 'string',
+                  description: 'Asset filename to delete'
+                }
+              },
+              required: ['category', 'filename'],
+              additionalProperties: false
+            }
           }
         ]
       };
@@ -419,6 +499,12 @@ class TrueAiStdioMcpServer {
           return await this.handleDeleteComponent(args);
         } else if (name === 'cleanup_broken_imports') {
           return await this.handleCleanupBrokenImports(args);
+        } else if (name === 'upload_asset') {
+          return await this.handleUploadAsset(args);
+        } else if (name === 'list_assets') {
+          return await this.handleListAssets(args);
+        } else if (name === 'delete_asset') {
+          return await this.handleDeleteAsset(args);
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -2303,6 +2389,182 @@ export interface ${componentName}Props {
     }
   }
 
+  // ========================================
+  // ASSET MANAGEMENT FUNCTIONALITY
+  // ========================================
+
+  private async handleUploadAsset(args: any): Promise<any> {
+    const { filePath, category, filename } = args;
+
+    try {
+      const publicDir = path.join(SRC_DIR.replace('/src', ''), 'public');
+      const categoryDir = path.join(publicDir, category);
+
+      // Ensure category directory exists
+      await fs.mkdir(categoryDir, { recursive: true });
+
+      // Determine target filename
+      const targetFilename = filename || path.basename(filePath);
+      const targetPath = path.join(categoryDir, targetFilename);
+
+      // Copy file from user's system to container
+      try {
+        const fileContent = await fs.readFile(filePath);
+        await fs.writeFile(targetPath, fileContent);
+        log('info', `Asset uploaded successfully: ${category}/${targetFilename}`);
+      } catch (copyError) {
+        throw new Error(`Failed to copy asset: ${copyError.message}`);
+      }
+
+      // Export to Windows host via Docker CP
+      try {
+        const hostBasePath = '/mnt/d/MY PROJECTS/AI/LLM/AI Code Gen/my-builds/Video + Motion/clean-cut-mcp';
+        const hostAssetPath = `${hostBasePath}/clean-cut-workspace/public/${category}/${targetFilename}`;
+        const exportCmd = `docker cp clean-cut-mcp:/workspace/public/${category}/${targetFilename} "${hostAssetPath}"`;
+        execSync(exportCmd, { stdio: 'pipe' });
+        log('info', `Asset exported to Windows host: ${category}/${targetFilename}`);
+      } catch (exportError) {
+        log('warn', 'Asset export to host failed (non-critical)', { error: exportError.message });
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[ASSET UPLOADED] ${targetFilename}\\n\\n` +
+                `[CATEGORY] ${category}\\n` +
+                `[PATH] /public/${category}/${targetFilename}\\n` +
+                `[USAGE] Reference in animations: \\n` +
+                `  Images/Logos: <img src="/public/${category}/${targetFilename}" />\\n` +
+                `  Fonts: @font-face { src: url('/public/${category}/${targetFilename}') }\\n` +
+                `  Audio: <Audio src="/public/${category}/${targetFilename}" />\\n\\n` +
+                `[SUCCESS] Asset ready for use in animations!`
+        }]
+      };
+    } catch (error) {
+      log('error', 'Asset upload failed', { error: error.message });
+      return {
+        content: [{
+          type: 'text',
+          text: `[UPLOAD FAILED] ${error.message}\\n\\n` +
+                `Please check:\\n` +
+                `- File path is correct and accessible\\n` +
+                `- File is a valid image/font/audio file\\n` +
+                `- Category is one of: images, logos, fonts, audio`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private async handleListAssets(args: any): Promise<any> {
+    const { category = 'all' } = args || {};
+
+    try {
+      const publicDir = path.join(SRC_DIR.replace('/src', ''), 'public');
+      const categories = category === 'all' ? ['images', 'logos', 'fonts', 'audio'] : [category];
+
+      let assetList = '';
+      let totalCount = 0;
+
+      for (const cat of categories) {
+        const catDir = path.join(publicDir, cat);
+        try {
+          const files = await fs.readdir(catDir);
+          const assetFiles = files.filter(f => f !== 'README.md');
+
+          if (assetFiles.length > 0) {
+            assetList += `\\n📁 ${cat.toUpperCase()} (${assetFiles.length} files):\\n`;
+            for (const file of assetFiles) {
+              const stats = await fs.stat(path.join(catDir, file));
+              const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
+              assetList += `  • ${file} (${sizeMB}MB)\\n`;
+              totalCount++;
+            }
+          }
+        } catch (error) {
+          // Directory doesn't exist or is empty
+        }
+      }
+
+      if (totalCount === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: `[NO ASSETS] No assets found${category !== 'all' ? ` in category: ${category}` : ''}.\\n\\n` +
+                  `Upload assets using the upload_asset tool to make them available in animations.\\n\\n` +
+                  `Categories: images, logos, fonts, audio`
+          }]
+        };
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[AVAILABLE ASSETS] Total: ${totalCount} file(s)\\n${assetList}\\n` +
+                `[USAGE] Reference assets in animations:\\n` +
+                `  /public/images/your-image.png\\n` +
+                `  /public/logos/your-logo.svg\\n` +
+                `  /public/fonts/your-font.ttf\\n` +
+                `  /public/audio/your-sound.mp3`
+        }]
+      };
+    } catch (error) {
+      log('error', 'Failed to list assets', { error: error.message });
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Failed to list assets: ${error.message}`
+        }],
+        isError: true
+      };
+    }
+  }
+
+  private async handleDeleteAsset(args: any): Promise<any> {
+    const { category, filename } = args;
+
+    try {
+      const publicDir = path.join(SRC_DIR.replace('/src', ''), 'public');
+      const assetPath = path.join(publicDir, category, filename);
+
+      // Delete from container
+      await fs.unlink(assetPath);
+      log('info', `Asset deleted from container: ${category}/${filename}`);
+
+      // Delete from Windows host via Docker CP (copy empty directory or manual removal)
+      try {
+        const hostBasePath = '/mnt/d/MY PROJECTS/AI/LLM/AI Code Gen/my-builds/Video + Motion/clean-cut-mcp';
+        const hostAssetPath = `${hostBasePath}/clean-cut-workspace/public/${category}/${filename}`;
+        // Note: Docker CP can't delete files, so we'll document this limitation
+        log('warn', 'Manual deletion needed from Windows host', { path: hostAssetPath });
+      } catch (error) {
+        log('warn', 'Host deletion notification failed', { error: error.message });
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[ASSET DELETED] ${filename}\\n\\n` +
+                `[CATEGORY] ${category}\\n` +
+                `[CONTAINER] Deleted from container\\n` +
+                `[HOST] Please manually delete from: clean-cut-workspace/public/${category}/${filename}\\n\\n` +
+                `[SUCCESS] Asset removed from animation workspace`
+        }]
+      };
+    } catch (error) {
+      log('error', 'Asset deletion failed', { error: error.message });
+      return {
+        content: [{
+          type: 'text',
+          text: `[DELETE FAILED] ${error.message}\\n\\n` +
+                `Asset may not exist or path is incorrect.\\n` +
+                `Use list_assets to see available assets.`
+        }],
+        isError: true
+      };
+    }
+  }
+
   async run(): Promise<void> {
     log('info', 'Starting TRUE AI STDIO MCP Server');
     log('info', `App Root: ${APP_ROOT}`);
@@ -2318,7 +2580,7 @@ export interface ${componentName}Props {
     await this.server.connect(transport);
     
     log('info', 'TRUE AI STDIO MCP Server connected and ready!');
-    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions, format_code, manage_props, auto_sync, delete_component, cleanup_broken_imports');
+    log('info', 'Available tools: create_animation, update_composition, get_studio_url, get_export_directory, list_existing_components, get_project_guidelines, rebuild_compositions, format_code, manage_props, auto_sync, delete_component, cleanup_broken_imports, upload_asset, list_assets, delete_asset');
     log('info', 'Claude Desktop can now generate ANY animation using TRUE AI!');
   }
 }
