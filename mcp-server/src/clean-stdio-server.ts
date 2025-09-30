@@ -180,6 +180,22 @@ class TrueAiStdioMcpServer {
    - Must actually USE the props in JSX/styles
    - Must export with: export const ComponentName: React.FC
 
+   🚨 CRITICAL FILE EXTENSION RULE:
+   ✅ Files with JSX syntax → MUST use .tsx extension
+      - Any file that contains: return <div>, return <span>, JSX.Element return type
+      - Any function that returns rendered React elements
+      - Example: renderParticle() returns <div> → file MUST be .tsx
+
+   ✅ Files without JSX → MUST use .ts extension
+      - Only TypeScript: types, interfaces, classes, helper functions
+      - Functions that return data objects, configs, or style objects
+      - Example: generateParticles() returns Particle[] → file can be .ts
+
+   ⚠️ WHY: TypeScript compiler CANNOT compile JSX in .ts files
+      - JSX in .ts files causes: "Expected '>' but found 'key'" errors
+      - ALWAYS check: Does this file return actual JSX elements?
+      - If YES → .tsx, If NO → .ts
+
 5. PROFESSIONAL QUALITY LIBRARIES (Available for ALL animations):
 
    🎬 AUTOMATIC USAGE: Claude should intelligently use these libraries to create professional-quality animations by default.
