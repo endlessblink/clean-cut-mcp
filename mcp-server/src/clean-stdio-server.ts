@@ -180,16 +180,56 @@ class TrueAiStdioMcpServer {
    - Must actually USE the props in JSX/styles
    - Must export with: export const ComponentName: React.FC
 
-5. CRITICAL EASING PATTERNS (Remotion API - Research Validated):
+5. PROFESSIONAL QUALITY LIBRARIES (Available for ALL animations):
+
+   📚 IMPORT THESE UTILITIES FOR CINEMA-GRADE ANIMATIONS:
+
+   ✅ Professional Easing (../../utils/professional-easing):
+     import { ProfessionalEasing, MotionPatterns, arcMotion, springPhysics } from '../../utils/professional-easing'
+     - ProfessionalEasing.smooth, .cinematic, .anticipation, .overshoot, .dramatic
+     - Natural motion curves validated for professional use
+     - Physics helpers: arcMotion(), springPhysics(), followThrough()
+
+   ✅ Camera Movements (../../utils/use-camera, ../../utils/camera-controller):
+     import { useCamera, useAdvancedCamera } from '../../utils/use-camera'
+     - Cinematic pan, zoom, orbit, dolly movements
+     - Multi-shot sequences with smooth transitions
+     - Example: const camera = useCamera({ from: {x:0, zoom:1}, to: {x:-500, zoom:1.5}, duration: [0,120] })
+
+   ✅ Particle Systems (../../utils/use-particles, ../../utils/particle-system):
+     import { useParticles, useRenderedParticles } from '../../utils/use-particles'
+     - Types: 'sparkles', 'confetti', 'smoke', 'magic', 'bubbles', 'fire', 'snow', 'energy'
+     - Example: const particles = useRenderedParticles({ type: 'confetti' })
+
+   ✅ Kinetic Typography (../../utils/kinetic-text):
+     import { generateAnimatedCharacters, generateAnimatedWords, squashStretch } from '../../utils/kinetic-text'
+     - Character-by-character, word-by-word, line-by-line animations
+     - Patterns: sequential, random, center-out, edges-in, wave
+     - Example: const chars = generateAnimatedCharacters('Hello', frame, { animationType: 'bounce', pattern: 'center-out' })
+
+   ✅ Visual Effects (../../utils/visual-effects):
+     import { createProfessionalGlow, createVignette, createLightRays, renderLightRay } from '../../utils/visual-effects'
+     - Professional glows (multi-layer, not basic box-shadow)
+     - Light rays, vignette, chromatic aberration, lens flare
+     - Example: <div style={createProfessionalGlow('#00d4ff', 1, 30)}>Glowing Element</div>
+
+   ✅ Color Grading (../../utils/color-grading):
+     import { applyColorGrade, createColorGradeOverlay, cinematicTealOrange, neonCyberpunk } from '../../utils/color-grading'
+     - 20+ cinematic presets (cinematic, vintage, dramatic, dreamy, neon)
+     - Apply professional film-quality looks instantly
+     - Example: <div style={applyColorGrade(cinematicTealOrange)}>Content</div>
+
+6. CRITICAL EASING PATTERNS (Remotion API - Research Validated):
    ✅ WORKING Bezier Alternatives:
      - Ease-out effect: Easing.bezier(0, 0, 0.58, 1)
      - Ease-in-out effect: Easing.bezier(0.42, 0, 0.58, 1)
      - Ease-in effect: Easing.bezier(0.42, 0, 1, 1)
      - Custom smooth: Easing.bezier(0.25, 0.1, 0.25, 1)
+   ⚡ BETTER: Use ProfessionalEasing library (see above) for natural motion
    ❌ BROKEN Complex Easing: Easing.out(Easing.cubic), Easing.inOut(Easing.ease)
    ❌ BROKEN Recursion: safeInterpolate calling itself instead of interpolate
 
-6. USING PUBLIC ASSETS (Images, Logos, Fonts, Audio):
+7. USING PUBLIC ASSETS (Images, Logos, Fonts, Audio):
    ✅ CORRECT Way to use public assets:
      - Import: import { staticFile, Img, Audio } from 'remotion'
      - Images/Logos: <Img src={staticFile('images/logo.png')} />
