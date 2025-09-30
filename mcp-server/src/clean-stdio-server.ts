@@ -182,6 +182,24 @@ class TrueAiStdioMcpServer {
 
 5. PROFESSIONAL QUALITY LIBRARIES (Available for ALL animations):
 
+   🎬 AUTOMATIC USAGE: Claude should intelligently use these libraries to create professional-quality animations by default.
+
+   **When to use automatically:**
+   - Camera movements: ANY multi-scene animation or storytelling
+   - Particle effects: Celebrations, backgrounds, magic effects, atmosphere
+   - Kinetic typography: ANY text-heavy animation or titles
+   - Visual effects: Professional polish on ANY animation
+   - Color grading: Cinematic look for polished animations
+   - Professional easing: ALWAYS use instead of basic Easing.bezier
+
+   **Decision guide:**
+   - User says "create animation" → Use professional easing + consider visual effects
+   - User mentions "text" or "title" → Use kinetic typography
+   - User wants "celebration" or "magic" → Use particle systems
+   - User wants "cinematic" or "professional" → Use camera + color grading
+   - User wants "multiple scenes" → Use camera movements to transition
+   - Default: Always use ProfessionalEasing, add visual polish with glows/shadows
+
    📚 IMPORT THESE UTILITIES FOR CINEMA-GRADE ANIMATIONS:
 
    ✅ Professional Easing (../../utils/professional-easing):
