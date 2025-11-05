@@ -1,0 +1,360 @@
+{
+  "version": "1.0.0",
+  "created": "2025-10-01T00:00:00Z",
+  "last_updated": "2025-10-03T18:50:13.774Z",
+  "description": "User preference learning database - records corrections and generates reusable rules",
+  "corrections": [
+    {
+      "id": "correction-001",
+      "timestamp": "2025-10-01T12:00:00Z",
+      "issue_type": "crop",
+      "issue_description": "Shot3 code editor cropped at top and bottom edges",
+      "original_parameters": {
+        "element_type": "code_editor",
+        "element_size": {
+          "width": 1500,
+          "height": 850
+        },
+        "scale": 1.6,
+        "position": "centered"
+      },
+      "corrected_parameters": {
+        "scale": 1.19,
+        "reason": "Crop detector found max safe scale 1.21x, applied 2% safety margin"
+      },
+      "learned_rule": "code_editor_max_scale_1500x850",
+      "confidence": "high"
+    },
+    {
+      "id": "correction-002",
+      "timestamp": "2025-10-01T12:30:00Z",
+      "issue_type": "compound_scaling",
+      "issue_description": "Code editor had internal zoom that compounded with shot zoom",
+      "original_parameters": {
+        "shot_scale": 1.19,
+        "element_scale": 1.22,
+        "total_compound": 1.45
+      },
+      "corrected_parameters": {
+        "shot_scale": 1.19,
+        "element_scale": 1.01,
+        "reason": "Scale isolation - only shot level scales, elements breathe subtly"
+      },
+      "learned_rule": "never_scale_at_element_level",
+      "confidence": "high"
+    },
+    {
+      "id": "correction-003",
+      "timestamp": "2025-10-01T13:00:00Z",
+      "issue_type": "transition_type",
+      "issue_description": "Scale-out transition between question and code felt jarring",
+      "original_parameters": {
+        "transition_from": "Shot2-Question",
+        "transition_to": "Shot3-Code",
+        "transition_type": "scale-out"
+      },
+      "corrected_parameters": {
+        "transition_type": "hard-cut",
+        "reason": "Maintains zoom continuity - both scenes zoom IN"
+      },
+      "learned_rule": "zoom_continuity_transitions_use_hard_cut",
+      "confidence": "medium"
+    },
+    {
+      "issue_type": "crop",
+      "issue_description": "Large text block cropped when zoomed to 1.5x",
+      "original_parameters": {
+        "element_type": "text_block",
+        "element_size": {
+          "width": 800,
+          "height": 200
+        },
+        "scale": 1.5
+      },
+      "corrected_parameters": {
+        "scale": 1.3,
+        "reason": "Reduced scale to fit within viewport"
+      },
+      "learned_rule": "text_block_max_scale_800x200",
+      "confidence": "high",
+      "element_context": {
+        "type": "text_block",
+        "size": {
+          "width": 800,
+          "height": 200
+        }
+      },
+      "id": "correction-004",
+      "timestamp": "2025-10-03T17:25:56.641Z"
+    },
+    {
+      "issue_type": "crop",
+      "issue_description": "Large text block cropped when zoomed to 1.5x",
+      "original_parameters": {
+        "element_type": "text_block",
+        "element_size": {
+          "width": 800,
+          "height": 200
+        },
+        "scale": 1.5
+      },
+      "corrected_parameters": {
+        "scale": 1.3,
+        "reason": "Reduced scale to fit within viewport"
+      },
+      "learned_rule": "text_block_max_scale_800x200",
+      "confidence": "high",
+      "element_context": {
+        "type": "text_block",
+        "size": {
+          "width": 800,
+          "height": 200
+        }
+      },
+      "id": "correction-005",
+      "timestamp": "2025-10-03T17:26:12.895Z"
+    },
+    {
+      "issue_type": "other",
+      "issue_description": "Too many separate shots for 6 repositories (12 scenes total), animation felt too long and repetitive",
+      "original_parameters": {
+        "scene_count": 12,
+        "layout_type": "single_project_per_shot",
+        "duration_frames": 1065,
+        "repositories": 6
+      },
+      "corrected_parameters": {
+        "scene_count": 8,
+        "layout_type": "multi_project_grid",
+        "projects_per_shot": 2,
+        "duration_frames": 705,
+        "reason": "Grouped related projects (Featured, Tools, Utilities) into 3 grid layouts with 2 projects each"
+      },
+      "learned_rule": "group_similar_projects_in_grid_when_count_over_4",
+      "confidence": "high",
+      "id": "correction-006",
+      "timestamp": "2025-10-03T18:20:28.113Z"
+    },
+    {
+      "issue_type": "other",
+      "issue_description": "Achievement badges using 2D rotation (rotateZ) instead of 3D flip (rotateY)",
+      "original_parameters": {
+        "rotation_axis": "Z",
+        "rotation_degrees": 360
+      },
+      "corrected_parameters": {
+        "rotation_axis": "Y",
+        "rotation_degrees": 180,
+        "transformStyle": "preserve-3d"
+      },
+      "learned_rule": "use_3d_rotateY_for_card_flip_animations",
+      "confidence": "high",
+      "id": "correction-007",
+      "timestamp": "2025-10-03T18:50:13.761Z"
+    },
+    {
+      "issue_type": "transition_type",
+      "issue_description": "Scene 7 (Tech Stack) appeared instantly without transition (popping in)",
+      "original_parameters": {
+        "entry_type": "instant",
+        "transition": "none"
+      },
+      "corrected_parameters": {
+        "entry_type": "slide-up",
+        "distance": 400,
+        "motion_blur": true
+      },
+      "learned_rule": "every_scene_must_have_entry_transition_never_instant",
+      "confidence": "high",
+      "id": "correction-008",
+      "timestamp": "2025-10-03T18:50:13.768Z"
+    },
+    {
+      "issue_type": "transition_type",
+      "issue_description": "Scene 6 exits upward (wipe-up) but Scene 7 did not enter from bottom to replace it",
+      "original_parameters": {
+        "scene6_exit": "wipe-up",
+        "scene7_entry": "instant"
+      },
+      "corrected_parameters": {
+        "scene6_exit": "wipe-up",
+        "scene7_entry": "slide-up-from-bottom",
+        "creates": "smooth_replacement"
+      },
+      "learned_rule": "entering_scene_should_replace_from_opposite_direction",
+      "confidence": "high",
+      "id": "correction-009",
+      "timestamp": "2025-10-03T18:50:13.771Z"
+    },
+    {
+      "issue_type": "other",
+      "issue_description": "Achievement badges sliding up from 300px without motion blur looked unnatural",
+      "original_parameters": {
+        "motion_blur": false,
+        "velocity": 300
+      },
+      "corrected_parameters": {
+        "motion_blur": true,
+        "blur_amount": "calculateMotionBlur(velocity)"
+      },
+      "learned_rule": "always_apply_motion_blur_when_velocity_over_3px_per_frame",
+      "confidence": "high",
+      "id": "correction-010",
+      "timestamp": "2025-10-03T18:50:13.774Z"
+    }
+  ],
+  "validated_rules": {
+    "max_scales_by_element": {
+      "code_editor_1500x850": 1.21,
+      "code_editor_1200x700": 1.52,
+      "text_block_900x180": 2.03,
+      "text_block_1120x200": 1.63,
+      "cta_block_800x200": 2.28,
+      "text_block_800x200": 1.3
+    },
+    "scale_isolation_rules": {
+      "shot_level": {
+        "allowed_transforms": [
+          "scale",
+          "translateX",
+          "translateY"
+        ],
+        "max_scale": 2,
+        "note": "Camera movements happen here"
+      },
+      "element_level": {
+        "allowed_transforms": [
+          "translateX",
+          "translateY",
+          "rotate"
+        ],
+        "forbidden_transforms": [
+          "scale"
+        ],
+        "max_translate": 100,
+        "max_rotate": 360,
+        "note": "Individual element motion, NO scale"
+      },
+      "child_level": {
+        "allowed_transforms": [
+          "translateY"
+        ],
+        "max_translate": 10,
+        "note": "Subtle breathing only"
+      }
+    },
+    "preferred_transitions": {
+      "logo_to_question": "wipe-left",
+      "question_to_code": "hard-cut",
+      "code_to_result": "hard-cut",
+      "result_to_cta": "slide-up",
+      "high_energy_change": "hard-cut",
+      "similar_content": "crossfade",
+      "moderate_energy": "wipe"
+    },
+    "timing_preferences": {
+      "code_typing_frames_per_line": 4,
+      "stagger_delay_frames": 8,
+      "transition_duration_frames": 15,
+      "zoom_rate_per_frame": 0.0023,
+      "min_scene_hold_frames": 30
+    },
+    "continuous_motion_formulas": {
+      "float_amplitude_px": [
+        5,
+        10
+      ],
+      "float_frequency": [
+        0.05,
+        0.1
+      ],
+      "zoom_rate": [
+        0.001,
+        0.003
+      ],
+      "pulse_frequency": [
+        0.1,
+        0.15
+      ],
+      "pulse_amplitude": [
+        0.2,
+        0.3
+      ]
+    },
+    "motion_blur_settings": {
+      "velocity_threshold_px_per_frame": 3,
+      "blur_multiplier": 0.1,
+      "max_blur_px": 10,
+      "apply_during": [
+        "entry",
+        "exit"
+      ],
+      "never_during": [
+        "hold"
+      ]
+    }
+  },
+  "element_type_mappings": {
+    "code_editor": {
+      "typical_sizes": [
+        [
+          1200,
+          700
+        ],
+        [
+          1500,
+          850
+        ]
+      ],
+      "safe_scale_range": [
+        1,
+        1.25
+      ],
+      "recommended_particles": "energy",
+      "recommended_glow": "green"
+    },
+    "text_question": {
+      "typical_sizes": [
+        [
+          800,
+          150
+        ],
+        [
+          900,
+          180
+        ]
+      ],
+      "safe_scale_range": [
+        1,
+        2
+      ],
+      "recommended_particles": "smoke",
+      "recommended_glow": "white"
+    },
+    "cta_block": {
+      "typical_sizes": [
+        [
+          600,
+          150
+        ],
+        [
+          800,
+          200
+        ]
+      ],
+      "safe_scale_range": [
+        1,
+        2.3
+      ],
+      "recommended_particles": "confetti",
+      "recommended_glow": "accent"
+    }
+  },
+  "learning_metadata": {
+    "total_corrections": 10,
+    "total_generations": 6,
+    "success_rate": -0.6666666666666667,
+    "most_common_issue": "crop",
+    "most_reliable_rule": "scale_isolation"
+  }
+}

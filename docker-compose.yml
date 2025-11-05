@@ -1,0 +1,37 @@
+services:
+  clean-cut-mcp:
+    build: .
+    container_name: clean-cut-mcp
+    ports:
+      - "6970:6970"  # Remotion Studio (WORKING)
+      - "6971:6971"  # Reserved for future HTTP MCP server
+    volumes:
+      # Bind mount from WSL2 filesystem (eliminates Windows filesystem conflicts)
+      - ./clean-cut-exports:/workspace/out
+      # Bind mount from WSL2 filesystem (optimal performance)
+      - ./clean-cut-workspace:/workspace
+      # Named volume for node_modules (avoids mount conflicts)
+      - clean-cut-node-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=production
+      - DOCKER_CONTAINER=true
+      - REMOTION_STUDIO_PORT=6970
+      - REMOTION_NON_INTERACTIVE=1
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_HOST=127.0.0.1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6970/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  clean-cut-node-modules:
+    driver: local
+
+networks:
+  default:
+    name: clean-cut-mcp-network

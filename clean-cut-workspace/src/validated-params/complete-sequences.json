@@ -1,0 +1,145 @@
+{
+  "version": "2.0.0",
+  "description": "Complete choreographed sequences with exact shot-to-shot transitions from professional work",
+  "sequences": [
+    {
+      "id": "remotion-trailer-intro-sequence",
+      "source": "Remotion Official Trailer (frames 437-700)",
+      "duration_frames": 263,
+      "duration_seconds": 8.77,
+      "style": "energetic-tech",
+      "quality_rating": 100,
+      "use_for": ["tech products", "developer tools", "software launches"],
+
+      "complete_flow": [
+        {
+          "shot_number": 1,
+          "content_type": "logo-reveal",
+          "frames": [437, 510],
+          "duration": 73,
+          "composition": "centered",
+          "entry_transition": {
+            "type": "white-flash-intro",
+            "duration": 11,
+            "note": "Palette cleanser from previous section"
+          },
+          "content_animation": {
+            "type": "slide-up-with-scale",
+            "slide_y": [100, 0],
+            "scale": [0.95, 1.0],
+            "duration": 15,
+            "spring_config": { "damping": 100, "stiffness": 200, "mass": 0.5 }
+          },
+          "hold_duration": 40,
+          "exit_transition": {
+            "type": "horizontal-wipe-left",
+            "starts_at_frame": 495,
+            "duration": 15,
+            "exit_x": [0, -1920],
+            "simultaneous_entry": true
+          }
+        },
+        {
+          "shot_number": 2,
+          "content_type": "text-question",
+          "frames": [495, 582],
+          "duration": 87,
+          "composition": "centered",
+          "entry_transition": {
+            "type": "horizontal-wipe-right",
+            "duration": 15,
+            "entry_x": [1920, 0],
+            "note": "Enters AS shot 1 exits (simultaneous wipe)"
+          },
+          "content_animation": {
+            "type": "slide-up",
+            "slide_y": [80, 0],
+            "duration": 12,
+            "spring_config": { "damping": 100, "stiffness": 200 }
+          },
+          "hold_duration": 60,
+          "exit_transition": {
+            "type": "fade-with-slide-down",
+            "starts_at_frame": 570,
+            "duration": 12,
+            "slide_y": [0, -40],
+            "opacity": [1, 0]
+          }
+        },
+        {
+          "shot_number": 3,
+          "content_type": "logo-branding",
+          "frames": [582, 662],
+          "duration": 80,
+          "composition": "centered",
+          "entry_transition": {
+            "type": "crossfade",
+            "duration": 12,
+            "overlap_with_previous": true
+          },
+          "content_animation": {
+            "type": "scale-with-spring",
+            "scale": [0.2, 1.0],
+            "duration": 20,
+            "spring_config": { "damping": 80, "stiffness": 100 }
+          },
+          "hold_duration": 48,
+          "exit_transition": {
+            "type": "hard-cut",
+            "duration": 1,
+            "note": "Instant cut to code scene (major topic change)"
+          }
+        },
+        {
+          "shot_number": 4,
+          "content_type": "code-editor",
+          "frames": [662, 700],
+          "duration": 38,
+          "composition": "full-screen-code",
+          "entry_transition": {
+            "type": "hard-cut",
+            "duration": 1,
+            "note": "Instant appearance (matches exit of previous)"
+          },
+          "content_animation": {
+            "type": "typing-animation",
+            "characters_per_frame": 0.33,
+            "duration": 25
+          },
+          "hold_duration": 12,
+          "exit_transition": {
+            "type": "slide-left-wipe",
+            "duration": 10,
+            "exit_x": [0, -1920]
+          }
+        }
+      ],
+
+      "choreography_notes": {
+        "flow_pattern": "White flash → Wipe → Crossfade → Hard cut → Wipe",
+        "energy_progression": "Calm → Moderate → High → Very High",
+        "no_fade_only_transitions": "Every transition includes movement (wipe, slide, scale, or cut)",
+        "shot_to_shot_continuity": "Each transition motivated by content/energy change",
+        "timing_rhythm": "Fast intro (73f) → Longer question (87f) → Moderate logo (80f) → Quick code (38f)"
+      },
+
+      "implementation_rules": {
+        "transition_selection": {
+          "rule_1": "High energy change → Use wipe or hard cut",
+          "rule_2": "Conceptual similarity → Use crossfade with movement",
+          "rule_3": "Major topic shift → Use hard cut",
+          "rule_4": "Continuous narrative → Use wipe transitions"
+        },
+        "never_use": {
+          "fade_only": "FORBIDDEN - Always combine with movement",
+          "random_transitions": "Each transition must be motivated by content"
+        },
+        "mandatory": {
+          "movement_component": "Every transition MUST include translateX, translateY, or scale",
+          "spring_physics": "Use spring for organic movements (not linear)",
+          "overlap_timing": "Wipes and slides should have simultaneous exit/entry"
+        }
+      }
+    }
+  ]
+}

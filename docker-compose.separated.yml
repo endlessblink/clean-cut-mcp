@@ -1,0 +1,112 @@
+# Clean-Cut-MCP Separated Containers Configuration
+# This file defines the new separated architecture while preserving docker-compose.yml as fallback
+
+services:
+  # MCP Server Container - Pure MCP functionality and animation management
+  mcp-server:
+    build:
+      context: .
+      dockerfile: mcp-server-separated/Dockerfile
+    container_name: clean-cut-mcp-server
+    ports:
+      - "6971:6971"  # MCP Server (STDIO transport fallback port)
+    volumes:
+      # Bind mount from WSL2 filesystem (optimal performance)
+      - ./clean-cut-workspace:/workspace
+      # Bind mount for exports
+      - ./clean-cut-exports:/workspace/out
+      # Named volume for MCP preferences and learned rules
+      - clean-cut-mcp-data:/app/mcp-server/preferences
+    environment:
+      - NODE_ENV=production
+      - DOCKER_CONTAINER=true
+      - CONTAINER_ROLE=mcp-server
+      - MCP_SERVER_PORT=6971
+      - REMOTION_STUDIO_PORT=6970
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    restart: unless-stopped
+    networks:
+      - clean-cut-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:6971/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # Resource limits for MCP server (lightweight)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Web App Container - Remotion Studio and visual interface
+  web-app:
+    build:
+      context: .
+      dockerfile: web-app-separated/Dockerfile
+    container_name: clean-cut-web-app
+    ports:
+      - "6970:6970"  # Remotion Studio (same port as original)
+    volumes:
+      # Bind mount from WSL2 filesystem (read access to workspace)
+      - ./clean-cut-workspace:/workspace:ro  # Read-only for safety
+      # Bind mount for exports (write access)
+      - ./clean-cut-exports:/workspace/out
+      # Named volume for node_modules (avoids mount conflicts)
+      - clean-cut-web-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=production
+      - DOCKER_CONTAINER=true
+      - CONTAINER_ROLE=web-app
+      - REMOTION_STUDIO_PORT=6970
+      - REMOTION_OUTPUT_DIR=/workspace/out
+      - REMOTION_NON_INTERACTIVE=1
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_HOST=127.0.0.1
+      # Chrome/Chromium environment variables
+      - PUPPETEER_ARGS=--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --font-render-hinting=none --disable-font-subpixel-positioning --enable-font-antialiasing
+      - FONTCONFIG_PATH=/etc/fonts
+      - DISPLAY=:99
+      - XDG_RUNTIME_DIR=/tmp/runtime
+      - BROWSER=none
+      # Node.js optimization
+      - NODE_OPTIONS=--max-old-space-size=2048 --enable-source-maps
+    restart: unless-stopped
+    networks:
+      - clean-cut-network
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6970/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    # Resource limits for web app (heavy rendering)
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+volumes:
+  # Named volumes for better performance and persistence
+  clean-cut-mcp-data:
+    driver: local
+  clean-cut-web-modules:
+    driver: local
+
+networks:
+  clean-cut-network:
+    driver: bridge
+    name: clean-cut-mcp-network

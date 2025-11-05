@@ -1,0 +1,51 @@
+{
+  "version": "1.0.0",
+  "generated": "2025-10-01T00:00:00Z",
+  "source_count": 0,
+  "description": "Spatial relationship rules and proportions from professional motion graphics",
+  "patterns": [
+    {
+      "id": "remotion-trailer-split-screen",
+      "rating": 100,
+      "source": "remotion-official-trailer",
+      "context": "50/50 split screen with full content in each half",
+      "data": {
+        "layout_type": "split-screen",
+        "proportions": {
+          "left_panel": "50%",
+          "right_panel": "50%"
+        },
+        "content_density": "full",
+        "padding": "5%",
+        "notes": "Both halves contain complete, meaningful content - not just decoration"
+      }
+    },
+    {
+      "id": "remotion-trailer-centered-text",
+      "rating": 100,
+      "source": "remotion-official-trailer",
+      "context": "Centered text with proper hierarchy",
+      "data": {
+        "layout_type": "centered",
+        "headline_size": "120-140px",
+        "headline_weight": 900,
+        "body_size": "24-32px",
+        "body_weight": 400,
+        "vertical_spacing": "40px",
+        "max_width": "80%",
+        "notes": "Strong size contrast between headline and body"
+      }
+    },
+    {
+      "id": "placeholder",
+      "rating": 0,
+      "source": "placeholder",
+      "context": "Placeholder - to be replaced with analyzed patterns",
+      "data": {
+        "layout_type": "unknown",
+        "notes": "This is a placeholder - replace with real analysis"
+      }
+    }
+  ],
+  "notes": "Layout patterns will be populated through computer vision analysis measuring element positions, sizes, and spatial relationships in professional examples"
+}

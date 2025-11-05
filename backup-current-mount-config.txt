@@ -1,0 +1,2 @@
+/mnt/d/MY PROJECTS/AI/LLM/AI Code Gen/my-builds/Video + Motion/clean-cut-mcp/clean-cut-workspace -> /workspace
+/var/lib/docker/volumes/61e915a7a49ff072e4bf73daf2fbc47f16bd15590310aab62857dfad57e6178c/_data -> /workspace/out

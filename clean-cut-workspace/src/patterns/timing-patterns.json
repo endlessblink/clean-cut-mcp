@@ -1,0 +1,67 @@
+{
+  "version": "1.0.0",
+  "generated": "2025-10-01T00:00:00Z",
+  "source_count": 0,
+  "description": "Motion timing patterns and spring physics parameters from professional animations",
+  "patterns": [
+    {
+      "id": "remotion-trailer-slide-up",
+      "rating": 100,
+      "source": "remotion-official-trailer",
+      "context": "Smooth slide-up entrance animation",
+      "data": {
+        "animation_type": "slide-up",
+        "duration_frames": 15,
+        "spring_config": {
+          "damping": 100,
+          "stiffness": 200
+        },
+        "transform": {
+          "from": { "y": 100, "scale": 0.95, "opacity": 0 },
+          "to": { "y": 0, "scale": 1, "opacity": 1 }
+        },
+        "notes": "Combined slide + scale + fade creates professional feel"
+      }
+    },
+    {
+      "id": "remotion-trailer-stagger",
+      "rating": 100,
+      "source": "remotion-official-trailer",
+      "context": "Staggered list item reveals",
+      "data": {
+        "animation_type": "stagger",
+        "stagger_delay_frames": 8,
+        "item_duration_frames": 12,
+        "spring_config": {
+          "damping": 80,
+          "stiffness": 150
+        },
+        "notes": "8-frame delay between items creates rhythm without being too slow"
+      }
+    },
+    {
+      "id": "remotion-trailer-white-flash",
+      "rating": 100,
+      "source": "remotion-official-trailer",
+      "context": "White flash transition between sections",
+      "data": {
+        "animation_type": "transition",
+        "duration_frames": 10,
+        "flash_color": "#ffffff",
+        "opacity_curve": "ease-in-out",
+        "notes": "5-15 frame white flash cleanses palette between major sections"
+      }
+    },
+    {
+      "id": "placeholder",
+      "rating": 0,
+      "source": "placeholder",
+      "context": "Placeholder - to be replaced with analyzed patterns",
+      "data": {
+        "animation_type": "unknown",
+        "notes": "This is a placeholder - replace with real analysis"
+      }
+    }
+  ],
+  "notes": "Timing patterns will be populated through optical flow analysis and motion tracking of professional examples"
+}

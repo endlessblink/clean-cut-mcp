@@ -1,0 +1,35 @@
+{
+  "name": "motion-design-research",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Internal research project for extracting professional motion design patterns",
+  "type": "module",
+  "scripts": {
+    "analyze:colors": "tsx analysis-tools/color-analyzer.ts",
+    "analyze:layout": "tsx analysis-tools/layout-analyzer.ts",
+    "analyze:timing": "tsx analysis-tools/timing-analyzer.ts",
+    "download:vimeo": "tsx analysis-tools/video-downloader.ts --source vimeo",
+    "download:behance": "tsx analysis-tools/video-downloader.ts --source behance",
+    "extract:frames": "tsx analysis-tools/frame-extractor.ts",
+    "export:patterns": "tsx analysis-tools/pattern-exporter.ts",
+    "notebook": "jupyter notebook"
+  },
+  "dependencies": {
+    "@types/node": "^22.10.2",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "puppeteer": "^23.11.1"
+  },
+  "devDependencies": {
+    "@types/sharp": "^0.32.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.33.5"
+  },
+  "notes": {
+    "python_tools": "Install separately: pip install opencv-python scikit-learn jupyter numpy pandas matplotlib",
+    "purpose": "This project analyzes professional motion graphics to extract objective patterns (colors, layouts, timing) that inform clean-cut-mcp's animation generation quality"
+  }
+}

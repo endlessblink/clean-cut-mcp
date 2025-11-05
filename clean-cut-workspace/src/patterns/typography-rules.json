@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "generated": "2025-10-01T00:00:00Z",
+  "source_count": 0,
+  "description": "Typography hierarchy patterns and weight progressions from professional motion graphics",
+  "patterns": [
+    {
+      "id": "remotion-trailer-bold-hierarchy",
+      "rating": 100,
+      "source": "remotion-official-trailer",
+      "context": "Bold geometric typography with weight variation",
+      "data": {
+        "headline": {
+          "size": "120-140px",
+          "weight": 900,
+          "line_height": 1.1,
+          "letter_spacing": "-0.02em"
+        },
+        "subheadline": {
+          "size": "48-64px",
+          "weight": 700,
+          "line_height": 1.2,
+          "letter_spacing": "-0.01em"
+        },
+        "body": {
+          "size": "24-32px",
+          "weight": 400,
+          "line_height": 1.5,
+          "letter_spacing": "0"
+        },
+        "weight_progression": "900 → 700 → 400",
+        "size_ratio": "4:2:1",
+        "notes": "Clear weight variation creates visual hierarchy - don't use same weight for everything"
+      }
+    },
+    {
+      "id": "remotion-trailer-tech-brand",
+      "rating": 100,
+      "source": "remotion-official-trailer",
+      "context": "NEXT.JS style technical branding",
+      "data": {
+        "primary_text": {
+          "content": "NEXT",
+          "size": "140px",
+          "weight": 900,
+          "transform": "uppercase"
+        },
+        "secondary_text": {
+          "content": ".JS",
+          "size": "140px",
+          "weight": 700,
+          "transform": "uppercase"
+        },
+        "accent_difference": "200 weight units",
+        "notes": "Same size but different weights creates subtle but important hierarchy"
+      }
+    },
+    {
+      "id": "placeholder",
+      "rating": 0,
+      "source": "placeholder",
+      "context": "Placeholder - to be replaced with analyzed patterns",
+      "data": {
+        "notes": "This is a placeholder - replace with real analysis"
+      }
+    }
+  ],
+  "notes": "Typography patterns will be populated through OCR and text analysis of professional motion graphics"
+}

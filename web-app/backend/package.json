@@ -1,0 +1,46 @@
+{
+  "name": "@clean-cut/backend",
+  "version": "1.0.0",
+  "description": "Clean Cut Video Generator - Backend API",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "dev:test": "tsx watch src/test-server.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:test": "tsx src/test-server.ts",
+    "clean": "rm -rf dist",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@clean-cut/shared": "file:../../shared",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.13.0",
+    "uuid": "^9.0.0",
+    "fs-extra": "^11.1.1",
+    "path": "^0.12.7",
+    "remotion": "4.0.340",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "prettier": "^3.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/cors": "^2.8.13",
+    "@types/morgan": "^1.9.4",
+    "@types/multer": "^1.4.7",
+    "@types/ws": "^8.5.4",
+    "@types/uuid": "^9.0.2",
+    "@types/fs-extra": "^11.0.1",
+    "@types/node": "^20.0.0",
+    "tsx": "^3.12.7",
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
+  }
+}

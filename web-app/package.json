@@ -1,0 +1,27 @@
+{
+  "name": "@clean-cut/web-workspace",
+  "version": "1.0.0",
+  "description": "Clean Cut Web Application Workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "shared/*"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev --workspace=@clean-cut/frontend",
+    "dev:backend": "npm run dev --workspace=@clean-cut/backend",
+    "build:shared": "npm run build --workspace=@clean-cut/shared",
+    "build:all": "npm run build:shared && npm run build --workspace=@clean-cut/frontend && npm run build --workspace=@clean-cut/backend",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "install:all": "npm install && npm install --workspaces",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

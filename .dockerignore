@@ -1,0 +1,93 @@
+# Node.js dependencies and build artifacts
+node_modules/
+# Allow mcp-server build artifacts for multi-stage Docker build
+# mcp-server/node_modules/  # Comment out to allow Docker to handle properly
+# mcp-server/dist/          # Comment out to allow Docker to handle properly
+
+# Logs and temporary files
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data and caches
+pids/
+*.pid
+*.seed
+*.pid.lock
+.npm
+.yarn-integrity
+
+# Build outputs and temporary directories
+dist/
+build/
+.tmp/
+tmp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git directory
+.git/
+.gitignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment and configuration files (keep local only)
+.env
+.env.local
+.env.*.local
+
+# Test coverage and output
+coverage/
+.nyc_output/
+
+# Backup files
+*.backup
+*.bak
+
+# Windows specific files that cause permission issues
+*.lnk
+
+# Clean-Cut-MCP specific excludes
+clean-cut-install.log
+exports/
+clean-cut-mcp.log
+
+# External user content (not needed in runtime container)
+clean-cut-workspace/
+clean-cut-exports/
+
+# Installation scripts (not needed in runtime)
+install*.ps1
+download-latest.sh
+backup-before-changes.sh
+restore-backup.sh
+docker-compose.yml
+
+# Git artifacts (not needed in runtime)
+.git/
+.github/
+.gitignore
+
+# Debugging content (not needed in runtime)
+docs/debugging/
+
+# User session data (not needed in runtime)
+backups/
+
+# Package lock files (not needed - npm install handles dependencies)
+package-lock.json
+yarn.lock

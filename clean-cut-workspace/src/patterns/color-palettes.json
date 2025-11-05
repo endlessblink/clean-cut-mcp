@@ -1,0 +1,37 @@
+{
+  "version": "1.0.0",
+  "generated": "2025-10-01T00:00:00Z",
+  "source_count": 0,
+  "description": "Professional color combinations extracted from award-winning motion graphics",
+  "patterns": [
+    {
+      "id": "remotion-trailer-dark-dev",
+      "rating": 100,
+      "source": "remotion-official-trailer",
+      "context": "Developer tool showcase - Dark theme with green accents",
+      "data": {
+        "primary": "#0a0a0a",
+        "secondary": "#1a1a1a",
+        "accent": "#10b981",
+        "text": "#f0f6fc",
+        "grid": "#2a2a2a",
+        "notes": "Analyzed from 2,934 frames of Remotion official trailer"
+      }
+    },
+    {
+      "id": "placeholder-light-clean",
+      "rating": 0,
+      "source": "placeholder",
+      "context": "Placeholder - to be replaced with analyzed patterns",
+      "data": {
+        "primary": "#ffffff",
+        "secondary": "#f5f5f5",
+        "accent": "#3b82f6",
+        "text": "#1a1a1a",
+        "grid": "#e5e5e5",
+        "notes": "This is a placeholder - replace with real analysis"
+      }
+    }
+  ],
+  "notes": "Patterns will be populated through systematic analysis of professional motion graphics from Vimeo Staff Picks, Behance Featured, and other curated sources"
+}

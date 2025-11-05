@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "clean-cut-mcp": {
+      "command": "docker",
+      "args": ["exec", "-i", "clean-cut-mcp", "node", "/app/mcp-server/dist/clean-stdio-server.js"],
+      "env": {}
+    }
+  }
+}

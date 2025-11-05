@@ -1,0 +1,151 @@
+# Clean-Cut-MCP - External User Repository
+# Exclude development artifacts, personal animations, and unnecessary files
+
+# Development directories - Not needed for external users
+archive/
+extrenal-mcp-bmad/
+docs/debugging/
+
+# User-generated animations - Keep workspace clean for external users
+clean-cut-workspace/src/assets/animations/*.tsx
+clean-cut-workspace/src/assets/animations/*.ts
+clean-cut-workspace/*.types.ts
+
+# Keep essential workspace structure files
+!clean-cut-workspace/src/Root.tsx
+!clean-cut-workspace/src/index.ts
+!clean-cut-workspace/index.ts
+!clean-cut-workspace/Composition.tsx
+
+# Node.js dependencies
+node_modules/
+clean-cut-workspace/node_modules/
+# clean-cut-workspace/src/ - Essential files now live here
+mcp-server/node_modules/
+package-lock.json
+*.log
+npm-debug.log*
+
+# MCP server build artifacts (keep source, but built dist/ might be needed for distribution)
+# mcp-server/dist/ - REMOVED: Built files might be needed for Docker Hub image
+mcp-server/clean-cut-workspace/
+
+# Remotion cache and build artifacts
+clean-cut-workspace/out/
+.remotion/
+*.mp4
+*.mov
+*.webm
+
+# Video exports (users will generate their own)
+clean-cut-exports/
+
+# Development backups
+*.backup
+*.bak
+*.orig
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker volumes and cache
+.docker/
+
+# Windows specific
+desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# Environment and config files
+.env
+.env.local
+.env.*.local
+
+# Testing artifacts
+test-results/
+coverage/
+
+# Documentation images (keep essential docs only)
+docs/debugging/*.png
+docs/debugging/*.webp
+docs/debugging/*.jpg
+!docs/README.md
+
+# Build logs and debug files
+*.debug
+build.log
+error.log
+debug.log
+
+# Prevent future duplicate installer accumulation
+install-*test*.ps1
+install-*fixed*.ps1
+install-*backup*.ps1
+install-bulletproof*.ps1
+
+# Development utility patterns
+cleanup-installation.ps1
+kill-claude-*.ps1
+*-clean-cut.sh
+
+# Old configuration files
+claude_desktop_config_*FINAL*.json
+*_FIXED_FINAL.json
+
+# Docker runtime artifacts (external users might encounter)
+/mnt/wsl/docker-desktop-bind-mounts/
+docker-desktop-data/
+.docker/
+
+# Video files (user-generated content)
+*.mp4
+*.mov
+*.webm
+*.avi
+*.gif
+
+# PowerShell execution artifacts
+*.ps1.tmp
+powershell-*.log
+
+# Claude Desktop backups (system-generated)
+claude_desktop_config.json.backup-*
+
+# Additional runtime files
+*.pid
+*.lock
+
+# Claude Desktop personal instructions (not for external users)
+CLAUDE.md
+# Archive folders (should not be in git)
+_archive/
+docs/_archive/
+
+# Large image sequences and media
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.avi
+*.mov
+!docs/icons/*.png
+!docs/ui/*.png
+!docs/screenshots/*.png

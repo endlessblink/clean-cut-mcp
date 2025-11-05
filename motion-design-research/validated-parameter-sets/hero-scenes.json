@@ -1,0 +1,95 @@
+{
+  "version": "2.0.0",
+  "approach": "validated-parameter-sets",
+  "generated": "2025-10-01T00:00:00Z",
+  "description": "Complete parameter sets with flexibility rules from professional templates",
+  "parameter_sets": [
+    {
+      "id": "bold-centered-hero-v1",
+      "source": "remotion-trailer-analysis",
+      "context": "Tech product launch, centered hero scene, dark theme",
+      "validated": true,
+      "quality_rating": 100,
+
+      "fixed_parameters": {
+        "animation": {
+          "spring_damping": 100,
+          "spring_stiffness": 200,
+          "entry_duration_frames": 20,
+          "slide_distance_px": 40,
+          "scale_from": 0.95,
+          "scale_to": 1.0,
+          "note": "DO NOT CHANGE - Creates professional smooth feel"
+        },
+        "typography": {
+          "headline_weight": 800,
+          "body_weight": 400,
+          "letter_spacing_em": -0.02,
+          "line_height_headline": 1.1,
+          "line_height_body": 1.5,
+          "font_stack": "Inter, SF Pro Display, -apple-system, sans-serif",
+          "note": "DO NOT CHANGE - Weight relationships are crucial"
+        },
+        "spacing": {
+          "container_padding_px": 80,
+          "vertical_gap_px": 60,
+          "max_width_percent": 80,
+          "note": "DO NOT CHANGE - Professional spacing standards"
+        }
+      },
+
+      "flexible_parameters": {
+        "colors": {
+          "background": "#0a0a0a",
+          "text": "#f0f6fc",
+          "accent": "#10b981",
+          "note": "SAFE to change for branding - maintain contrast"
+        },
+        "content": {
+          "headline": "YOUR PRODUCT",
+          "body": "Professional tagline here",
+          "note": "SAFE to customize all content"
+        },
+        "size_adjustments": {
+          "headline_size_px": 72,
+          "body_size_px": 24,
+          "adjustment_range": "±10px",
+          "note": "Can adjust within range if needed"
+        }
+      },
+
+      "adaptation_rules": {
+        "long_headline": {
+          "condition": "headline.length > 15",
+          "action": "reduce headline_size by 15%",
+          "min_size": 60
+        },
+        "short_headline": {
+          "condition": "headline.length < 6",
+          "action": "increase headline_size by 10%",
+          "max_size": 90
+        },
+        "multiple_body_lines": {
+          "condition": "body.split('\\n').length > 1",
+          "action": "increase vertical_gap to 80px"
+        },
+        "contrast_check": {
+          "condition": "background lightness < 20%",
+          "action": "ensure text lightness > 85%",
+          "required": true
+        }
+      },
+
+      "constraints": {
+        "never_combine_with": ["infinite-zoom", "complex-morph", "rapid-cuts"],
+        "works_well_with": ["simple-fade-transitions", "subtle-parallax", "minimal-effects"],
+        "scene_energy": "moderate",
+        "duration_range_frames": [60, 90],
+        "min_hold_time_frames": 30
+      },
+
+      "implementation_notes": "This is the safest, most versatile hero scene configuration. Proven to work across tech brands. Keep fixed parameters exact - they create the professional feel."
+    }
+  ],
+  "notes": "Parameter sets will be populated by analyzing professional Remotion templates, extracting their complete configurations, and testing flexibility boundaries."
+}
