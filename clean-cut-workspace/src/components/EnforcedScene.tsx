@@ -40,11 +40,6 @@ export const EnforcedScene: React.FC<EnforcedSceneProps> = ({
   // Calculate local frame (relative to scene start)
   const localFrame = globalFrame - sceneStartFrame;
 
-  // Visibility check (prevents duplicate renders)
-  if (localFrame < 0 || localFrame >= sceneDuration) {
-    return null;  // Don't render if outside scene bounds
-  }
-
   // Entry transform
   const entryTransform = calculateTransform(
     localFrame,
@@ -60,6 +55,11 @@ export const EnforcedScene: React.FC<EnforcedSceneProps> = ({
     'exit',
     fps
   );
+
+  // Visibility check (prevents duplicate renders)
+  if (localFrame < 0 || localFrame >= sceneDuration) {
+    return null;  // Don't render if outside scene bounds
+  }
 
   // Combine transforms (this is the critical part that ensures proper chaining)
   const combinedTransform = combineTransforms(entryTransform, exitTransform);

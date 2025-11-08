@@ -41,11 +41,6 @@ export const NoOverlapScene: React.FC<NoOverlapSceneProps> = ({
   const globalFrame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // HARD BOUNDARY: Don't render outside range (prevents overlaps)
-  if (globalFrame < startFrame || globalFrame >= endFrame) {
-    return null;  // ENFORCED - no exceptions
-  }
-
   const localFrame = globalFrame - startFrame;
   const sceneDuration = endFrame - startFrame;
 
@@ -57,6 +52,11 @@ export const NoOverlapScene: React.FC<NoOverlapSceneProps> = ({
     exitDuration,
     fps
   );
+
+  // HARD BOUNDARY: Don't render outside range (prevents overlaps)
+  if (globalFrame < startFrame || globalFrame >= endFrame) {
+    return null;  // ENFORCED - no exceptions
+  }
 
   return (
     <AbsoluteFill style={{ transform: exitTransform }}>
