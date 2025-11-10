@@ -1,0 +1,62 @@
+# Test configuration for separated containers
+# Uses different ports to avoid conflicts with current monolithic setup
+
+services:
+  # Test MCP Server Container
+  mcp-server-test:
+    build:
+      context: .
+      dockerfile: mcp-server-separated/Dockerfile
+    container_name: clean-cut-mcp-server-test
+    ports:
+      - "6972:6971"  # Use port 6972 to avoid conflict
+    volumes:
+      - ./clean-cut-workspace:/workspace
+      - ./clean-cut-exports:/workspace/out
+      - clean-cut-mcp-test-data:/app/mcp-server/preferences
+    environment:
+      - NODE_ENV=production
+      - DOCKER_CONTAINER=true
+      - CONTAINER_ROLE=mcp-server
+      - MCP_SERVER_PORT=6971
+      - REMOTION_STUDIO_PORT=6970
+    networks:
+      - clean-cut-test-network
+    restart: "no"  # Don't auto-restart for testing
+
+  # Test Web App Container
+  web-app-test:
+    build:
+      context: .
+      dockerfile: web-app-separated/Dockerfile
+    container_name: clean-cut-web-app-test
+    ports:
+      - "6973:6970"  # Use port 6973 to avoid conflict
+    volumes:
+      - ./clean-cut-workspace:/workspace:ro
+      - ./clean-cut-exports:/workspace/out
+      - clean-cut-web-test-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=production
+      - DOCKER_CONTAINER=true
+      - CONTAINER_ROLE=web-app
+      - REMOTION_STUDIO_PORT=6970
+      - REMOTION_OUTPUT_DIR=/workspace/out
+      - REMOTION_NON_INTERACTIVE=1
+    networks:
+      - clean-cut-test-network
+    depends_on:
+      mcp-server-test:
+        condition: service_healthy
+    restart: "no"  # Don't auto-restart for testing
+
+volumes:
+  clean-cut-mcp-test-data:
+    driver: local
+  clean-cut-web-test-modules:
+    driver: local
+
+networks:
+  clean-cut-test-network:
+    driver: bridge
+    name: clean-cut-mcp-test-network
