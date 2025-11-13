@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  clean-cut-mcp:
+    image: ${IMAGE_REGISTRY:-clean-cut-mcp-clean-cut-mcp}:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-clean-cut-mcp}
+    restart: unless-stopped
+    ports:
+      - "${REMOTION_PORT:-6970}:6970"
+    volumes:
+      - ${EXPORTS_PATH:-./clean-cut-exports}:/workspace/out
+      - ${WORKSPACE_PATH:-./clean-cut-workspace}:/workspace
+      - clean-cut-node-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=production
+      - DOCKER_CONTAINER=true
+      - REMOTION_STUDIO_PORT=6970
+      - WORKSPACE_DIR=/workspace
+      - CHOKIDAR_USEPOLLING=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6970"]
+      interval: ${HEALTH_CHECK_INTERVAL:-30s}
+      timeout: ${HEALTH_CHECK_TIMEOUT:-10s}
+      retries: ${HEALTH_CHECK_RETRIES:-3}
+      start_period: ${HEALTH_CHECK_START_PERIOD:-40s}
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT:-2.0}'
+          memory: '${MEMORY_LIMIT:-4G}'
+        reservations:
+          cpus: '${CPU_RESERVATION:-1.0}'
+          memory: '${MEMORY_RESERVATION:-2G}'
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.clean-cut-mcp.rule=Host(`${DOMAIN:-localhost}`)"
+        - "traefik.http.routers.clean-cut-mcp.entrypoints=websecure"
+        - "traefik.http.routers.clean-cut-mcp.tls.certresolver=letsencrypt"
+        - "traefik.http.services.clean-cut-mcp.loadbalancer.server.port=6970"
+    networks:
+      - clean-cut-network
+
+  # Optional: Reverse proxy for production
+  traefik:
+    image: traefik:v2.10
+    container_name: ${COMPOSE_PROJECT_NAME:-clean-cut-mcp}-traefik
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - clean-cut-network
+    profiles:
+      - with-proxy
+
+  # Optional: Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-clean-cut-mcp}-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - clean-cut-network
+    profiles:
+      - with-monitoring
+
+  # Optional: Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-clean-cut-mcp}-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - clean-cut-network
+    profiles:
+      - with-monitoring
+
+volumes:
+  clean-cut-node-modules:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  clean-cut-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

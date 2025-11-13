@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  clean-cut-mcp:
+    image: clean-cut-mcp-clean-cut-mcp:latest
+    container_name: clean-cut-mcp-prod
+    restart: unless-stopped
+    ports:
+      - "6970:6970"  # Remotion Studio
+      # Port 6971 commented out - MCP uses STDIO only
+    volumes:
+      - ./clean-cut-exports:/workspace/out
+      - ./clean-cut-workspace:/workspace
+      - clean-cut-node-modules:/workspace/node_modules
+    environment:
+      - NODE_ENV=production
+      - DOCKER_CONTAINER=true
+      - REMOTION_STUDIO_PORT=6970
+      - WORKSPACE_DIR=/workspace
+      - CHOKIDAR_USEPOLLING=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6970"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    networks:
+      - clean-cut-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: clean-cut-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./clean-cut-exports:/var/www/exports:ro
+    depends_on:
+      - clean-cut-mcp
+    networks:
+      - clean-cut-network
+
+volumes:
+  clean-cut-node-modules:
+    driver: local
+
+networks:
+  clean-cut-network:
+    driver: bridge

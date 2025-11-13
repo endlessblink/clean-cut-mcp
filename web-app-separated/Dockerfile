@@ -51,7 +51,6 @@ RUN npm install --no-audit --no-fund
 COPY clean-cut-workspace/src ./src
 COPY clean-cut-workspace/public ./public
 COPY clean-cut-workspace/tsconfig.json ./
-COPY clean-cut-workspace/Root.template.tsx ./
 
 # Create directories that might be missing
 RUN mkdir -p src/components src/utils src/patterns src/validated-params src/assets/animations src/assets/audio src/assets/exports

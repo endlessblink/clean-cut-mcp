@@ -12,6 +12,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import { QUALITY_PRESETS, getQualityPreset, listQualityPresets, getQualityForUseCase, generateRenderConfig } from './quality-presets.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -666,6 +667,79 @@ Prevents "Cannot find module" errors when adding/removing animations`,
               properties: {},
               additionalProperties: false
             }
+          },
+          {
+            name: 'list_quality_presets',
+            description: 'List all available professional quality presets for portfolio video rendering',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'get_quality_preset',
+            description: 'Get detailed information about a specific quality preset',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                presetName: {
+                  type: 'string',
+                  description: 'Name of the quality preset (e.g., portfolio_premium, portfolio_web, portfolio_cinema)',
+                  enum: ['portfolio_premium', 'portfolio_web', 'portfolio_cinema', 'portfolio_social', 'portfolio_demo']
+                }
+              },
+              required: ['presetName'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'get_quality_for_use_case',
+            description: 'Get the recommended quality preset for a specific use case',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                useCase: {
+                  type: 'string',
+                  description: 'Intended use case for the video',
+                  enum: ['presentation', 'web', 'cinema', 'social', 'demo']
+                }
+              },
+              required: ['useCase'],
+              additionalProperties: false
+            }
+          },
+          {
+            name: 'configure_render_quality',
+            description: 'Configure Remotion with professional quality settings for high-quality MP4 output',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                presetName: {
+                  type: 'string',
+                  description: 'Quality preset to apply (optional - uses portfolio_premium if not specified)',
+                  enum: ['portfolio_premium', 'portfolio_web', 'portfolio_cinema', 'portfolio_social', 'portfolio_demo']
+                },
+                customSettings: {
+                  type: 'object',
+                  description: 'Custom quality settings (overrides preset)',
+                  properties: {
+                    bitrate: { type: 'string', description: 'Video bitrate (e.g., 20m, 15m)' },
+                    crf: { type: 'number', description: 'Quality factor (14-24, lower = better quality)' },
+                    resolution: {
+                      type: 'object',
+                      properties: {
+                        width: { type: 'number' },
+                        height: { type: 'number' }
+                      }
+                    },
+                    frameRate: { type: 'number', description: 'Frame rate (24, 30, 60)' }
+                  },
+                  additionalProperties: false
+                }
+              },
+              additionalProperties: false
+            }
           }
         ]
       };
@@ -713,6 +787,14 @@ Prevents "Cannot find module" errors when adding/removing animations`,
           return await this.handleViewPreferences(args);
         } else if (name === 'sync_root_file') {
           return await this.handleSyncRoot(args);
+        } else if (name === 'list_quality_presets') {
+          return await this.handleListQualityPresets(args);
+        } else if (name === 'get_quality_preset') {
+          return await this.handleGetQualityPreset(args);
+        } else if (name === 'get_quality_for_use_case') {
+          return await this.handleGetQualityForUseCase(args);
+        } else if (name === 'configure_render_quality') {
+          return await this.handleConfigureRenderQuality(args);
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -3030,6 +3112,223 @@ Root.tsx is now in sync with all animation files.
 No more "Cannot find module" errors!`
       }]
     };
+  }
+
+  private async handleListQualityPresets(args: any) {
+    const presets = listQualityPresets();
+
+    return {
+      content: [{
+        type: 'text',
+        text: `[PROFESSIONAL QUALITY PRESETS]
+
+Available quality presets for portfolio video rendering:
+
+${presets.map(({ key, preset }) => `
+🎬 ${preset.name} (${key})
+   Description: ${preset.description}
+   Use Case: ${preset.useCase}
+   Quality: ${preset.codec} • ${preset.bitrate} • CRF ${preset.crf} • ${preset.resolution.width}x${preset.resolution.height} @ ${preset.frameRate}fps
+   File Size: ~${preset.estimatedFileSize} per minute
+`).join('\n')}
+
+💡 Use 'get_quality_for_use_case' to get the recommended preset for your specific needs.
+   Use 'configure_render_quality' to apply a preset to your Remotion configuration.`
+      }]
+    };
+  }
+
+  private async handleGetQualityPreset(args: any) {
+    const { presetName } = args;
+
+    try {
+      const preset = getQualityPreset(presetName);
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[QUALITY PRESET: ${preset.name.toUpperCase()}]
+
+📋 Description: ${preset.description}
+🎯 Use Case: ${preset.useCase}
+
+🎬 VIDEO SETTINGS:
+  • Codec: ${preset.codec.toUpperCase()}
+  • Bitrate: ${preset.bitrate}
+  • Quality Factor (CRF): ${preset.crf}
+  • Resolution: ${preset.resolution.width}x${preset.resolution.height}
+  • Frame Rate: ${preset.frameRate} fps
+  • Pixel Format: ${preset.pixelFormat}
+  • Encoding Preset: ${preset.preset}
+
+🔊 AUDIO SETTINGS:
+  • Audio Codec: AAC
+  • Audio Bitrate: ${preset.audioBitrate}
+
+💾 ESTIMATED FILE SIZE: ${preset.estimatedFileSize} per minute
+
+⚙️ Use 'configure_render_quality' with presetName: "${presetName}" to apply these settings.`
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Failed to get quality preset "${presetName}": ${error.message}`
+        }]
+      };
+    }
+  }
+
+  private async handleGetQualityForUseCase(args: any) {
+    const { useCase } = args;
+
+    try {
+      const preset = getQualityForUseCase(useCase);
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[RECOMMENDED QUALITY FOR: ${useCase.toUpperCase()}]
+
+🎯 Recommended Preset: ${preset.name}
+📋 Description: ${preset.description}
+
+🎬 OPTIMIZED SETTINGS:
+  • Codec: ${preset.codec.toUpperCase()}
+  • Bitrate: ${preset.bitrate}
+  • Resolution: ${preset.resolution.width}x${preset.resolution.height}
+  • Frame Rate: ${preset.frameRate} fps
+  • Quality Factor: ${preset.crf}
+  • File Size: ${preset.estimatedFileSize} per minute
+
+💡 Perfect for: ${preset.useCase}
+
+⚙️ Apply this preset with: configure_render_quality { presetName: "${Object.keys(QUALITY_PRESETS).find(k => QUALITY_PRESETS[k] === preset) || useCase}" }`
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Failed to get quality for use case "${useCase}": ${error.message}`
+        }]
+      };
+    }
+  }
+
+  private async handleConfigureRenderQuality(args: any) {
+    const { presetName, customSettings } = args;
+
+    try {
+      // Get the preset or use default
+      let preset;
+      if (presetName) {
+        preset = getQualityPreset(presetName);
+      } else {
+        preset = QUALITY_PRESETS.portfolio_premium; // Default
+      }
+
+      // Apply custom settings if provided
+      let finalSettings = { ...preset };
+      if (customSettings) {
+        if (customSettings.bitrate) finalSettings.bitrate = customSettings.bitrate;
+        if (customSettings.crf !== undefined) finalSettings.crf = customSettings.crf;
+        if (customSettings.resolution) {
+          finalSettings.resolution = { ...finalSettings.resolution, ...customSettings.resolution };
+        }
+        if (customSettings.frameRate) finalSettings.frameRate = customSettings.frameRate;
+      }
+
+      // Generate the render configuration
+      const renderConfig = generateRenderConfig(finalSettings);
+
+      // Update the Remotion configuration file
+      const remotionConfigPath = process.env.DOCKER_CONTAINER === 'true'
+        ? '/workspace/remotion.config.ts'
+        : path.join(APP_ROOT, 'clean-cut-workspace', 'remotion.config.ts');
+
+      // Read current config
+      const currentConfig = await fs.readFile(remotionConfigPath, 'utf-8');
+
+      // Create new quality settings section
+      const newQualitySettings = `
+// DYNAMIC QUALITY CONFIGURATION: Applied by configure_render_quality
+// Preset: ${preset.name} ${customSettings ? '(customized)' : ''}
+Config.setVideoImageFormat({
+  codec: '${renderConfig.codec}',
+  bitrate: '${renderConfig.bitrate}',
+  crf: ${renderConfig.crf},
+  pixelFormat: '${finalSettings.pixelFormat}',
+  preset: '${renderConfig.preset}'
+});
+
+Config.setAudioCodec('${renderConfig.audioCodec}');
+Config.setAudioBitrate('${renderConfig.audioBitrate}');
+Config.setCodec('${renderConfig.codec}');
+
+// CUSTOM RESOLUTION SETTINGS (if different from default)
+const currentConfig = {
+  width: ${finalSettings.resolution.width},
+  height: ${finalSettings.resolution.height},
+  fps: ${finalSettings.frameRate}
+};`;
+
+      // Replace or append quality settings
+      let updatedConfig;
+      if (currentConfig.includes('// DYNAMIC QUALITY CONFIGURATION:')) {
+        // Replace existing dynamic configuration
+        updatedConfig = currentConfig.replace(
+          /\/\/ DYNAMIC QUALITY CONFIGURATION:[\s\S]*?const currentConfig = {[\s\S]*?};/,
+          newQualitySettings.trim()
+        );
+      } else {
+        // Append before the last line
+        updatedConfig = currentConfig.replace(
+          /\/\/ Font support enabled via Dockerfile: fonts-noto-color-emoji \+ fontconfig\s*$/,
+          newQualitySettings.trim() + '\n\n// Font support enabled via Dockerfile: fonts-noto-color-emoji + fontconfig'
+        );
+      }
+
+      // Write updated configuration
+      await fs.writeFile(remotionConfigPath, updatedConfig, 'utf-8');
+
+      return {
+        content: [{
+          type: 'text',
+          text: `[QUALITY CONFIGURATION APPLIED]
+
+✅ Successfully configured professional quality settings!
+
+🎬 Applied Preset: ${preset.name} ${customSettings ? '(customized)' : ''}
+
+🎨 Final Configuration:
+  • Codec: ${renderConfig.codec.toUpperCase()}
+  • Bitrate: ${renderConfig.bitrate}
+  • Quality Factor (CRF): ${renderConfig.crf}
+  • Resolution: ${finalSettings.resolution.width}x${finalSettings.resolution.height}
+  • Frame Rate: ${finalSettings.frameRate} fps
+  • Audio: ${renderConfig.audioCodec} @ ${renderConfig.audioBitrate}
+
+💾 Estimated file size: ${finalSettings.estimatedFileSize} per minute
+
+📁 Configuration updated: ${remotionConfigPath}
+
+🔄 Restart Remotion Studio to apply new quality settings:
+   → Access Studio: http://localhost:6970
+   → Export videos with new professional quality
+
+💡 This replaces the problematic ProRes MOV output with high-quality MP4 that's compatible with metadata parsing.`
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: `[ERROR] Failed to configure render quality: ${error.message}`
+        }]
+      };
+    }
   }
 
   async run(): Promise<void> {

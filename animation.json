@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0", 
+  "id": 3, 
+  "method": "tools/call", 
+  "params": {
+    "name": "create_animation", 
+    "arguments": {
+      "animationType": "custom",
+      "code": "import { useCurrentFrame, interpolate } from 'remotion';\n\nexport const ClaudeCodeAnimation = () => {\n  const frame = useCurrentFrame();\n  const opacity = interpolate(frame, [0, 30], [0, 1]);\n  const slide = interpolate(frame, [0, 30], [-100, 0]);\n  \n  return (\n    <div \n      style={{\n        fontSize: '48px',\n        fontWeight: 'bold',\n        color: '#2563eb',\n        opacity,\n        transform: `translateX(${slide}px)`,\n        display: 'flex',\n        alignItems: 'center',\n        justifyContent: 'center',\n        height: '100%',\n        backgroundColor: '#f8fafc'\n      }}\n    >\n      Hello from Claude Code! 🎬\n    </div>\n  );\n};\n\nexport const duration = 3;",
+      "componentName": "ClaudeCodeAnimation"
+    }
+  }
+}

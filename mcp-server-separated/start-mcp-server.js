@@ -73,7 +73,7 @@ function startMCPServer() {
   // The MCP server runs as STDIO (as expected by Claude Desktop)
   // We'll use the existing clean-stdio-server
   const mcpServer = spawn('node', [
-    path.join(__dirname, '../mcp-server/dist/clean-stdio-server.js')
+    path.join(__dirname, 'mcp-server/dist/clean-stdio-server.js')
   ], {
     stdio: 'inherit',
     env: {

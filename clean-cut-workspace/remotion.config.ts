@@ -32,3 +32,8 @@ Config.overrideWebpackConfig((config) => {
 // EMOJI FONT FIX: Emoji fonts installed in Docker image (fonts-noto-color-emoji)
 // Chrome headless will use system fonts automatically for emoji rendering
 // Font support enabled via Dockerfile: fonts-noto-color-emoji + fontconfig
+
+// PROFESSIONAL QUALITY SETTINGS: High-quality MP4 output for portfolio work
+// Configure Remotion to output professional-quality MP4 instead of dual-format (MP4 + ProRes MOV)
+Config.setCodec('h264');           // Force H.264 codec for metadata compatibility
+Config.setOverwriteOutput(true);    // Allow overwriting for iterations

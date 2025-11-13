@@ -14,11 +14,13 @@ import { FlowingParticles } from './assets/animations/FlowingParticles';
 import { GitHubProfileShowcaseEnhanced } from './assets/animations/GitHubProfileShowcaseEnhanced';
 import { KineticText } from './assets/animations/KineticText';
 import { MarioDashcamStop } from './assets/animations/MarioDashcamStop';
+import { MorphicBlobAnimation } from './assets/animations/MorphicBlobAnimation';
 import { NoOverlapShowcase } from './assets/animations/NoOverlapShowcase';
 import { PacmanGameImproved } from './assets/animations/PacmanGameImproved';
 import { ParticleEffects } from './assets/animations/ParticleEffects';
 import { SaaSProductShowcase } from './assets/animations/SaaSProductShowcase';
 import { SocialMediaFeed } from './assets/animations/SocialMediaFeed';
+import { TestAnimation } from './assets/animations/TestAnimation';
 import { WolfOfAIStreet } from './assets/animations/WolfOfAIStreet';
 
 const AllGasNoBrakesAnimationSchema = z.object({
@@ -80,6 +82,11 @@ const ParticleEffectsSchema = z.object({
   title: z.string().optional(),
   backgroundColor: z.string().optional(),
   showLabels: z.boolean().optional()
+});
+const TestAnimationSchema = z.object({
+  title: z.string().optional(),
+  accentColor: z.string().optional(),
+  backgroundColor: z.string().optional()
 });
 const WolfOfAIStreetSchema = z.object({
   accentColor: z.string().optional(),
@@ -211,6 +218,14 @@ export const RemotionRoot: React.FC = () => {
         schema={MarioDashcamStopSchema}
       />
       <Composition
+        id="MorphicBlobAnimation"
+        component={MorphicBlobAnimation}
+        durationInFrames={240}
+        fps={30}
+        width={1920}
+        height={1080}
+      />
+      <Composition
         id="NoOverlapShowcase"
         component={NoOverlapShowcase}
         durationInFrames={450}
@@ -250,6 +265,15 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
+      />
+      <Composition
+        id="TestAnimation"
+        component={TestAnimation}
+        durationInFrames={180}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={TestAnimationSchema}
       />
       <Composition
         id="WolfOfAIStreet"
