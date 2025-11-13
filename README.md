@@ -1,78 +1,94 @@
 # Clean-Cut-MCP: AI Video Generation for Claude Desktop
 
-![Clean-Cut-MCP](clean-cut-cover.jpg)
-
 **Transform natural language into professional videos using Claude Desktop + Remotion.**
 
 Simply describe your animation, and watch Claude create stunning React-powered videos in a persistent studio environment.
 
-## 🆕 NEW in v2.1.0
+![Status](https://img.shields.io/badge/Status-Production%20Ready-green) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue) ![License](https://img.shields.io/badge/License-Remotion%20%2B%20MIT-orange)
+
+---
+
+## 🚀 **INSTALLATION (5 minutes)**
+
+### **Step 1: Pull Container**
+```bash
+docker pull endlessblink/clean-cut-mcp:latest
+```
+
+### **Step 2: Run Container**
+```bash
+docker run -d --name clean-cut-mcp -p 6970:6970 -v ./clean-cut-exports:/workspace/out -v ./clean-cut-workspace:/workspace --restart unless-stopped endlessblink/clean-cut-mcp:latest
+```
+
+### **Step 3: Configure Claude Desktop**
+
+**Option A: Quick Installer (Recommended for Windows)**
+```powershell
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install-quick.ps1' -OutFile 'install-quick.ps1'; powershell -ExecutionPolicy Bypass -File 'install-quick.ps1'"
+```
+
+**Option B: Manual Installation**
+```bash
+# Windows PowerShell:
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install.ps1' -OutFile 'install.ps1'; powershell -ExecutionPolicy Bypass -File 'install.ps1'"
+
+# Linux/macOS:
+curl -fsSL https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install.ps1 | pwsh -ExecutionPolicy Bypass -
+```
+
+### **Step 4: Restart Claude Desktop**
+Close Claude Desktop completely and restart it.
+
+**✅ Result:** Remotion Studio at http://localhost:6970 + Claude Desktop integration ready
+
+---
+
+## 🆕 **What's New in v2.1.0**
+
 - **🛡️ Animation Validation System**: Prevents syntax errors in generated code
 - **🔧 MCP Singleton Management**: No more duplicate processes or conflicts
 - **📝 Config Preservation**: Safely preserves existing MCP servers during installation
 - **🎯 Auto-Fix System**: Automatically corrects common TypeScript issues
+- **⚡ PowerShell Execution Bypass**: No more security policy issues
 
-![Status](https://img.shields.io/badge/Status-Production%20Ready-green) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue) ![License](https://img.shields.io/badge/License-Remotion%20%2B%20MIT-orange)
+---
 
-## Quick Start
+## 🎬 **Quick Demo Test**
 
-**Windows:**
-```powershell
-# Download and run Windows installer (one-line command)
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install-windows.ps1" -OutFile "install-windows.ps1" -UseBasicParsing; .\install-windows.ps1
+After installation, try these commands in Claude Desktop:
+
+```
+User: "Create a simple welcome animation with the text 'Hello AI Video Generation'"
+User: "List all existing animation components"
+User: "Get the Remotion Studio URL"
 ```
 
-**Linux/macOS:**
-```bash
-# Download and run Linux/macOS installer (one-line command)
-curl -fsSL https://raw.githubusercontent.com/endlessblink/clean-cut-mcp/master/install.ps1 -o install.ps1; pwsh install.ps1
-```
+---
 
-**Result:** Remotion Studio at http://localhost:6970 + Claude Desktop integration
+## 🎯 **Use Cases**
 
-## Installation Overview
-
-**Prerequisites**: Docker Desktop (Windows/Mac/Linux)
-
-```bash
-# 1. Pull and run the container
-docker run -d --name clean-cut-mcp --restart unless-stopped \
-  -p 6970:6970 \
-  -v ./clean-cut-exports:/workspace/out \
-  endlessblink/clean-cut-mcp:latest
-
-# 2. Configure Claude Desktop (one-time setup)
-# Add MCP server to claude_desktop_config.json
-
-# 3. Start creating videos
-# Ask Claude: "Create a sliding text animation"
-```
-
-**Detailed setup instructions**: [Setup Guide](docs/SETUP-GUIDE.md)
-
-## Use Cases
-
-### Content Creators
+### **Content Creators**
 - **YouTube Intros**: Professional animated intros with your branding
-- **Social Media**: Quick animations for Instagram, TikTok stories  
+- **Social Media**: Quick animations for Instagram, TikTok stories
 - **Explainer Videos**: Animated sequences for complex topics
 - **Brand Animations**: Logo reveals, product showcases
 
-### Marketers & Businesses  
+### **Marketers & Businesses**
 - **Ad Creatives**: Animated ads for multiple platforms
 - **Presentation Graphics**: Data visualizations, animated charts
 - **Website Assets**: Loading animations, interactive elements
 - **A/B Testing**: Generate multiple animation variants quickly
 
-### Educators & Trainers
+### **Educators & Trainers**
 - **Course Content**: Visual explanations of complex concepts
 - **Interactive Lessons**: Animated diagrams and processes
 - **Student Projects**: Help students create professional presentations
 - **Training Materials**: Animated guides and tutorials
 
-## Architecture & Technical Details
+---
 
-### System Design
+## 🏗️ **Architecture**
+
 ```
 Claude Desktop (Windows/Mac/Linux)
     ↓ MCP Protocol (STDIO transport)
@@ -83,51 +99,75 @@ Remotion Studio (Port 6970) + MCP Server + Node.js Runtime
 ./clean-cut-exports/ (Your Videos)
 ```
 
-### Container Specifications
-- **Base**: Node.js 22 with Chrome/Chromium for video rendering
-- **Ports**: 6970 (Remotion Studio)
-- **Volumes**: `/workspace/out` mounted to `./clean-cut-exports/`
-- **Resources**: ~512MB RAM, 1GB disk space
-- **Restart Policy**: `unless-stopped` for reliability
+### **System Requirements**
+- **Docker Desktop** installed and running
+- **Claude Desktop** installed
+- **4GB RAM** recommended for video rendering
+- **2GB disk space** for container and videos
 
-### MCP Integration
-- **Transport**: STDIO via Docker exec (most stable)
-- **Tools**: 4 core tools for animation generation and management
-- **Error Handling**: Graceful fallbacks, detailed error messages
-- **Logging**: Container logs available via `docker logs clean-cut-mcp`
+---
 
-## Comparison with Alternatives
+## 🛠️ **Available MCP Tools**
 
-| Approach | Pros | Cons | Best For |
-|----------|------|------|----------|
-| **Clean-Cut-MCP** | Visual workflow, image integration, persistent studio | Docker requirement | Creators who want GUI experience |
-| **Claude Code + Remotion** | Simple npm setup, no Docker | Command-line only, no image paste | Developers comfortable with terminal |
-| **Web-based AI Video** | No installation | Monthly fees, limited customization | Casual users, simple animations |
-| **Traditional Video Editors** | Full-featured | Manual work, steep learning curve | Professional video production |
+Clean-Cut-MCP provides 18 professional animation tools:
 
-## Getting Started
+**Core Animation Tools:**
+- `create_animation` - Generate animations from natural language
+- `list_existing_components` - View available animation templates
+- `rebuild_compositions` - Refresh animation registry
+- `delete_component` - Remove animations safely
 
-1. **[Setup Guide](docs/SETUP-GUIDE.md)** - Install Docker Desktop and configure Clean-Cut-MCP
-2. **[User Guide](docs/USER-GUIDE.md)** - Learn the MCP tools and create your first animation  
-3. **[Examples](docs/EXAMPLES.md)** - Sample animations and use cases
-4. **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+**Professional Features:**
+- `generate_with_learning` - AI-powered animation with learned preferences
+- `record_user_correction` - System learns from your feedback
+- `upload_asset` - Add images, logos, audio to animations
+- `format_code` - Professional code formatting
 
-## Community & Support
+---
+
+## 🔧 **Troubleshooting**
+
+### **Installation Issues**
+```bash
+# Check container is running
+docker ps | grep clean-cut-mcp
+
+# Check Remotion Studio is accessible
+curl http://localhost:6970
+
+# Check Claude Desktop configuration
+cat ~/.config/Claude/claude_desktop_config.json | grep clean-cut-mcp
+```
+
+### **PowerShell Security Issues**
+If you get execution policy errors, use the bypass commands shown in Step 3.
+
+### **Port Conflicts**
+If port 6970 is in use:
+```bash
+# Use alternative port
+docker run -d --name clean-cut-mcp -p 6971:6970 -v ./clean-cut-exports:/workspace/out -v ./clean-cut-workspace:/workspace --restart unless-stopped endlessblink/clean-cut-mcp:latest
+```
+
+---
+
+## 📚 **Documentation**
+
+- **[User Guide](docs/USER-GUIDE.md)** - Complete tool reference
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Examples](docs/EXAMPLES.md)** - Sample animations and use cases
+
+---
+
+## 🤝 **Community & Support**
 
 - **GitHub Issues**: Bug reports and feature requests
 - **Discussions**: Share animations, ask questions
 - **Docker Hub**: Pre-built container images
-- **Documentation**: Comprehensive guides and examples
 
-## Contributing
+---
 
-Clean-Cut-MCP is open source and welcomes contributions:
-- **Bug Reports**: Found an issue? Please report it
-- **Feature Requests**: Ideas for new MCP tools or capabilities
-- **Documentation**: Help improve setup guides and examples
-- **Code**: Container improvements, new animation templates
-
-## License
+## 📄 **License**
 
 **This project uses Remotion**, which has special licensing requirements:
 
@@ -138,12 +178,8 @@ Clean-Cut-MCP is open source and welcomes contributions:
 **Clean-Cut-MCP container/MCP server code**: MIT License
 **Remotion dependency**: Subject to Remotion's license terms
 
-Please review Remotion's licensing requirements before commercial use.
-
 ---
 
-**Ready to start creating?** → [Setup Guide](docs/SETUP-GUIDE.md)
+**🎬 Ready to start creating? Follow the 4 installation steps above!**
 
-**Questions or issues?** → [Troubleshooting](docs/TROUBLESHOOTING.md)
-
-**Want to see examples?** → [Examples](docs/EXAMPLES.md)
+**Questions or issues?** → Check the [Troubleshooting](docs/TROUBLESHOOTING.md) guide
